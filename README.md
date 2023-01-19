@@ -6,10 +6,10 @@ Custom Flight Controller using ESP32.
 - Transmittor: T8S  
 - Receiver: R8EF 8 Channels 
 # IN PROGRESS
-- TODO: Add start_stop_takeoff for motors 
-- TODO: Test mixer algorithm for PITCH,YAW,ROLL,thrust
-- TODO: Create a PID algorithm for PITCH,YAW,ROLL,thrust
-- TODO: Create failsafe algorithm 
+- Add start_stop_takeoff for motors 
+- Test mixer algorithm for PITCH,YAW,ROLL,THRUST
+- PID algorithm for PITCH,YAW,ROLL,THRUST
+- failsafe algorithm 
 # DISCLAIMER 
 - This project is currently work in progress. 
 
