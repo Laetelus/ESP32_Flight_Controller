@@ -13,4 +13,3 @@ TODO: Create failsafe algorithm
 # DISCLAIMER 
 - This project is currently work in progress. 
 ![drone1](https://user-images.githubusercontent.com/72906227/213342396-0f88d2d2-977f-4f84-8c85-83eedcf9172e.jpeg)
-![Drone2](https://user-images.githubusercontent.com/72906227/211233589-838d92fd-eede-4dc7-848b-ad49c8b356f4.jpeg)
