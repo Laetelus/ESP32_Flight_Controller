@@ -12,5 +12,5 @@ Custom Flight Controller using ESP32.
 - failsafe algorithm 
 # DISCLAIMER 
 - This project is currently work in progress. 
-<img src="[https://user-images.githubusercontent.com/72906227/189572957-e2ed73ae-ee11-4dec-8f47-375bf29fe487.jpeg](https://user-images.githubusercontent.com/72906227/213342396-0f88d2d2-977f-4f84-8c85-83eedcf9172e.jpeg)" width=20% height=20%>
+
 ![drone1](https://user-images.githubusercontent.com/72906227/213344766-74005e84-d1fe-4808-a053-4b3fe372d21c.jpeg)
