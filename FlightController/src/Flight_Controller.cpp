@@ -78,7 +78,7 @@ void loop() {
     motc = map(motc, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH);
     motd = map(motd, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH);
 
-    // Updated which propellers are CCW || CW
+    // Updated which propellers are CCW or CW
     motA.writeMicroseconds(motb); //CCW 
     motB.writeMicroseconds(motd); //CW
     motC.writeMicroseconds(mota); //CW
