@@ -6,6 +6,8 @@
 
 #include <PPMReader.h>
 #include<ESP32Servo.h> 
+#include <PID_v1.h>
+#include"MPU6050.h"
 // Initialize a PPMReader on digital pin 3 with 6 expected channels.
 byte interruptPin = 13; // PPM pin connector 
 byte channelAmount = 4; // Number of channels to use 
@@ -23,10 +25,10 @@ byte channelAmount = 4; // Number of channels to use
 Servo motA,motB,motC,motD; 
 PPMReader ppm(interruptPin, channelAmount);
 
- unsigned THROTTLE = 0; 
- unsigned YAW = 0; 
- unsigned ROLL =  0; 
- unsigned PITCH = 0; 
+int16_t THROTTLE = 0; 
+int16_t YAW = 0; 
+int16_t ROLL =  0; 
+int16_t PITCH = 0; 
 
  int start = 0; //Flag to indicate whether to start
 
@@ -48,7 +50,7 @@ void setup() {
 }
 
 void loop() {
- 
+
   THROTTLE = ppm.rawChannelValue(2); // Left Joystick up and down 
   YAW = ppm.rawChannelValue(4); // Left joystick Left and right   
   ROLL = ppm.rawChannelValue(1); // Right joystick Left and right 
@@ -62,29 +64,28 @@ void loop() {
 
       // Scale the input values to a range of 0 to 100
     THROTTLE = map(THROTTLE, 1000, 2000, 0, 100);
-    YAW = map(YAW, 1000, 2000, -50, 50);
+    YAW = map(YAW, 1000, 2000, -80, 80);
     PITCH = map(PITCH, 1000, 2000, -50, 50);
-    ROLL = map(ROLL, 1000, 2000, -50, 50);
+    ROLL = map(ROLL, 1000, 2000, 50, -50);
 
     // Mix the input values to determine the speed and direction of each motor
-    int mota = THROTTLE + YAW + PITCH - ROLL;
-    int motb = THROTTLE - YAW + PITCH + ROLL;
-    int motc = THROTTLE - YAW - PITCH - ROLL;
-    int motd = THROTTLE + YAW - PITCH + ROLL;
-
-    // Scale the output values to the range of MIN_PULSE_LENGTH to MAX_PULSE_LENGTH
-    mota = map(mota, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH); 
-    motb = map(motb, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH); 
-    motc = map(motc, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH);
-    motd = map(motd, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH);
-
+    //Needs to write to PID_output
+    int16_t mota = map(THROTTLE + YAW + PITCH - ROLL, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH);
+    int16_t motb = map(THROTTLE - YAW + PITCH + ROLL, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH);
+    int16_t motc = map(THROTTLE - YAW - PITCH - ROLL, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH);
+    int16_t motd = map(THROTTLE + YAW - PITCH + ROLL, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH);
+    
     // Updated which propellers are CCW or CW
-    motA.writeMicroseconds(motb); //CCW 
-    motB.writeMicroseconds(motd); //CW
-    motC.writeMicroseconds(mota); //CW
-    motD.writeMicroseconds(motc); //CCW
+    motA.writeMicroseconds(motb); // Front right CCW 
+    motB.writeMicroseconds(motd); // Back right CW
+    motC.writeMicroseconds(mota); // Front left CW
+    motD.writeMicroseconds(motc); // Back left CCW
+        
     Serial.println();
     Serial.print("motA: "); Serial.println(mota); Serial.print("motB: "); Serial.println(motb); Serial.print("motC: "); Serial.println(motc); Serial.print("motD: "); Serial.println(motd);
+
+    Serial.println();
+    //Serial.print("motA: "); Serial.println(mota); Serial.print("motB: "); Serial.println(motb); Serial.print("motC: "); Serial.println(motc); Serial.print("motD: "); Serial.println(motd);
    
     delay(500);
 }
