@@ -70,16 +70,21 @@ void loop() {
 
     // Mix the input values to determine the speed and direction of each motor
     //Needs to write to PID_output
-    int16_t mota = map(THROTTLE + YAW + PITCH - ROLL, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH);
-    int16_t motb = map(THROTTLE - YAW + PITCH + ROLL, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH);
-    int16_t motc = map(THROTTLE - YAW - PITCH - ROLL, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH);
-    int16_t motd = map(THROTTLE + YAW - PITCH + ROLL, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH);
+    int16_t mota = map(THROTTLE + PITCH - ROLL + YAW, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH); //FR
+    int16_t motb = map(THROTTLE - PITCH - ROLL - YAW, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH); //BR
+    int16_t motc = map(THROTTLE + PITCH + ROLL - YAW, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH); //FL
+    int16_t motd = map(THROTTLE - PITCH + ROLL + YAW, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH); //BL
     
-    // Updated which propellers are CCW or CW
-    motA.writeMicroseconds(motb); // Front right CCW 
-    motB.writeMicroseconds(motd); // Back right CW
-    motC.writeMicroseconds(mota); // Front left CW
-    motD.writeMicroseconds(motc); // Back left CCW
+    motA.writeMicroseconds(mota); // CCW 
+    motB.writeMicroseconds(motb); // CW 
+    motC.writeMicroseconds(motc); // CW
+    motD.writeMicroseconds(motd); // CCW
+    
+    // // Updated which propellers are CCW or CW
+    // motA.writeMicroseconds(motb); // CCW 
+    // motB.writeMicroseconds(motd); // CW
+    // motC.writeMicroseconds(mota); // CW
+    // motD.writeMicroseconds(motc); // CCW
         
     Serial.println();
     Serial.print("motA: "); Serial.println(mota); Serial.print("motB: "); Serial.println(motb); Serial.print("motC: "); Serial.println(motc); Serial.print("motD: "); Serial.println(motd);
