@@ -20,7 +20,7 @@ byte channelAmount = 4; // Number of channels to use
 
 #define MIN_PULSE_LENGTH 1000 // Minimum pulse length in µs
 #define MAX_PULSE_LENGTH 2000 // Maximum pulse length in µs
-#define MID_PULSE_LENGTH 1400 //Neutral pulse length in µs
+#define MID_PULSE_LENGTH 1500 //Neutral pulse length in µs
 
 Servo motA,motB,motC,motD; 
 PPMReader ppm(interruptPin, channelAmount);
@@ -66,7 +66,7 @@ void loop() {
     THROTTLE = map(THROTTLE, 1000, 2000, 0, 100);
     YAW = map(YAW, 1000, 2000, -80, 80);
     PITCH = map(PITCH, 1000, 2000, -50, 50);
-    ROLL = map(ROLL, 1000, 2000, 50, -50);
+    ROLL = map(ROLL, 1000, 2000, -50, 50);
 
     // Mix the input values to determine the speed and direction of each motor
     //Needs to write to PID_output
@@ -75,22 +75,65 @@ void loop() {
     int16_t motc = map(THROTTLE + PITCH + ROLL - YAW, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH); //FL
     int16_t motd = map(THROTTLE - PITCH + ROLL + YAW, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH); //BL
     
+     Serial.println();
+    Serial.print("motA: "); Serial.println(mota); Serial.print("motB: "); Serial.println(motb); Serial.print("motC: "); Serial.println(motc); Serial.print("motD: "); Serial.println(motd);
+
+    
+    // //Roll  
+    // if(motc > 1651 && motd > 1631){ // Roll left
+    //   motC.writeMicroseconds(motc);
+    //   motD.writeMicroseconds(motd);
+    //   motA.writeMicroseconds(MID_PULSE_LENGTH);
+    //   motB.writeMicroseconds(MID_PULSE_LENGTH);
+    //   Serial.println("Roll left"); Serial.println();
+    // }else if (motc < 1521 && motd < 1521){ // Roll Right 
+    //   motC.writeMicroseconds(MID_PULSE_LENGTH);
+    //   motD.writeMicroseconds(MID_PULSE_LENGTH);
+    //   motA.writeMicroseconds(mota);
+    //   motB.writeMicroseconds(motb);
+    //   Serial.println("Roll Right"); Serial.println();
+    // }
+    // else{
+    //   motA.writeMicroseconds(mota); // CCW 
+    //   motB.writeMicroseconds(motb); // CW 
+    //   motC.writeMicroseconds(motc); // CW
+    //   motD.writeMicroseconds(motd); // CCW
+    //   Serial.print("Roll Neutral"); Serial.println(); 
+    // }
+
+    // //Pitch 
+    // if(motb  > 1551 && motd > 1551){
+    //   motA.writeMicroseconds(MID_PULSE_LENGTH); 
+    //   motC.writeMicroseconds(MID_PULSE_LENGTH);
+    //   motB.writeMicroseconds(motb); 
+    //   motD.writeMicroseconds(motd); 
+    //   Serial.println("Pitch Up"); 
+    // }
+    // else if(motb < 1331 && motd < 1331){
+    //   motA.writeMicroseconds(mota); 
+    //   motC.writeMicroseconds(motc);
+    //   motB.writeMicroseconds(MID_PULSE_LENGTH); 
+    //   motD.writeMicroseconds(MID_PULSE_LENGTH); 
+    //   Serial.println("Pitch Down"); 
+    // }
+    // else{
+    //   motA.writeMicroseconds(mota); // CCW 
+    //   motB.writeMicroseconds(motb); // CW 
+    //   motC.writeMicroseconds(motc); // CW
+    //   motD.writeMicroseconds(motd); // CCW
+    //   Serial.print("Pitch Neutral"); Serial.println(); 
+    // }
+
+
     motA.writeMicroseconds(mota); // CCW 
     motB.writeMicroseconds(motb); // CW 
     motC.writeMicroseconds(motc); // CW
     motD.writeMicroseconds(motd); // CCW
-    
-    // // Updated which propellers are CCW or CW
-    // motA.writeMicroseconds(motb); // CCW 
-    // motB.writeMicroseconds(motd); // CW
-    // motC.writeMicroseconds(mota); // CW
-    // motD.writeMicroseconds(motc); // CCW
         
-    Serial.println();
-    Serial.print("motA: "); Serial.println(mota); Serial.print("motB: "); Serial.println(motb); Serial.print("motC: "); Serial.println(motc); Serial.print("motD: "); Serial.println(motd);
+    // Serial.println();
+    // Serial.print("motA: "); Serial.println(mota); Serial.print("motB: "); Serial.println(motb); Serial.print("motC: "); Serial.println(motc); Serial.print("motD: "); Serial.println(motd);
 
     Serial.println();
-    //Serial.print("motA: "); Serial.println(mota); Serial.print("motB: "); Serial.println(motb); Serial.print("motC: "); Serial.println(motc); Serial.print("motD: "); Serial.println(motd);
-   
+ 
     delay(500);
 }
