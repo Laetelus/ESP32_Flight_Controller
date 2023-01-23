@@ -75,39 +75,40 @@ void loop() {
     int16_t motc = map(THROTTLE + PITCH + ROLL - YAW, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH); //FL
     int16_t motd = map(THROTTLE - PITCH + ROLL + YAW, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH); //BL
     
-     Serial.println();
+    Serial.println();
     Serial.print("motA: "); Serial.println(mota); Serial.print("motB: "); Serial.println(motb); Serial.print("motC: "); Serial.println(motc); Serial.print("motD: "); Serial.println(motd);
 
+    //throttle
     
-    // //Roll  
-    // if(motc > 1651 && motd > 1631){ // Roll left
-    //   motC.writeMicroseconds(motc);
-    //   motD.writeMicroseconds(motd);
-    //   motA.writeMicroseconds(MID_PULSE_LENGTH);
-    //   motB.writeMicroseconds(MID_PULSE_LENGTH);
-    //   Serial.println("Roll left"); Serial.println();
-    // }else if (motc < 1521 && motd < 1521){ // Roll Right 
-    //   motC.writeMicroseconds(MID_PULSE_LENGTH);
-    //   motD.writeMicroseconds(MID_PULSE_LENGTH);
-    //   motA.writeMicroseconds(mota);
-    //   motB.writeMicroseconds(motb);
-    //   Serial.println("Roll Right"); Serial.println();
-    // }
-    // else{
-    //   motA.writeMicroseconds(mota); // CCW 
-    //   motB.writeMicroseconds(motb); // CW 
-    //   motC.writeMicroseconds(motc); // CW
-    //   motD.writeMicroseconds(motd); // CCW
-    //   Serial.print("Roll Neutral"); Serial.println(); 
-    // }
+    //Roll  
+    if(motc < 1301 && motd < 1141){ // Roll right
+      motC.writeMicroseconds(motc);
+      motD.writeMicroseconds(motd);
+      motA.writeMicroseconds(MID_PULSE_LENGTH);
+      motB.writeMicroseconds(MID_PULSE_LENGTH);
+      Serial.println("Roll Right");  Serial.println();
+    }else if (mota < 1171 && motb < 1301){ // Roll left 
+      motC.writeMicroseconds(MID_PULSE_LENGTH);
+      motD.writeMicroseconds(MID_PULSE_LENGTH);
+      motA.writeMicroseconds(mota);
+      motB.writeMicroseconds(motb);
+      Serial.println("Roll Left"); Serial.println();
+    }
+    else{ //Neutral
+      motA.writeMicroseconds(mota); // CCW 
+      motB.writeMicroseconds(motb); // CW 
+      motC.writeMicroseconds(motc); // CW
+      motD.writeMicroseconds(motd); // CCW
+      Serial.print("Roll Neutral"); Serial.println();
+    }
 
-    // //Pitch 
+    //  //Pitch 
     // if(motb  > 1551 && motd > 1551){
     //   motA.writeMicroseconds(MID_PULSE_LENGTH); 
     //   motC.writeMicroseconds(MID_PULSE_LENGTH);
     //   motB.writeMicroseconds(motb); 
     //   motD.writeMicroseconds(motd); 
-    //   Serial.println("Pitch Up"); 
+    //   Serial.println("Pitch Up"); Serial.println();
     // }
     // else if(motb < 1331 && motd < 1331){
     //   motA.writeMicroseconds(mota); 
@@ -121,19 +122,13 @@ void loop() {
     //   motB.writeMicroseconds(motb); // CW 
     //   motC.writeMicroseconds(motc); // CW
     //   motD.writeMicroseconds(motd); // CCW
-    //   Serial.print("Pitch Neutral"); Serial.println(); 
+    //   Serial.print("Pitch Neutral"); 
     // }
 
-
-    motA.writeMicroseconds(mota); // CCW 
-    motB.writeMicroseconds(motb); // CW 
-    motC.writeMicroseconds(motc); // CW
-    motD.writeMicroseconds(motd); // CCW
+    // motA.writeMicroseconds(mota); // CCW 
+    // motB.writeMicroseconds(motb); // CW 
+    // motC.writeMicroseconds(motc); // CW
+    // motD.writeMicroseconds(motd); // CCW
         
-    // Serial.println();
-    // Serial.print("motA: "); Serial.println(mota); Serial.print("motB: "); Serial.println(motb); Serial.print("motC: "); Serial.println(motc); Serial.print("motD: "); Serial.println(motd);
-
-    Serial.println();
- 
     delay(500);
 }
