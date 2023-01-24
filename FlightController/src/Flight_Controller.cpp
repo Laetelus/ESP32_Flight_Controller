@@ -1,13 +1,8 @@
-//TODO: Add start_stop_takeoff for motors 
-//TODO: Test mixer algorithm for PITCH,YAW,ROLL,thrust
-//TODO: Create a PID algorithm for PITCH,YAW,ROLL,thrust
-//TODO: Create failsafe algorithm using MPU6050 
-
-
 #include <PPMReader.h>
-#include<ESP32Servo.h> 
+#include <ESP32Servo.h> 
 #include <PID_v1.h>
-#include"MPU6050.h"
+#include "MPU6050.h"
+
 // Initialize a PPMReader on digital pin 3 with 6 expected channels.
 byte interruptPin = 13; // PPM pin connector 
 byte channelAmount = 4; // Number of channels to use 
@@ -25,12 +20,18 @@ byte channelAmount = 4; // Number of channels to use
 Servo motA,motB,motC,motD; 
 PPMReader ppm(interruptPin, channelAmount);
 
-int16_t THROTTLE = 0; 
-int16_t YAW = 0; 
-int16_t ROLL =  0; 
-int16_t PITCH = 0; 
+//Declare variables for PID controllers
+double throttleSetpoint, throttleInput, throttleOutput;
+double yawSetpoint, yawInput, yawOutput;
+double rollSetpoint, rollInput, rollOutput;
+double pitchSetpoint, pitchInput, pitchOutput;
 
- int start = 0; //Flag to indicate whether to start
+PID throttlePID(&throttleInput, &throttleOutput, &throttleSetpoint, 2, 5, 1, DIRECT);
+PID yawPID(&yawInput, &yawOutput, &yawSetpoint, 2, 5, 1, DIRECT);
+PID rollPID(&rollInput, &rollOutput, &rollSetpoint, 2, 5, 1, DIRECT);
+PID pitchPID(&pitchInput, &pitchOutput, &pitchSetpoint, 2, 5, 1, DIRECT);
+
+int start = 0; //Flag to indicate whether to start
 
 void setup() {
     Serial.begin(115200);
@@ -47,88 +48,67 @@ void setup() {
     motC.writeMicroseconds(MIN_PULSE_LENGTH); 
     motD.writeMicroseconds(MIN_PULSE_LENGTH); 
 
+    //Initialize the PID controllers
+    throttlePID.SetMode(AUTOMATIC);
+    yawPID.SetMode(AUTOMATIC);
+    rollPID.SetMode(AUTOMATIC);
+    pitchPID.SetMode(AUTOMATIC);
+        // Set the sample time
+    uint_fast16_t sample_time = 20; // in milliseconds
+    throttlePID.SetSampleTime(sample_time);
+    rollPID.SetSampleTime(sample_time);
+    pitchPID.SetSampleTime(sample_time);
+    yawPID.SetSampleTime(sample_time);
+
+    //set the output limits
+    // throttlePID.SetOutputLimits(MIN_PULSE_LENGTH,MAX_PULSE_LENGTH);
+    // rollPID.SetOutputLimits(MIN_PULSE_LENGTH,MAX_PULSE_LENGTH); 
+    // pitchPID.SetOutputLimits(MIN_PULSE_LENGTH,MAX_PULSE_LENGTH); 
+    // yawPID.SetOutputLimits(MIN_PULSE_LENGTH,MAX_PULSE_LENGTH); 
 }
 
 void loop() {
+    //Read the raw channel values
+    int16_t throttle = ppm.rawChannelValue(3);
+    int16_t yaw = ppm.rawChannelValue(4);
+    int16_t roll = ppm.rawChannelValue(1);
+    int16_t pitch = ppm.rawChannelValue(2);
 
-  THROTTLE = ppm.rawChannelValue(2); // Left Joystick up and down 
-  YAW = ppm.rawChannelValue(4); // Left joystick Left and right   
-  ROLL = ppm.rawChannelValue(1); // Right joystick Left and right 
-  PITCH =  ppm.rawChannelValue(3); // Right joystick Up and down 
+    // Scale the input values to a range of 0 to 100
+    throttleInput = map(throttle, 1000, 2000, 0, 100);
+    yawInput = map(yaw, 1000, 2000, -80, 80);
+    rollInput = map(roll, 1000, 2000, -50, 50);
+    pitchInput = map(pitch, 1000, 2000, -50, 50);
+    
+    //Set the setpoints
+    throttleSetpoint = 0;
+    yawSetpoint = 0;
+    rollSetpoint = 0;
+    pitchSetpoint = 0;
 
-  Serial.println();
-  Serial.print("THROTTLE: " + String(THROTTLE) + "\n");
-  Serial.print("YAW: " + String(YAW) + "\n");
-  Serial.print("PITCH: " + String(PITCH) + "\n");
-  Serial.print("ROLL: " + String(ROLL) + "\n");
+    //Call the Compute function for each PID controller
+    throttlePID.Compute();
+    yawPID.Compute();
+    rollPID.Compute();
+    pitchPID.Compute();
 
-      // Scale the input values to a range of 0 to 100
-    THROTTLE = map(THROTTLE, 1000, 2000, 0, 100);
-    YAW = map(YAW, 1000, 2000, -80, 80);
-    PITCH = map(PITCH, 1000, 2000, -50, 50);
-    ROLL = map(ROLL, 1000, 2000, -50, 50);
-
-    // Mix the input values to determine the speed and direction of each motor
-    //Needs to write to PID_output
-    int16_t mota = map(THROTTLE + PITCH - ROLL + YAW, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH); //FR
-    int16_t motb = map(THROTTLE - PITCH - ROLL - YAW, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH); //BR
-    int16_t motc = map(THROTTLE + PITCH + ROLL - YAW, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH); //FL
-    int16_t motd = map(THROTTLE - PITCH + ROLL + YAW, 0, 100, MAX_PULSE_LENGTH, MIN_PULSE_LENGTH); //BL
+    //Mix the inputs to determine the speed and direction of each motor
+    int16_t mota = map(throttleInput + pitchOutput - rollOutput + yawOutput, 0, 100, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); //FR
+    int16_t motb = map(throttleInput - pitchOutput - rollOutput - yawOutput, 0, 100, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); //BR
+    int16_t motc = map(throttleInput + pitchOutput + rollOutput - yawOutput, 0, 100, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); //FL
+    int16_t motd = map(throttleInput - pitchOutput + rollOutput + yawOutput, 0, 100, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); //BL
     
     Serial.println();
     Serial.print("motA: "); Serial.println(mota); Serial.print("motB: "); Serial.println(motb); Serial.print("motC: "); Serial.println(motc); Serial.print("motD: "); Serial.println(motd);
 
-    //throttle
-    
-    //Roll  
-    if(motc < 1301 && motd < 1141){ // Roll right
-      motC.writeMicroseconds(motc);
-      motD.writeMicroseconds(motd);
-      motA.writeMicroseconds(MID_PULSE_LENGTH);
-      motB.writeMicroseconds(MID_PULSE_LENGTH);
-      Serial.println("Roll Right");  Serial.println();
-    }else if (mota < 1171 && motb < 1301){ // Roll left 
-      motC.writeMicroseconds(MID_PULSE_LENGTH);
-      motD.writeMicroseconds(MID_PULSE_LENGTH);
-      motA.writeMicroseconds(mota);
-      motB.writeMicroseconds(motb);
-      Serial.println("Roll Left"); Serial.println();
-    }
-    else{ //Neutral
-      motA.writeMicroseconds(mota); // CCW 
-      motB.writeMicroseconds(motb); // CW 
-      motC.writeMicroseconds(motc); // CW
-      motD.writeMicroseconds(motd); // CCW
-      Serial.print("Roll Neutral"); Serial.println();
-    }
 
-    //  //Pitch 
-    // if(motb  > 1551 && motd > 1551){
-    //   motA.writeMicroseconds(MID_PULSE_LENGTH); 
-    //   motC.writeMicroseconds(MID_PULSE_LENGTH);
-    //   motB.writeMicroseconds(motb); 
-    //   motD.writeMicroseconds(motd); 
-    //   Serial.println("Pitch Up"); Serial.println();
-    // }
-    // else if(motb < 1331 && motd < 1331){
-    //   motA.writeMicroseconds(mota); 
-    //   motC.writeMicroseconds(motc);
-    //   motB.writeMicroseconds(MID_PULSE_LENGTH); 
-    //   motD.writeMicroseconds(MID_PULSE_LENGTH); 
-    //   Serial.println("Pitch Down"); 
-    // }
-    // else{
-    //   motA.writeMicroseconds(mota); // CCW 
-    //   motB.writeMicroseconds(motb); // CW 
-    //   motC.writeMicroseconds(motc); // CW
-    //   motD.writeMicroseconds(motd); // CCW
-    //   Serial.print("Pitch Neutral"); 
-    // }
+    // Write the motor outputs
+    motA.writeMicroseconds(mota);
+    motB.writeMicroseconds(motb);
+    motC.writeMicroseconds(motc);
+    motD.writeMicroseconds(motd);
+    delay(500); 
 
-    // motA.writeMicroseconds(mota); // CCW 
-    // motB.writeMicroseconds(motb); // CW 
-    // motC.writeMicroseconds(motc); // CW
-    // motD.writeMicroseconds(motd); // CCW
-        
-    delay(500);
 }
+
+
