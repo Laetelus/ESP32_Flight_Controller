@@ -46,7 +46,7 @@ PID yawPID(&yawInput, &yawOutput, &yawSetpoint, kp_yaw, ki_yaw, kd_yaw, DIRECT);
 PID rollPID(&rollInput, &rollOutput, &rollSetpoint, kp_roll, ki_roll, kd_roll, DIRECT);
 PID pitchPID(&pitchInput, &pitchOutput, &pitchSetpoint, kp_pitch, ki_pitch, kd_pitch, DIRECT);
 
-void IMU_POS();
+void IMU_DATA();
 
 void setup() {
 
@@ -113,6 +113,7 @@ void loop() {
     // Scale the input values to a range of 0 to 100
     throttleInput = map(throttle, 1000, 2000, 0, 100);
     yawInput = map(yaw, 1000, 2000, -80, 80);
+    Serial.println(yawInput); //yaw input depends on imu... test 
     rollInput = map(roll, 1000, 2000, -50, 50);
     pitchInput = map(pitch, 1000, 2000, -50, 50);
  
@@ -127,7 +128,7 @@ void loop() {
     yawPID.Compute();
     rollPID.Compute();
     pitchPID.Compute();
-    IMU_POS(); 
+    IMU_DATA(); 
     
     Serial.println();
     Serial.print("motA: "); Serial.println(mota); Serial.print("motB: "); Serial.println(motb); Serial.print("motC: "); Serial.println(motc); Serial.print("motD: "); Serial.println(motd);
@@ -141,14 +142,9 @@ void loop() {
 
 }
 
-void inline MeasurePitchRollYaw(int16_t& measured_pitch, int16_t& measured_roll, int16_t& measured_yaw) {
-  measured_pitch = static_cast<int16_t>(accelgyro.getGyroXSelfTestFactoryTrim());
-  measured_roll = static_cast<int16_t>(accelgyro.getGyroYSelfTestFactoryTrim());
-  measured_yaw = static_cast<int16_t>(accelgyro.getGyroZSelfTestFactoryTrim());
-}
 
 
-void IMU_POS(){ 
+void IMU_DATA(){ 
 #ifdef DEBUG
         // read raw accel/gyro measurements from device
     accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
