@@ -106,8 +106,8 @@ void loop() {
     int16_t roll = ppm.rawChannelValue(1);
     int16_t pitch = ppm.rawChannelValue(2);
     
-    pitch = Serial.print(static_cast<int16_t>(accelgyro.getRotationY()));
-    roll  = static_cast<int16_t>(accelgyro.getRotationX());
+    pitch = static_cast<int16_t>(accelgyro.getRotationX());
+    roll  = static_cast<int16_t>(accelgyro.getRotationY());
     yaw  = static_cast<int16_t>(accelgyro.getRotationZ());
 
     // Scale the input values to a range of 0 to 100
