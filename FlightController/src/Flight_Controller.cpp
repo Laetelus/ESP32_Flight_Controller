@@ -14,7 +14,7 @@ byte channelAmount = 4; // Number of channels to use
 
 #define MIN_PULSE_LENGTH 1000 // Minimum pulse length in µs
 #define MAX_PULSE_LENGTH 2000 // Maximum pulse length in µs
-#define MID_PULSE_LENGTH 1500 //Neutral pulse length in µs
+//#define MID_PULSE_LENGTH 1500 //Neutral pulse length in µs
 
 Servo motA,motB,motC,motD; 
 PPMReader ppm(interruptPin, channelAmount);
@@ -53,8 +53,10 @@ void setup() {
   Serial.println("Initializing I2C devices...");
   accelgyro.initialize();
   // verify connection
-  Serial.println("Testing device connections...");
-  Serial.println(accelgyro.testConnection() ? "MPU6050 connection successful" : "MPU6050 connection failed");
+  #ifdef I2CDEV_IMPLEMENTATION
+    Serial.println("Testing device connections...");
+    Serial.println(accelgyro.testConnection() ? "MPU6050 connection successful" : "MPU6050 connection failed");
+  #endif
   // Set up the motors
   motA.attach(MOTOR_1_PIN,MIN_PULSE_LENGTH, MAX_PULSE_LENGTH);
   motB.attach(MOTOR_2_PIN,MIN_PULSE_LENGTH, MAX_PULSE_LENGTH);
@@ -84,7 +86,6 @@ void loop() {
   // Serial.print("YAW: " + String(YAW) + "\n");
   // Serial.print("PITCH: " + String(PITCH) + "\n");
   // Serial.print("ROLL: " + String(ROLL) + "\n");
-
 
   // Scale the input values to a range of 0 to 100
   THROTTLE = map(THROTTLE, 1000, 2000, 0, 100);
@@ -134,7 +135,6 @@ int16_t inline ExecutePitchPID(const int16_t& pitch_set_point, const int16_t& me
   integral += PID_PITCH_I * (previous_error + error)/2;
     
   previous_error = error;
-  
   return static_cast<int16_t>(proportional + integral + derivative);
 }
 
@@ -179,6 +179,7 @@ int16_t inline ExecuteYawPID(const int16_t& yaw_set_point, const int16_t& measur
 
 void inline MeasurePitchRollYaw(int16_t& measured_pitch, int16_t& measured_roll, int16_t& measured_yaw) {
   measured_pitch = static_cast<int16_t>(accelgyro.getRotationX());
+ // Serial.println( measured_pitch); 
   measured_roll =  static_cast<int16_t>(accelgyro.getRotationY());
   measured_yaw =   static_cast<int16_t>(accelgyro.getRotationZ());
 }
