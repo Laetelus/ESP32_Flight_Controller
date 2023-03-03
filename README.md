@@ -7,8 +7,7 @@ Custom Flight Controller using ESP32.
 - Receiver: R8EF 8 Channels 
 # IN PROGRESS
 - Add start_stop_takeoff for motors 
-- Test mixer algorithm for PITCH,YAW,ROLL,THRUST
-- PID algorithm for PITCH,YAW,ROLL,THRUST
+- PID algorithm
 - failsafe algorithm 
 # DISCLAIMER 
 - This project is currently work in progress. 
