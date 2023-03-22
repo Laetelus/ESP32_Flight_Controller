@@ -33,6 +33,7 @@ PPMReader ppm(interruptPin, channelAmount);
 #define PID_YAW_I     0
 
 MPU6050 accelgyro; 
+bool motor_on  = false;  //state of motor 
 
 int16_t inline ExecutePitchPID(const int16_t& pitch_set_point, const int16_t& measured_pitch);
 int16_t inline ExecuteRollPID(const int16_t& roll_set_point, const int16_t& measured_roll);
@@ -58,10 +59,10 @@ void setup() {
     Serial.println(accelgyro.testConnection() ? "MPU6050 connection successful" : "MPU6050 connection failed");
   #endif
   // Set up the motors
-  motA.attach(MOTOR_1_PIN,MIN_PULSE_LENGTH, MAX_PULSE_LENGTH);
-  motB.attach(MOTOR_2_PIN,MIN_PULSE_LENGTH, MAX_PULSE_LENGTH);
-  motC.attach(MOTOR_3_PIN,MIN_PULSE_LENGTH, MAX_PULSE_LENGTH);
-  motD.attach(MOTOR_4_PIN,MIN_PULSE_LENGTH, MAX_PULSE_LENGTH);
+  motA.attach(MOTOR_1_PIN,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH);
+  motB.attach(MOTOR_2_PIN,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH);
+  motC.attach(MOTOR_3_PIN,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH);
+  motD.attach(MOTOR_4_PIN,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH);
   //Calibrate the ESCs
   motA.writeMicroseconds(MIN_PULSE_LENGTH); 
   motB.writeMicroseconds(MIN_PULSE_LENGTH); 
@@ -77,15 +78,9 @@ void loop() {
   int16_t ROLL = ppm.rawChannelValue(1);
   int16_t PITCH = ppm.rawChannelValue(2);
   
-  int16_t   measured_pitch  = 0;
-  int16_t   measured_roll   = 0;
-  int16_t   measured_yaw    = 0;
-
-  // Serial.println();
-  // Serial.print("THROTTLE: " + String(THROTTLE) + "\n");
-  // Serial.print("YAW: " + String(YAW) + "\n");
-  // Serial.print("PITCH: " + String(PITCH) + "\n");
-  // Serial.print("ROLL: " + String(ROLL) + "\n");
+  int16_t measured_pitch  = 0;
+  int16_t measured_roll   = 0;
+  int16_t measured_yaw    = 0;
 
   // Scale the input values to a range of 0 to 100
   THROTTLE = map(THROTTLE, 1000, 2000, 0, 100);
@@ -104,18 +99,39 @@ void loop() {
   int16_t motb = map(THROTTLE - PitchPIDOutput - RollPIDOutput - YawPIDOutput, 0, 100, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); //BR
   int16_t motc = map(THROTTLE + PitchPIDOutput + RollPIDOutput - YawPIDOutput, 0, 100, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); //FL
   int16_t motd = map(THROTTLE - PitchPIDOutput + RollPIDOutput + YawPIDOutput, 0, 100, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); //BL
+
+  // Serial.println();
+  // Serial.print("THROTTLE: " + String(THROTTLE) + "\n");
+  // Serial.print("YAW: " + String(YAW) + "\n");
+  // Serial.print("PITCH: " + String(PITCH) + "\n");
+  // Serial.print("ROLL: " + String(ROLL) + "\n");
   
-  Serial.println();
-  Serial.print("motA: "); Serial.println(mota); 
-  Serial.print("motB: "); Serial.println(motb); 
-  Serial.print("motC: "); Serial.println(motc); 
-  Serial.print("motD: "); Serial.println(motd);
+  // Serial.println();
+  // Serial.print("motA: "); Serial.println(mota); 
+  // Serial.print("motB: "); Serial.println(motb); 
+  // Serial.print("motC: "); Serial.println(motc); 
+  // Serial.print("motD: "); Serial.println(motd);
     
-  motA.writeMicroseconds(mota); // CCW 
-  motB.writeMicroseconds(motb); // CW 
-  motC.writeMicroseconds(motc); // CW
-  motD.writeMicroseconds(motd); // CCW
-      
+  if(THROTTLE < 2  && YAW > 47 && motor_on == true) // turn off motors 
+  {
+    motor_on = false;
+      motA.writeMicroseconds(MIN_PULSE_LENGTH); // CCW 
+      motB.writeMicroseconds(MIN_PULSE_LENGTH); // CW 
+      motC.writeMicroseconds(MIN_PULSE_LENGTH); // CW
+      motD.writeMicroseconds(MIN_PULSE_LENGTH); // CCW
+      Serial.println("Motors off");
+  }
+  
+  if (THROTTLE >= 50 || THROTTLE <= 49) //turn on motors 
+  {
+    motor_on = true;
+    motA.writeMicroseconds(mota); // CCW 
+    motB.writeMicroseconds(motb); // CW 
+    motC.writeMicroseconds(motc); // CW
+    motD.writeMicroseconds(motd); // CCW
+    Serial.println("Motors on");
+  }
+
   delay(500);
 }
 
