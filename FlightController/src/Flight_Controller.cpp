@@ -21,16 +21,16 @@ PPMReader ppm(interruptPin, channelAmount);
 
 //Do not exceed kp > 2, ki, > 0.5, kd > 2  
 #define PID_PITCH_P   0
-#define PID_PITCH_D   0
 #define PID_PITCH_I   0
+#define PID_PITCH_D   0
 
 #define PID_ROLL_P    0
-#define PID_ROLL_D    0
 #define PID_ROLL_I    0
+#define PID_ROLL_D    0
 
 #define PID_YAW_P     0
-#define PID_YAW_D     0
 #define PID_YAW_I     0
+#define PID_YAW_D     0
 
 MPU6050 accelgyro; 
 bool motor_on  = false;  //state of motor 
