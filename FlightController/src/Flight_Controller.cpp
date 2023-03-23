@@ -100,39 +100,42 @@ void loop() {
   int16_t motc = map(THROTTLE + PitchPIDOutput + RollPIDOutput - YawPIDOutput, 0, 100, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); //FL
   int16_t motd = map(THROTTLE - PitchPIDOutput + RollPIDOutput + YawPIDOutput, 0, 100, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); //BL
 
-  // Serial.println();
-  // Serial.print("THROTTLE: " + String(THROTTLE) + "\n");
-  // Serial.print("YAW: " + String(YAW) + "\n");
-  // Serial.print("PITCH: " + String(PITCH) + "\n");
-  // Serial.print("ROLL: " + String(ROLL) + "\n");
+  Serial.println();
+  Serial.print("THROTTLE: " + String(THROTTLE) + "\n");
+  Serial.print("YAW: " + String(YAW) + "\n");
+  Serial.print("PITCH: " + String(PITCH) + "\n");
+  Serial.print("ROLL: " + String(ROLL) + "\n");
   
-  // Serial.println();
-  // Serial.print("motA: "); Serial.println(mota); 
-  // Serial.print("motB: "); Serial.println(motb); 
-  // Serial.print("motC: "); Serial.println(motc); 
-  // Serial.print("motD: "); Serial.println(motd);
+  Serial.println();
+  Serial.print("motA: "); Serial.println(mota); 
+  Serial.print("motB: "); Serial.println(motb); 
+  Serial.print("motC: "); Serial.println(motc); 
+  Serial.print("motD: "); Serial.println(motd);
     
-  if(THROTTLE < 2  && YAW > 47 && motor_on == true) // turn off motors 
+  if(THROTTLE < 2  && YAW > 47) // turn off motors 
   {
-    motor_on = false;
-      motA.writeMicroseconds(MIN_PULSE_LENGTH); // CCW 
-      motB.writeMicroseconds(MIN_PULSE_LENGTH); // CW 
-      motC.writeMicroseconds(MIN_PULSE_LENGTH); // CW
-      motD.writeMicroseconds(MIN_PULSE_LENGTH); // CCW
-      Serial.println("Motors off");
+      if (motor_on) {
+          motA.writeMicroseconds(MIN_PULSE_LENGTH); // CCW 
+          motB.writeMicroseconds(MIN_PULSE_LENGTH); // CW 
+          motC.writeMicroseconds(MIN_PULSE_LENGTH); // CW
+          motD.writeMicroseconds(MIN_PULSE_LENGTH); // CCW
+          Serial.println("Motors off");
+          motor_on = false; // update the flag variable
+      }
   }
   
-  if (THROTTLE >= 50 || THROTTLE <= 49) //turn on motors 
+  if (THROTTLE > 51) //turn on motors 
   {
-    motor_on = true;
-    motA.writeMicroseconds(mota); // CCW 
-    motB.writeMicroseconds(motb); // CW 
-    motC.writeMicroseconds(motc); // CW
-    motD.writeMicroseconds(motd); // CCW
-    Serial.println("Motors on");
+    if (!motor_on) {
+        motA.writeMicroseconds(mota); // CCW 
+        motB.writeMicroseconds(motb); // CW 
+        motC.writeMicroseconds(motc); // CW
+        motD.writeMicroseconds(motd); // CCW
+        Serial.println("Motors on");
+        motor_on = true; // update the flag variable
+    }
   }
-
-  delay(500);
+  delay(500); 
 }
 
 
