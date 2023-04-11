@@ -16,23 +16,22 @@ byte channelAmount = 4; // Number of channels to use
 #define MAX_PULSE_LENGTH 2000 // Maximum pulse length in µs
 //#define MID_PULSE_LENGTH 1500 //Neutral pulse length in µs
 
-Servo motA,motB,motC,motD; 
-PPMReader ppm(interruptPin, channelAmount);
-
 //Do not exceed kp > 2, ki, > 0.5, kd > 2  
-#define PID_PITCH_P   0
-#define PID_PITCH_I   0
-#define PID_PITCH_D   0
+#define PID_PITCH_P   0.0
+#define PID_PITCH_I   0.0
+#define PID_PITCH_D   0.0
 
-#define PID_ROLL_P    0
-#define PID_ROLL_I    0
-#define PID_ROLL_D    0
+#define PID_ROLL_P    0.0
+#define PID_ROLL_I    0.0
+#define PID_ROLL_D    0.0
 
-#define PID_YAW_P     0
-#define PID_YAW_I     0
-#define PID_YAW_D     0
+#define PID_YAW_P     0.0
+#define PID_YAW_I     0.0
+#define PID_YAW_D     0.0
 
 MPU6050 accelgyro; 
+Servo motA,motB,motC,motD; 
+PPMReader ppm(interruptPin, channelAmount);
 bool motor_on  = false;  //state of motor 
 
 int16_t inline ExecutePitchPID(const int16_t& pitch_set_point, const int16_t& measured_pitch);
@@ -114,27 +113,26 @@ void loop() {
     
   if(THROTTLE < 2  && YAW > 47) // turn off motors 
   {
-      if (motor_on) {
-          motA.writeMicroseconds(MIN_PULSE_LENGTH); // CCW 
-          motB.writeMicroseconds(MIN_PULSE_LENGTH); // CW 
-          motC.writeMicroseconds(MIN_PULSE_LENGTH); // CW
-          motD.writeMicroseconds(MIN_PULSE_LENGTH); // CCW
-          Serial.println("Motors off");
-          motor_on = false; // update the flag variable
-      }
-  }
-  
-  if (THROTTLE > 51) //turn on motors 
-  {
-    if (!motor_on) {
-        motA.writeMicroseconds(mota); // CCW 
-        motB.writeMicroseconds(motb); // CW 
-        motC.writeMicroseconds(motc); // CW
-        motD.writeMicroseconds(motd); // CCW
-        Serial.println("Motors on");
-        motor_on = true; // update the flag variable
+    if (motor_on) {
+      motA.writeMicroseconds(MIN_PULSE_LENGTH); // CCW 
+      motB.writeMicroseconds(MIN_PULSE_LENGTH); // CW 
+      motC.writeMicroseconds(MIN_PULSE_LENGTH); // CW
+      motD.writeMicroseconds(MIN_PULSE_LENGTH); // CCW
+      Serial.println("Motors off");
+      motor_on = false; // update the flag variable
     }
   }
+  
+  if (THROTTLE > 51 || THROTTLE < 47) //turn on motors 
+  {
+    motA.writeMicroseconds(mota); // CCW 
+    motB.writeMicroseconds(motb); // CW 
+    motC.writeMicroseconds(motc); // CW
+    motD.writeMicroseconds(motd); // CCW
+    Serial.println("Motors on");
+    motor_on = true; // update the flag variable
+  }
+  
   delay(500); 
 }
 
