@@ -6,7 +6,7 @@ Custom Flight Controller using ESP32.
 - Transmittor: T8S  
 - Receiver: R8EF 8 Channels 
 # IN PROGRESS
-- ~~Add start_stop_takeoff for motors 
+- ~~Add start_stop_takeoff for motors ~~
 - ~~PID algorithm
 - failsafe algorithm 
 # DISCLAIMER 
