@@ -15,20 +15,21 @@ byte channelAmount = 4; // Number of channels to use
 #define MIN_PULSE_LENGTH 1000 // Minimum pulse length in µs
 #define MAX_PULSE_LENGTH 2000 // Maximum pulse length in µs
 //#define MID_PULSE_LENGTH 1500 //Neutral pulse length in µs
+
 float GYRO_SCALE_FACTOR = 131.0;
 
 //Do not exceed kp > 2, ki, > 0.5, kd > 2  
-#define PID_PITCH_P   0.0
-#define PID_PITCH_I   0.0
-#define PID_PITCH_D   0.0
+float PID_PITCH_P = 0.0;
+float PID_PITCH_I = 0.0;
+float PID_PITCH_D = 0.0;
 
-#define PID_ROLL_P    0.0
-#define PID_ROLL_I    0.0
-#define PID_ROLL_D    0.0
+float PID_ROLL_P = 0.0;
+float PID_ROLL_I = 0.0;
+float PID_ROLL_D = 0.0;
 
-#define PID_YAW_P     0.0
-#define PID_YAW_I     0.0
-#define PID_YAW_D     0.0
+float PID_YAW_P = 0.0;
+float PID_YAW_I = 0.0;
+float PID_YAW_D = 0.0;
 
 MPU6050 accelgyro; 
 Servo motA,motB,motC,motD; 
@@ -58,11 +59,13 @@ void setup() {
     Serial.println("Testing device connections...");
     Serial.println(accelgyro.testConnection() ? "MPU6050 connection successful" : "MPU6050 connection failed");
   #endif
+
   // Set up the motors
   motA.attach(MOTOR_1_PIN,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH);
   motB.attach(MOTOR_2_PIN,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH);
   motC.attach(MOTOR_3_PIN,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH);
   motD.attach(MOTOR_4_PIN,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH);
+  
   //Calibrate the ESCs
   motA.writeMicroseconds(MIN_PULSE_LENGTH); 
   motB.writeMicroseconds(MIN_PULSE_LENGTH); 
@@ -81,8 +84,6 @@ void loop() {
   int16_t measured_pitch  = 0;
   int16_t measured_roll  = 0;
   int16_t measured_yaw  = 0;
-
-  MeasurePitchRollYaw(measured_pitch, measured_roll, measured_yaw);
   
   // Scale the input values to a range of 0 to 100
   THROTTLE = map(THROTTLE, 1000, 2000, 0, 100);
@@ -90,6 +91,8 @@ void loop() {
   PITCH = map(PITCH, 1000, 2000, -50, 50);
   ROLL = map(ROLL, 1000, 2000, -50, 50);
 
+  MeasurePitchRollYaw(measured_pitch, measured_roll, measured_yaw);
+  
    // Calculate pitch, roll, and yaw errors
   /* without calculating the errors between the desired and measured pitch, roll 
     and yaw, the pid controllers would not have any feedback to adjust the motor
@@ -101,8 +104,8 @@ void loop() {
   float yaw_error = static_cast<float>(YAW) - static_cast<float>(measured_yaw);
   
   int16_t PitchPIDOutput  = ExecutePitchPID(PITCH, pitch_error);
-  int16_t RollPIDOutput   = ExecuteRollPID(ROLL, roll_error);
-  int16_t YawPIDOutput    = ExecuteYawPID(YAW, yaw_error);
+  int16_t RollPIDOutput  = ExecuteRollPID(ROLL, roll_error);
+  int16_t YawPIDOutput  = ExecuteYawPID(YAW, yaw_error);
 
   // Mix the input values to determine the speed and direction of each motor
   int16_t mota = map(THROTTLE + PitchPIDOutput - RollPIDOutput + YawPIDOutput, 0, 100, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); //FR
@@ -136,7 +139,7 @@ void loop() {
     }
   }
   
-  if (THROTTLE > 51 || THROTTLE < 47) //turn on motors 
+  if (THROTTLE > 51 || THROTTLE < 47) //turn on motors, begin flight 
   {
     motA.writeMicroseconds(mota); // CCW 
     motB.writeMicroseconds(motb); // CW 
@@ -214,8 +217,8 @@ int16_t inline ExecuteYawPID(const int16_t& yaw_set_point, const int16_t& measur
 //   measured_yaw =   static_cast<int16_t>(accelgyro.getRotationZ());
 // }
 
-//trying something data from IMU not reading correctly...
-/*GOAL: In general relying only on gyroscope data can lead to drift over
+//trying something, data from IMU not reading correctly...
+/*Description: In general relying only on gyroscope data can lead to drift over
         time due to gyroscope bias, which can cause errors in estimating the 
         drones orientation. It is typically recommended to use a combination 
         of both gyroscope and accelerometer data. 
