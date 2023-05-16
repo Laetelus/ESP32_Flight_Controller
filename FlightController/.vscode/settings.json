@@ -42,5 +42,6 @@
   "files.associations": {
     "*.tcc": "cpp",
     "algorithm": "cpp"
-  }
+  },
+  "C_Cpp_Runner.showCompilationTime": false
 }

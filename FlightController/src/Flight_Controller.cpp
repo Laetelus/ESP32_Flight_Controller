@@ -15,6 +15,7 @@ byte channelAmount = 4; // Number of channels to use
 #define MIN_PULSE_LENGTH 1000 // Minimum pulse length in µs
 #define MAX_PULSE_LENGTH 2000 // Maximum pulse length in µs
 //#define MID_PULSE_LENGTH 1500 //Neutral pulse length in µs
+float GYRO_SCALE_FACTOR = 131.0;
 
 //Do not exceed kp > 2, ki, > 0.5, kd > 2  
 #define PID_PITCH_P   0.0
@@ -78,16 +79,26 @@ void loop() {
   int16_t PITCH = ppm.rawChannelValue(2);
   
   int16_t measured_pitch  = 0;
-  int16_t measured_roll   = 0;
-  int16_t measured_yaw    = 0;
+  int16_t measured_roll  = 0;
+  int16_t measured_yaw  = 0;
 
+  MeasurePitchRollYaw(measured_pitch, measured_roll, measured_yaw);
+  
   // Scale the input values to a range of 0 to 100
   THROTTLE = map(THROTTLE, 1000, 2000, 0, 100);
   YAW = map(YAW, 1000, 2000, -80, 80);
   PITCH = map(PITCH, 1000, 2000, -50, 50);
   ROLL = map(ROLL, 1000, 2000, -50, 50);
-        
-  MeasurePitchRollYaw(measured_pitch, measured_roll, measured_yaw);
+  
+   // Calculate pitch, roll, and yaw errors
+  /* without calculating the errors between the desired and measured pitch, roll 
+    and yaw, the pid controllers would not have any feedback to adjust the motor
+    outputs and stabilize the drone. the errors are what drive the PID algorithm 
+    to adjust the outputs to minimize the errors.  
+  */
+  float pitch_error = static_cast<float>(PITCH) - static_cast<float>(measured_pitch);
+  float roll_error = static_cast<float>(ROLL) - static_cast<float>(measured_roll);
+  float yaw_error = static_cast<float>(YAW) - static_cast<float>(measured_yaw);
   
   int16_t PitchPIDOutput  = ExecutePitchPID(PITCH, measured_pitch);
   int16_t RollPIDOutput   = ExecuteRollPID(ROLL, measured_roll);
@@ -111,15 +122,17 @@ void loop() {
   Serial.print("motC: "); Serial.println(motc); 
   Serial.print("motD: "); Serial.println(motd);
     
-  if(THROTTLE < 2  && YAW > 47) // turn off motors 
+  if(THROTTLE <= 1  && YAW > 70) // turn off motors 
   {
-    if (motor_on) {
+    if (motor_on) 
+    {
       motA.writeMicroseconds(MIN_PULSE_LENGTH); // CCW 
       motB.writeMicroseconds(MIN_PULSE_LENGTH); // CW 
       motC.writeMicroseconds(MIN_PULSE_LENGTH); // CW
       motD.writeMicroseconds(MIN_PULSE_LENGTH); // CCW
       Serial.println("Motors off");
       motor_on = false; // update the flag variable
+      delay(500); //give it time to process before shutting down
     }
   }
   
@@ -133,7 +146,7 @@ void loop() {
     motor_on = true; // update the flag variable
   }
   
-  delay(500); 
+  delay(4); 
 }
 
 
@@ -194,9 +207,32 @@ int16_t inline ExecuteYawPID(const int16_t& yaw_set_point, const int16_t& measur
   return proportional + integral + derivative;
 }
 
+// void inline MeasurePitchRollYaw(int16_t& measured_pitch, int16_t& measured_roll, int16_t& measured_yaw) {
+//   measured_pitch = static_cast<int16_t>(accelgyro.getRotationX());
+//  // Serial.println( measured_pitch); 
+//   measured_roll =  static_cast<int16_t>(accelgyro.getRotationY());
+//   measured_yaw =   static_cast<int16_t>(accelgyro.getRotationZ());
+// }
+
+//trying something data from IMU not reading correctly...
+/*GOAL: In general relying only on gyroscope data can lead to drift over
+        time due to gyroscope bias, which can cause errors in estimating the 
+        drones orientation. It is typically recommended to use a combination 
+        of both gyroscope and accelerometer data. 
+*/
 void inline MeasurePitchRollYaw(int16_t& measured_pitch, int16_t& measured_roll, int16_t& measured_yaw) {
-  measured_pitch = static_cast<int16_t>(accelgyro.getRotationX());
- // Serial.println( measured_pitch); 
-  measured_roll =  static_cast<int16_t>(accelgyro.getRotationY());
-  measured_yaw =   static_cast<int16_t>(accelgyro.getRotationZ());
+  int16_t ax, ay, az;
+  int16_t gx, gy, gz;
+  accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+
+  float roll_acc  = atan2f(ay, az) * (180.0 / PI);
+  float pitch_acc = atan2f(ax, az) * (180.0 / PI);
+
+  float roll_gyro = measured_roll + (gx / GYRO_SCALE_FACTOR);
+  float pitch_gyro = measured_pitch + (gy / GYRO_SCALE_FACTOR);
+  float yaw_gyro = measured_yaw + (gz / GYRO_SCALE_FACTOR);
+
+  measured_roll = 0.98 * roll_gyro + 0.02 * roll_acc;
+  measured_pitch = 0.98 * pitch_gyro + 0.02 * pitch_acc;
+  measured_yaw = yaw_gyro;
 }
