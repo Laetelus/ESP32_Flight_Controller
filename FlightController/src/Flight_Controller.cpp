@@ -89,7 +89,7 @@ void loop() {
   YAW = map(YAW, 1000, 2000, -80, 80);
   PITCH = map(PITCH, 1000, 2000, -50, 50);
   ROLL = map(ROLL, 1000, 2000, -50, 50);
-  
+
    // Calculate pitch, roll, and yaw errors
   /* without calculating the errors between the desired and measured pitch, roll 
     and yaw, the pid controllers would not have any feedback to adjust the motor
@@ -100,9 +100,9 @@ void loop() {
   float roll_error = static_cast<float>(ROLL) - static_cast<float>(measured_roll);
   float yaw_error = static_cast<float>(YAW) - static_cast<float>(measured_yaw);
   
-  int16_t PitchPIDOutput  = ExecutePitchPID(PITCH, measured_pitch);
-  int16_t RollPIDOutput   = ExecuteRollPID(ROLL, measured_roll);
-  int16_t YawPIDOutput    = ExecuteYawPID(YAW, measured_yaw);
+  int16_t PitchPIDOutput  = ExecutePitchPID(PITCH, pitch_error);
+  int16_t RollPIDOutput   = ExecuteRollPID(ROLL, roll_error);
+  int16_t YawPIDOutput    = ExecuteYawPID(YAW, yaw_error);
 
   // Mix the input values to determine the speed and direction of each motor
   int16_t mota = map(THROTTLE + PitchPIDOutput - RollPIDOutput + YawPIDOutput, 0, 100, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); //FR
