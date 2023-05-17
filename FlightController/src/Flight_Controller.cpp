@@ -2,7 +2,7 @@
 #include <ESP32Servo.h> 
 #include "I2Cdev.h"
 #include "MPU6050.h"
-// Initialize a PPMReader on digital pin 3 with 6 expected channels.
+// Initialize a PPMReader on digital pin 13 with 6 expected channels. 
 byte interruptPin = 13; // PPM pin connector 
 byte channelAmount = 4; // Number of channels to use 
 
@@ -16,6 +16,7 @@ byte channelAmount = 4; // Number of channels to use
 #define MAX_PULSE_LENGTH 2000 // Maximum pulse length in µs
 //#define MID_PULSE_LENGTH 1500 //Neutral pulse length in µs
 
+//scale factor used to convert the gyroscope reading to an angular rate (degrees per second).
 float GYRO_SCALE_FACTOR = 131.0;
 
 //Do not exceed kp > 2, ki, > 0.5, kd > 2  
@@ -220,9 +221,11 @@ void inline MeasurePitchRollYaw(int16_t& measured_pitch, int16_t& measured_roll,
   int16_t gx, gy, gz;
   accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
 
+  //calculate the roll, yaw angle based on the accelerometer readings
   float roll_acc = atan2f(ay, az) * (180.0 / PI);
   float pitch_acc = atan2f(ax, az) * (180.0 / PI);
 
+  //calculate the yaw angle based on the gyro readings 
   float roll_gyro = measured_roll + (gx / GYRO_SCALE_FACTOR);
   float pitch_gyro = measured_pitch + (gy / GYRO_SCALE_FACTOR);
 
