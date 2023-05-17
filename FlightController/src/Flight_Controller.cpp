@@ -236,6 +236,7 @@ void inline MeasurePitchRollYaw(int16_t& measured_pitch, int16_t& measured_roll,
    */
   float alpha = 0.98; // Gyroscope weight
 
+  //y=a⋅y+(1−a)⋅x 
   measured_roll = alpha * roll_gyro + (1 - alpha) * roll_acc;
   measured_pitch = alpha * pitch_gyro + (1 - alpha) * pitch_acc;
   // measured_yaw remains unchanged
