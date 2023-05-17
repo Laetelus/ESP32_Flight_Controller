@@ -21,16 +21,16 @@ float GYRO_SCALE_FACTOR = 131.0;
 
 //Do not exceed kp > 2, ki, > 0.5, kd > 2  
 float PID_PITCH_P = 0;
-float PID_PITCH_I = 0;
+float PID_PITCH_I = 0.;
 float PID_PITCH_D = 0;
 
 float PID_ROLL_P = 0.0;
 float PID_ROLL_I = 0.0;
-float PID_ROLL_D = 0.0;
+float PID_ROLL_D = 0;
 
-float PID_YAW_P = 0.0;
+float PID_YAW_P = 0;
 float PID_YAW_I = 0.0;
-float PID_YAW_D = 0.0;
+float PID_YAW_D = 0;
 
 MPU6050 accelgyro; 
 Servo motA,motB,motC,motD; 
@@ -87,7 +87,7 @@ void loop() {
   int16_t measured_yaw  = 0;
   
   // Scale the input values to a range of 0 to 100
-  THROTTLE = map(THROTTLE, 1000, 2000, 0, 100);
+  THROTTLE = map(THROTTLE, 1000, 2000, -100, 100);
   YAW = map(YAW, 1000, 2000, -80, 80);
   PITCH = map(PITCH, 1000, 2000, -50, 50);
   ROLL = map(ROLL, 1000, 2000, -70, 70);
@@ -107,26 +107,27 @@ void loop() {
   int16_t PitchPIDOutput  = ExecutePitchPID(PITCH, pitch_error);
   int16_t RollPIDOutput  = ExecuteRollPID(ROLL, roll_error);
   int16_t YawPIDOutput  = ExecuteYawPID(YAW, yaw_error);
+  Serial.print("\nPitchPIDOutput: "); Serial.println(PitchPIDOutput);
+  Serial.print("RollPIDOutput: "); Serial.println(RollPIDOutput);
+  Serial.print("YawPIDOutput: "); Serial.println(YawPIDOutput);
 
   // Mix the input values to determine the speed and direction of each motor
-  int16_t mota = map(THROTTLE + PitchPIDOutput - RollPIDOutput + YawPIDOutput, 0, 100, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); //FR
-  int16_t motb = map(THROTTLE - PitchPIDOutput - RollPIDOutput - YawPIDOutput, 0, 100, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); //BR
-  int16_t motc = map(THROTTLE + PitchPIDOutput + RollPIDOutput - YawPIDOutput, 0, 100, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); //FL
-  int16_t motd = map(THROTTLE - PitchPIDOutput + RollPIDOutput + YawPIDOutput, 0, 100, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); //BL
+  int16_t mota = map(THROTTLE + PitchPIDOutput - RollPIDOutput + YawPIDOutput, -100, 100, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); //FR
+  int16_t motb = map(THROTTLE - PitchPIDOutput - RollPIDOutput - YawPIDOutput, -100, 100, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); //BR
+  int16_t motc = map(THROTTLE + PitchPIDOutput + RollPIDOutput - YawPIDOutput, -100, 100, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); //FL
+  int16_t motd = map(THROTTLE - PitchPIDOutput + RollPIDOutput + YawPIDOutput, -100, 100, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); //BL
 
-  Serial.println();
-  Serial.print("THROTTLE: " + String(THROTTLE) + "\n");
+  Serial.print("\nTHROTTLE: " + String(THROTTLE) + "\n");
   Serial.print("YAW: " + String(YAW) + "\n");
   Serial.print("PITCH: " + String(PITCH) + "\n");
   Serial.print("ROLL: " + String(ROLL) + "\n");
   
-  Serial.println();
-  Serial.print("motA: "); Serial.println(mota); 
+  Serial.print("\nmotA: "); Serial.println(mota); 
   Serial.print("motB: "); Serial.println(motb); 
   Serial.print("motC: "); Serial.println(motc); 
   Serial.print("motD: "); Serial.println(motd);
     
-  if(THROTTLE <= 1  && YAW > 70) // turn off motors 
+  if(THROTTLE >= 98  && YAW > 70) // turn off motors 
   {
     if (motor_on) 
     {
@@ -140,7 +141,7 @@ void loop() {
     }
   }
   
-  if (THROTTLE > 51 || THROTTLE < 47) //turn on motors, begin flight 
+  if (THROTTLE > 10 || THROTTLE < -1) //turn on motors, begin flight 
   {
     motA.writeMicroseconds(mota); // CCW 
     motB.writeMicroseconds(motb); // CW 
@@ -204,8 +205,7 @@ int16_t inline ExecuteYawPID(const int16_t& yaw_set_point, const int16_t& measur
   proportional = PID_YAW_P * error;
   derivative = PID_YAW_D * (error - (previous_error));
   integral += PID_YAW_I * (previous_error + error)/2;
-  
-    
+
   previous_error = error;
 
   return proportional + integral + derivative;
