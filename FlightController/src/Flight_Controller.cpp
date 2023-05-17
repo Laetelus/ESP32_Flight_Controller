@@ -210,14 +210,6 @@ int16_t inline ExecuteYawPID(const int16_t& yaw_set_point, const int16_t& measur
   return proportional + integral + derivative;
 }
 
-// void inline MeasurePitchRollYaw(int16_t& measured_pitch, int16_t& measured_roll, int16_t& measured_yaw) {
-//   measured_pitch = static_cast<int16_t>(accelgyro.getRotationX());
-//  // Serial.println( measured_pitch); 
-//   measured_roll =  static_cast<int16_t>(accelgyro.getRotationY());
-//   measured_yaw =   static_cast<int16_t>(accelgyro.getRotationZ());
-// }
-
-//trying something, data from IMU not reading correctly...
 /*Description: In general relying only on gyroscope data can lead to drift over
         time due to gyroscope bias, which can cause errors in estimating the 
         drones orientation. It is typically recommended to use a combination 
@@ -228,14 +220,25 @@ void inline MeasurePitchRollYaw(int16_t& measured_pitch, int16_t& measured_roll,
   int16_t gx, gy, gz;
   accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
 
-  float roll_acc  = atan2f(ay, az) * (180.0 / PI);
+  float roll_acc = atan2f(ay, az) * (180.0 / PI);
   float pitch_acc = atan2f(ax, az) * (180.0 / PI);
 
   float roll_gyro = measured_roll + (gx / GYRO_SCALE_FACTOR);
   float pitch_gyro = measured_pitch + (gy / GYRO_SCALE_FACTOR);
-  float yaw_gyro = measured_yaw + (gz / GYRO_SCALE_FACTOR);
 
-  measured_roll = 0.98 * roll_gyro + 0.02 * roll_acc;
-  measured_pitch = 0.98 * pitch_gyro + 0.02 * pitch_acc;
-  measured_yaw = yaw_gyro;
+  // Apply complementary filter
+   /*adjust if necessary. A higher value closer to 1
+     gives more weight to the gyro, which can give faster
+     response time, but may be more susceptible to 
+     noise and drift over time. A lower value closer 
+     to 0 gives more weight to the accelerometer, which 
+     can provide a stable reference but may be affected by acceleration and tilt errors.
+   */
+  float alpha = 0.98; // Gyroscope weight
+
+  measured_roll = alpha * roll_gyro + (1 - alpha) * roll_acc;
+  measured_pitch = alpha * pitch_gyro + (1 - alpha) * pitch_acc;
+  // measured_yaw remains unchanged
+
+  measured_yaw += (gz / GYRO_SCALE_FACTOR); // Update yaw directly with gyroscope data
 }
