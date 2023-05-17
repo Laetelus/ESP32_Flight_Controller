@@ -20,9 +20,9 @@ byte channelAmount = 4; // Number of channels to use
 float GYRO_SCALE_FACTOR = 131.0;
 
 //Do not exceed kp > 2, ki, > 0.5, kd > 2  
-float PID_PITCH_P = 0.0;
-float PID_PITCH_I = 0.0;
-float PID_PITCH_D = 0.0;
+float PID_PITCH_P = 0;
+float PID_PITCH_I = 0;
+float PID_PITCH_D = 0;
 
 float PID_ROLL_P = 0.0;
 float PID_ROLL_I = 0.0;
@@ -90,7 +90,7 @@ void loop() {
   THROTTLE = map(THROTTLE, 1000, 2000, 0, 100);
   YAW = map(YAW, 1000, 2000, -80, 80);
   PITCH = map(PITCH, 1000, 2000, -50, 50);
-  ROLL = map(ROLL, 1000, 2000, -50, 50);
+  ROLL = map(ROLL, 1000, 2000, -70, 70);
 
   MeasurePitchRollYaw(measured_pitch, measured_roll, measured_yaw);
   
@@ -150,7 +150,7 @@ void loop() {
     motor_on = true; // update the flag variable
   }
   
-  delay(4); 
+  delay(500); 
 }
 
 
