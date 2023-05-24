@@ -2,6 +2,17 @@
 #include <ESP32Servo.h> 
 #include "I2Cdev.h"
 #include "MPU6050.h"
+//
+//
+//  FR             BR
+//     \           /
+//      \---------/
+//      |          >      This arrow indicates this is the back side of the quadcopter 
+//      /---------\        which is also the battery side of the drone.
+//     /           \
+//  FL             BL
+
+
 // Initialize a PPMReader on digital pin 13 with 6 expected channels. 
 byte interruptPin = 13; // PPM pin connector 
 byte channelAmount = 4; // Number of channels to use 
