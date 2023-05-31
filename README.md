@@ -14,5 +14,4 @@ Custom Flight Controller using ESP32.
 
 
 <img src=  "https://github.com/Laetelus/ESP32_Flight_Controller/assets/72906227/b78775c0-7dcd-4036-8b22-69fa41ad47cc"  width=50% height=15%>
-![Drone2](https://github.com/Laetelus/ESP32_Flight_Controller/assets/72906227/fc77d312-32a7-4ade-9a5c-19fcde3ee044)
-
+![Drone2(1)](https://github.com/Laetelus/ESP32_Flight_Controller/assets/72906227/4b79c6fb-f29f-4255-8597-0beb0d898d2f)
