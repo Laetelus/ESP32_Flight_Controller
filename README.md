@@ -10,7 +10,7 @@ Custom Flight Controller using ESP32.
 - <del> PID algorithm </dev> 
 - Failsafe algorithm (Soon to be implemented)
 # DISCLAIMER 
-- This project is currently work in progress. 
+- This project is currently a work in progress. 
 
 
 <img src=  "https://github.com/Laetelus/ESP32_Flight_Controller/assets/72906227/b78775c0-7dcd-4036-8b22-69fa41ad47cc"  width=50% height=15%>
