@@ -24,23 +24,22 @@ byte channelAmount = 4; // Number of channels to use
 
 #define MIN_PULSE_LENGTH 1000 // Minimum pulse length in µs
 #define MAX_PULSE_LENGTH 2000 // Maximum pulse length in µs
-#define MID_PULSE_LENGTH 1500 //Neutral pulse length in µs
+//#define MID_PULSE_LENGTH 1500 //Neutral pulse length in µs
 
-#define PRINTLN(var) Serial.print(#var ": "); Serial.println(var)
 //scale factor used to convert the gyroscope reading to an angular rate (degrees per second).
 float GYRO_SCALE_FACTOR = 131.0;
 
-
+//Do not exceed kp > 2, ki, > 0.5, kd > 2  
 float PID_PITCH_P = 0;
-float PID_PITCH_I = 0;
+float PID_PITCH_I = 0.;
 float PID_PITCH_D = 0;
 
-float PID_ROLL_P = 0;
-float PID_ROLL_I = 0;
+float PID_ROLL_P = 0.0;
+float PID_ROLL_I = 0.0;
 float PID_ROLL_D = 0;
 
 float PID_YAW_P = 0;
-float PID_YAW_I = 0;
+float PID_YAW_I = 0.0;
 float PID_YAW_D = 0;
 
 MPU6050 accelgyro; 
@@ -51,7 +50,7 @@ bool motor_on  = false;  //state of motor
 int16_t inline ExecutePitchPID(const int16_t& pitch_set_point, const int16_t& measured_pitch);
 int16_t inline ExecuteRollPID(const int16_t& roll_set_point, const int16_t& measured_roll);
 int16_t inline ExecuteYawPID(const int16_t& yaw_set_point, const int16_t& measured_yaw); 
-void inline MeasurePitchRollYaw(float& measured_pitch, float& measured_roll, float& measured_yaw);
+void inline MeasurePitchRollYaw(int16_t& measured_pitch, int16_t& measured_roll, int16_t& measured_yaw);
 
 void setup() {
 
@@ -93,23 +92,17 @@ void loop() {
   int16_t ROLL = ppm.rawChannelValue(1);
   int16_t PITCH = ppm.rawChannelValue(2);
   
-  float measured_pitch  = 0;
-  float measured_roll  = 0;
-  float measured_yaw  = 0;
+  int16_t measured_pitch  = 0;
+  int16_t measured_roll  = 0;
+  int16_t measured_yaw  = 0;
   
-  MeasurePitchRollYaw(measured_pitch, measured_roll, measured_yaw);
-  
-  // Scale the input values to a range of -100 to 100
+  // Scale the input values to a range of 0 to 100
   THROTTLE = map(THROTTLE, 1000, 2000, -100, 100);
   YAW = map(YAW, 1000, 2000, -80, 80);
   PITCH = map(PITCH, 1000, 2000, -50, 50);
   ROLL = map(ROLL, 1000, 2000, -70, 70);
 
-  Serial.println();
-  PRINTLN(measured_pitch);
-  PRINTLN(measured_roll);
-  PRINTLN(measured_yaw);
-
+  MeasurePitchRollYaw(measured_pitch, measured_roll, measured_yaw);
   
    // Calculate pitch, roll, and yaw errors
   /* without calculating the errors between the desired and measured pitch, roll 
@@ -124,7 +117,9 @@ void loop() {
   int16_t PitchPIDOutput  = ExecutePitchPID(PITCH, pitch_error);
   int16_t RollPIDOutput  = ExecuteRollPID(ROLL, roll_error);
   int16_t YawPIDOutput  = ExecuteYawPID(YAW, yaw_error);
-
+  Serial.print("\nPitchPIDOutput: "); Serial.println(PitchPIDOutput);
+  Serial.print("RollPIDOutput: "); Serial.println(RollPIDOutput);
+  Serial.print("YawPIDOutput: "); Serial.println(YawPIDOutput);
 
   // Mix the input values to determine the speed and direction of each motor
   int16_t mota = map(THROTTLE + PitchPIDOutput - RollPIDOutput + YawPIDOutput, -100, 100, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); //FR
@@ -132,57 +127,40 @@ void loop() {
   int16_t motc = map(THROTTLE + PitchPIDOutput + RollPIDOutput - YawPIDOutput, -100, 100, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); //FL
   int16_t motd = map(THROTTLE - PitchPIDOutput + RollPIDOutput + YawPIDOutput, -100, 100, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); //BL
 
-  Serial.println();
-  PRINTLN(THROTTLE); 
-  PRINTLN(YAW); 
-  PRINTLN(PITCH); 
-  PRINTLN(ROLL); 
-
-  //printing output 
-  Serial.println();
-  PRINTLN(mota); 
-  PRINTLN(motb); 
-  PRINTLN(motc); 
-  PRINTLN(motd); 
-
+  Serial.print("\nTHROTTLE: " + String(THROTTLE) + "\n");
+  Serial.print("YAW: " + String(YAW) + "\n");
+  Serial.print("PITCH: " + String(PITCH) + "\n");
+  Serial.print("ROLL: " + String(ROLL) + "\n");
+  
+  Serial.print("\nmotA: "); Serial.println(mota); 
+  Serial.print("motB: "); Serial.println(motb); 
+  Serial.print("motC: "); Serial.println(motc); 
+  Serial.print("motD: "); Serial.println(motd);
     
-static int flag = 0;
-
-if (THROTTLE >= 98 && YAW > 70)  // turn off motors 
-{
-  if(flag == 1 && flag == 2){
-    motA.writeMicroseconds(MIN_PULSE_LENGTH); // CCW 
-    motB.writeMicroseconds(MIN_PULSE_LENGTH); // CW 
-    motC.writeMicroseconds(MIN_PULSE_LENGTH); // CW
-    motD.writeMicroseconds(MIN_PULSE_LENGTH); // CCW
-    Serial.println("Motors Off");
+  if(THROTTLE >= 98  && YAW > 70) // turn off motors 
+  {
+    if (motor_on) 
+    {
+      motA.writeMicroseconds(MIN_PULSE_LENGTH); // CCW 
+      motB.writeMicroseconds(MIN_PULSE_LENGTH); // CW 
+      motC.writeMicroseconds(MIN_PULSE_LENGTH); // CW
+      motD.writeMicroseconds(MIN_PULSE_LENGTH); // CCW
+      Serial.println("Motors off");
+      motor_on = false; // update the flag variable
+      delay(500); //give it time to process before shutting down
+    }
   }
-    flag = 3; 
-    PRINTLN(flag);
-    delay(500); //give it time to process before shutting down
-}
-
- if (THROTTLE > 10 || THROTTLE < -3) //turn on motors, begin flight 
-{
+  
+  if (THROTTLE > 10 || THROTTLE < -1) //turn on motors, begin flight 
+  {
     motA.writeMicroseconds(mota); // CCW 
     motB.writeMicroseconds(motb); // CW 
     motC.writeMicroseconds(motc); // CW
     motD.writeMicroseconds(motd); // CCW
-    Serial.println("\nMotors on");
-    flag = 1;
-    PRINTLN(flag); //    
-}
-
-if (THROTTLE == 9 || THROTTLE == 11 || THROTTLE == 12) //neutral
-{
-    motA.writeMicroseconds(MID_PULSE_LENGTH); // CCW 
-    motB.writeMicroseconds(MID_PULSE_LENGTH); // CW 
-    motC.writeMicroseconds(MID_PULSE_LENGTH); // CW
-    motD.writeMicroseconds(MID_PULSE_LENGTH); // CCW
-    Serial.println("\nMiddle PWM");
-    flag = 2;
-    PRINTLN(flag); //
-}
+    Serial.println("Motors on");
+    motor_on = true; // update the flag variable
+  }
+  
   delay(500); 
 }
 
@@ -248,21 +226,20 @@ int16_t inline ExecuteYawPID(const int16_t& yaw_set_point, const int16_t& measur
         drones orientation. It is typically recommended to use a combination 
         of both gyroscope and accelerometer data. 
 */
-void inline MeasurePitchRollYaw(float& measured_pitch, float& measured_roll, float& measured_yaw) {
+void inline MeasurePitchRollYaw(int16_t& measured_pitch, int16_t& measured_roll, int16_t& measured_yaw) {
   int16_t ax, ay, az;
   int16_t gx, gy, gz;
-  
   accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
 
-  // Calculate the roll, yaw angle based on the accelerometer readings
-  float roll_acc = atan2f(static_cast<float>(ay), static_cast<float>(az)) * (180.0 / PI);
-  float pitch_acc = atan2f(static_cast<float>(ax), static_cast<float>(az)) * (180.0 / PI);
+  //calculate the roll, yaw angle based on the accelerometer readings
+  float roll_acc = atan2f(ay, az) * (180.0 / PI);
+  float pitch_acc = atan2f(ax, az) * (180.0 / PI);
 
-  // Calculate the yaw angle based on the gyro readings 
-  float roll_gyro = measured_roll + (static_cast<float>(gx) / GYRO_SCALE_FACTOR);
-  float pitch_gyro = measured_pitch + (static_cast<float>(gy) / GYRO_SCALE_FACTOR);
+  //calculate the yaw angle based on the gyro readings 
+  float roll_gyro = measured_roll + (gx / GYRO_SCALE_FACTOR);
+  float pitch_gyro = measured_pitch + (gy / GYRO_SCALE_FACTOR);
 
-    // Apply complementary filter
+  // Apply complementary filter
    /*adjust if necessary. A higher value closer to 1
      gives more weight to the gyro, which can give faster
      response time, but may be more susceptible to 
@@ -272,8 +249,10 @@ void inline MeasurePitchRollYaw(float& measured_pitch, float& measured_roll, flo
    */
   float alpha = 0.98; // Gyroscope weight
 
+  //y=a⋅y+(1−a)⋅x 
   measured_roll = alpha * roll_gyro + (1 - alpha) * roll_acc;
   measured_pitch = alpha * pitch_gyro + (1 - alpha) * pitch_acc;
+  // measured_yaw remains unchanged
 
-  measured_yaw += (static_cast<float>(gz) / GYRO_SCALE_FACTOR); // Update yaw directly with gyroscope data
+  measured_yaw += (gz / GYRO_SCALE_FACTOR); // Update yaw directly with gyroscope data
 }
