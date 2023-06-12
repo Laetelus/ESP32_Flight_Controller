@@ -146,43 +146,31 @@ void loop() {
   PRINTLN(motd); 
 
     
-static int flag = 0;
-
-if (THROTTLE >= 98 && YAW > 70)  // turn off motors 
-{
-  if(flag == 1 && flag == 2){
-    motA.writeMicroseconds(MIN_PULSE_LENGTH); // CCW 
-    motB.writeMicroseconds(MIN_PULSE_LENGTH); // CW 
-    motC.writeMicroseconds(MIN_PULSE_LENGTH); // CW
-    motD.writeMicroseconds(MIN_PULSE_LENGTH); // CCW
-    Serial.println("Motors Off");
-  }
-    flag = 3; 
-    PRINTLN(flag);
+  if(THROTTLE >= -87  && YAW > 70) // turn off motors 
+  {
+    if (motor_on) 
+    {
+      motA.writeMicroseconds(MIN_PULSE_LENGTH); // CCW 
+      motB.writeMicroseconds(MIN_PULSE_LENGTH); // CW 
+      motC.writeMicroseconds(MIN_PULSE_LENGTH); // CW
+      motD.writeMicroseconds(MIN_PULSE_LENGTH); // CCW
+      Serial.println("Motors off");
+      motor_on = false; // update the flag variable
+      delay(500); //give it time to process before shutting down
+    }
     delay(500); //give it time to process before shutting down
-}
-
- if (THROTTLE > 10 || THROTTLE < -3) //turn on motors, begin flight 
-{
+  }
+  
+  else if (THROTTLE > 11 || THROTTLE <= -5 ) //turn on motors, begin flight 
+  {
     motA.writeMicroseconds(mota); // CCW 
     motB.writeMicroseconds(motb); // CW 
     motC.writeMicroseconds(motc); // CW
     motD.writeMicroseconds(motd); // CCW
-    Serial.println("\nMotors on");
-    flag = 1;
-    PRINTLN(flag); //    
-}
-
-if (THROTTLE == 9 || THROTTLE == 11 || THROTTLE == 12) //neutral
-{
-    motA.writeMicroseconds(MID_PULSE_LENGTH); // CCW 
-    motB.writeMicroseconds(MID_PULSE_LENGTH); // CW 
-    motC.writeMicroseconds(MID_PULSE_LENGTH); // CW
-    motD.writeMicroseconds(MID_PULSE_LENGTH); // CCW
-    Serial.println("\nMiddle PWM");
-    flag = 2;
-    PRINTLN(flag); //
-}
+    Serial.println("Motors on");
+    motor_on = true; // update the flag variable
+  }
+  
   delay(500); 
 }
 
