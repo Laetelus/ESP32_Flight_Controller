@@ -3,6 +3,12 @@
 #include "I2Cdev.h"
 #include "MPU6050.h"
 #include <EEPROM.h>
+// TODO: correct inaccurate gyro reading when stationary 
+// TODO: Test CW and CCW rotation of propellers 
+// TODO: check autolevel works 
+
+
+//
 //  FR             BR
 //     \           /
 //      \---------/
@@ -24,7 +30,6 @@ byte channelAmount = 4; // Number of channels to use
 
 #define MIN_PULSE_LENGTH 1000 // Minimum pulse length in µs
 #define MAX_PULSE_LENGTH 2000 // Maximum pulse length in µs
-#define MID_PULSE_LENGTH 1500 //Neutral pulse length in µs
 
 #define PRINTLN(var) Serial.print(#var ": "); Serial.println(var);
 void calculate_pid(); 
@@ -124,19 +129,17 @@ void loop() {
   int16_t receiver_input_channel_1 = ppm.rawChannelValue(1); //roll
   int16_t receiver_input_channel_2 = ppm.rawChannelValue(2); //PITCH
 
-  Serial.print("\nTHROTTLE: "); Serial.println(receiver_input_channel_3); 
-  Serial.print("YAW: "); Serial.println(receiver_input_channel_4); 
-  Serial.print("ROLL: "); Serial.println(receiver_input_channel_1);
-  Serial.print("PITCH: "); Serial.println(receiver_input_channel_2);
-    // Read accelerometer and gyroscope values
+  // Serial.print("\nTHROTTLE: "); Serial.println(receiver_input_channel_3); 
+  // Serial.print("YAW: "); Serial.println(receiver_input_channel_4); 
+  // Serial.print("ROLL: "); Serial.println(receiver_input_channel_1);
+  // Serial.print("PITCH: "); Serial.println(receiver_input_channel_2);
+  
+  // Read accelerometer and gyroscope values
   int16_t acc_x = accelgyro.getAccelerationX();
   int16_t acc_y = accelgyro.getAccelerationY();
   int16_t acc_z = accelgyro.getAccelerationZ();
-  // int16_t gyroX = accelgyro.getRotationX();
-  // int16_t gyroY = accelgyro.getRotationY();
-  // int16_t gyroZ = accelgyro.getRotationZ();
-
-  readGyroData();
+  
+  readGyroData(); 
   
 
  //65.5 = 1 deg/sec (check the datasheet of the accelgyro-6050 for more information).
@@ -144,11 +147,13 @@ void loop() {
   gyro_pitch_input = (gyro_pitch_input * 0.7) + ((gyro_pitch / 65.5) * 0.3);//Gyro pid input is deg/sec.
   gyro_yaw_input = (gyro_yaw_input * 0.7) + ((gyro_yaw / 65.5) * 0.3);      //Gyro pid input is deg/sec.
 
-  PRINTLN(gyro_roll_input);
+
   //Gyro angle calculations
   //0.0000611 = 1 / (250Hz / 65.5)
   angle_pitch += gyro_pitch * 0.0000611;                                    //Calculate the traveled pitch angle and add this to the angle_pitch variable.
   angle_roll += gyro_roll * 0.0000611;                                      //Calculate the traveled roll angle and add this to the angle_roll variable.
+
+
 
   //0.000001066 = 0.0000611 * (3.142(PI) / 180degr) The Arduino sin function is in radians
   angle_pitch -= angle_roll * sin(gyro_yaw * 0.000001066);                  //If the IMU has yawed transfer the roll angle to the pitch angel.
@@ -178,6 +183,9 @@ void loop() {
     pitch_level_adjust = 0;                                                 //Set the pitch angle correction to zero.
     roll_level_adjust = 0;                                                  //Set the roll angle correcion to zero.
   }
+  // Serial.println();
+  // PRINTLN(angle_pitch);
+  // PRINTLN(angle_roll);   
 
    //For starting the motors: throttle low and yaw left (step 1).
   if(receiver_input_channel_3 < 1065 && receiver_input_channel_4 < 1050)start = 1;
@@ -269,7 +277,7 @@ void loop() {
     motB.writeMicroseconds(esc_2); //
     motC.writeMicroseconds(esc_3); //
     motD.writeMicroseconds(esc_4); //
-  delay(500); 
+    //delay(500); 
 }
 
 void calculate_pid(){
