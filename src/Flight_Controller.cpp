@@ -28,6 +28,7 @@ byte channelAmount = 4; // Number of channels to use
 
 #define PRINTLN(var) Serial.print(#var ": "); Serial.println(var);
 void calculate_pid(); 
+void readGyroData(); 
 
 
 float pid_p_gain_roll = 1.3;               //Gain setting for the roll P-controller
@@ -60,9 +61,8 @@ float roll_level_adjust, pitch_level_adjust;
 
 long acc_x, acc_y, acc_z, acc_total_vector;
 unsigned long timer_channel_1, timer_channel_2, timer_channel_3, timer_channel_4, esc_timer, esc_loop_timer;
-unsigned long timer_1, timer_2, timer_3, timer_4, current_time;
 unsigned long loop_timer;
-double gyro_pitch, gyro_roll, gyro_yaw;
+int16_t gyro_pitch, gyro_roll, gyro_yaw;
 double gyro_axis_cal[4];
 float pid_error_temp;
 float pid_i_mem_roll, pid_roll_setpoint, gyro_roll_input, pid_output_roll, pid_last_roll_d_error;
@@ -82,11 +82,25 @@ bool motor_on  = false;  //state of motor
 void setup() {
 
   Serial.begin(115200);
-  for(start = 0; start <= 35; start++)eeprom_data[start] = EEPROM.read(start);
-  start = 0;                                                                //Set start back to zero.
-  gyro_address = eeprom_data[32];                                           //Store the gyro address in the variable.
-  PRINTLN(gyro_address);
+  Wire.begin();
+  // join I2C bus (I2Cdev library doesn't do this automatically)
+  #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
+      Wire.begin();
+  #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
+      Fastwire::setup(400, true);
+  #endif
+
+  // initialize device
+  Serial.println("Initializing I2C devices...");
+  accelgyro.initialize();
+  // verify connection
+  #ifdef I2CDEV_IMPLEMENTATION
+    Serial.println("Testing device connections...");
+    Serial.println(accelgyro.testConnection() ? "accelgyro6050 connection successful" : "accelgyro6050 connection failed");
+  #endif
+  
   Wire.begin();                                                             //Start the I2C as master.
+
 
 
   // Set up the motors
@@ -114,14 +128,23 @@ void loop() {
   Serial.print("YAW: "); Serial.println(receiver_input_channel_4); 
   Serial.print("ROLL: "); Serial.println(receiver_input_channel_1);
   Serial.print("PITCH: "); Serial.println(receiver_input_channel_2);
+    // Read accelerometer and gyroscope values
+  int16_t acc_x = accelgyro.getAccelerationX();
+  int16_t acc_y = accelgyro.getAccelerationY();
+  int16_t acc_z = accelgyro.getAccelerationZ();
+  // int16_t gyroX = accelgyro.getRotationX();
+  // int16_t gyroY = accelgyro.getRotationY();
+  // int16_t gyroZ = accelgyro.getRotationZ();
 
+  readGyroData();
+  
 
- //65.5 = 1 deg/sec (check the datasheet of the MPU-6050 for more information).
+ //65.5 = 1 deg/sec (check the datasheet of the accelgyro-6050 for more information).
   gyro_roll_input = (gyro_roll_input * 0.7) + ((gyro_roll / 65.5) * 0.3);   //Gyro pid input is deg/sec.
   gyro_pitch_input = (gyro_pitch_input * 0.7) + ((gyro_pitch / 65.5) * 0.3);//Gyro pid input is deg/sec.
   gyro_yaw_input = (gyro_yaw_input * 0.7) + ((gyro_yaw / 65.5) * 0.3);      //Gyro pid input is deg/sec.
 
-
+  PRINTLN(gyro_roll_input);
   //Gyro angle calculations
   //0.0000611 = 1 / (250Hz / 65.5)
   angle_pitch += gyro_pitch * 0.0000611;                                    //Calculate the traveled pitch angle and add this to the angle_pitch variable.
@@ -141,7 +164,7 @@ void loop() {
     angle_roll_acc = asin((float)acc_x/acc_total_vector)* -57.296;          //Calculate the roll angle.
   }
   
-  //Place the MPU-6050 spirit level and note the values in the following two lines for calibration.
+  //Place the accelgyro-6050 spirit level and note the values in the following two lines for calibration.
   angle_pitch_acc -= 0.0;                                                   //Accelerometer calibration value for pitch.
   angle_roll_acc -= 0.0;                                                    //Accelerometer calibration value for roll.
   
@@ -211,17 +234,8 @@ void loop() {
   //MeasurePitchRollYaw(measured_pitch, measured_roll, measured_yaw);
   calculate_pid();                                                            //PID inputs are known. So we can calculate the pid output.
 
-    //The battery voltage is needed for compensation.
-  //A complementary filter is used to reduce noise.
-  //0.09853 = 0.08 * 1.2317.
-  battery_voltage = battery_voltage * 0.92 + (analogRead(0) + 65) * 0.09853;
-
-  //Turn on the led if battery voltage is to low.
-  if(battery_voltage < 1000 && battery_voltage > 600)digitalWrite(12, HIGH);
-
 
   throttle = receiver_input_channel_3;                                      //We need the throttle signal as a base signal.
-
   if (start == 2)
   {                                                          //The motors are started.
     if (throttle > 1800) throttle = 1800;                                   //We need some room to keep full control at full throttle.
@@ -231,14 +245,7 @@ void loop() {
     esc_2 = map(throttle + pid_output_pitch + pid_output_roll + pid_output_yaw,1000,2000,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH); //Calculate the pulse for esc 2 (rear-right - CW)
     esc_3 = map(throttle + pid_output_pitch - pid_output_roll - pid_output_yaw,1000,2000,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH); //Calculate the pulse for esc 3 (rear-left - CCW)
     esc_4 = map(throttle - pid_output_pitch - pid_output_roll + pid_output_yaw,1000,2000,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH); //Calculate the pulse for esc 4 (front-left - CW)
-
-    if (battery_voltage < 1240 && battery_voltage > 800){                   //Is the battery connected?
-      esc_1 += esc_1 * ((1240 - battery_voltage)/(float)3500);              //Compensate the esc-1 pulse for voltage drop.
-      esc_2 += esc_2 * ((1240 - battery_voltage)/(float)3500);              //Compensate the esc-2 pulse for voltage drop.
-      esc_3 += esc_3 * ((1240 - battery_voltage)/(float)3500);              //Compensate the esc-3 pulse for voltage drop.
-      esc_4 += esc_4 * ((1240 - battery_voltage)/(float)3500);              //Compensate the esc-4 pulse for voltage drop.
-    } 
-
+    
     if (esc_1 < 1100) esc_1 = 1100;                                         //Keep the motors running.
     if (esc_2 < 1100) esc_2 = 1100;                                         //Keep the motors running.
     if (esc_3 < 1100) esc_3 = 1100;                                         //Keep the motors running.
@@ -262,13 +269,6 @@ void loop() {
     motB.writeMicroseconds(esc_2); //
     motC.writeMicroseconds(esc_3); //
     motD.writeMicroseconds(esc_4); //
-
-    // Serial.println();
-    // PRINTLN(esc_1); 
-    // PRINTLN(esc_2); 
-    // PRINTLN(esc_3); 
-    // PRINTLN(esc_4);
-    
   delay(500); 
 }
 
@@ -310,3 +310,7 @@ void calculate_pid(){
   pid_last_yaw_d_error = pid_error_temp;
 }
 
+void readGyroData() {
+  // Read gyroscope values
+  accelgyro.getRotation(&gyro_roll, &gyro_pitch, &gyro_yaw);
+}
