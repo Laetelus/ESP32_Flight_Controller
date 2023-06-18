@@ -8,7 +8,7 @@
 // TODO: check if autolevel functionality works properly
 // TODO: update loop timer. Remove any delay() functions 
 // TODO: Adjust pitch,roll, and yaw setpoints  
-
+// TODO: Interrupt states for receiver. delays won't work here 
 //
 //  FR             BR
 //     \           /
@@ -102,8 +102,9 @@ void setup() {
   #endif
   
   Wire.begin();                                                             //Start the I2C as master.
+  
+  pinMode(2,OUTPUT); //LED status 
 
-    
   calibrateMPU650();
   //accelgyro.CalibrateGyro();
 
@@ -140,7 +141,6 @@ void loop() {
   
   readGyroData(); 
   
-
  //65.5 = 1 deg/sec (check the datasheet of the accelgyro-6050 for more information).
   gyro_roll_input = (gyro_roll_input * 0.7) + ((gyro_roll / 65.5) * 0.3);   //Gyro pid input is deg/sec.
   gyro_pitch_input = (gyro_pitch_input * 0.7) + ((gyro_pitch / 65.5) * 0.3);//Gyro pid input is deg/sec.
@@ -271,14 +271,23 @@ void loop() {
     esc_4 = 1000;                                                           //If start is not 2 keep a 1000us pulse for ess-4.
   }
 
+
+
     motA.writeMicroseconds(esc_1); // CCW
     motB.writeMicroseconds(esc_2); // CW
     motC.writeMicroseconds(esc_3); // CW
     motD.writeMicroseconds(esc_4); // CCW
+    
+  //! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !
+  //Because of the angle calculation the loop time is getting very important. If the loop time is 
+  //longer or shorter than 4000us the angle calculation is off. If you modify the code make sure 
+  //that the loop time is still 4000us and no longer! More information can be found on 
+  //the Q&A page: 
+  //! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !
 
-  //custom loop added. additional requirements needs to be added 
-  while(micros() - loop_timer < 4000);                                      //We wait until 4000us are passed.
-  loop_timer = micros();                                                    //Set the timer for the next loop.    
+
+  //uncomment for debugging
+  //delay(500);
 }
 
 void calculate_pid(){
@@ -346,7 +355,8 @@ void calibrateMPU650() {
     gyroXOffset += gyroX;
     gyroYOffset += gyroY;
     gyroZOffset += gyroZ;
-    
+
+    digitalWrite(2,HIGH);  //Calibration indication 
     delay(1); // Delay between readings
   }
   
@@ -361,4 +371,5 @@ void calibrateMPU650() {
   accelgyro.setZGyroOffset(gyroZOffset);
   
   Serial.println("Calibration complete.");
+  digitalWrite(2, LOW); //turn off led indicating calibration completed 
 }
