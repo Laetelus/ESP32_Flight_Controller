@@ -34,6 +34,7 @@ byte channelAmount = 4; // Number of channels to use
 #define PRINTLN(var) Serial.print(#var ": "); Serial.println(var);
 void calculate_pid(); 
 void readGyroData(); 
+void calibrateMPU650(); 
 
 
 float pid_p_gain_roll = 1.3;               //Gain setting for the roll P-controller
@@ -52,19 +53,15 @@ float pid_d_gain_yaw = 0.0;                //Gain setting for the pitch D-contro
 int pid_max_yaw = 400;                     //Maximum output of the PID-controller (+/-)
 
 byte last_channel_1, last_channel_2, last_channel_3, last_channel_4;
-byte eeprom_data[36];
-byte highByte, lowByte;
 volatile int receiver_input_channel_1, receiver_input_channel_2, receiver_input_channel_3, receiver_input_channel_4;
 int counter_channel_1, counter_channel_2, counter_channel_3, counter_channel_4, loop_counter;
 int esc_1, esc_2, esc_3, esc_4;
-int throttle, battery_voltage;
-int cal_int, start, gyro_address;
-int receiver_input[5]; //array input 
+int throttle;
+int start;   
 int temperature;
-int acc_axis[4], gyro_axis[4];
 float roll_level_adjust, pitch_level_adjust;
 
-long acc_x, acc_y, acc_z, acc_total_vector;
+int16_t acc_x, acc_y, acc_z, acc_total_vector;
 unsigned long timer_channel_1, timer_channel_2, timer_channel_3, timer_channel_4, esc_timer, esc_loop_timer;
 unsigned long loop_timer;
 int16_t gyro_pitch, gyro_roll, gyro_yaw;
@@ -76,12 +73,11 @@ float pid_i_mem_yaw, pid_yaw_setpoint, gyro_yaw_input, pid_output_yaw, pid_last_
 float angle_roll_acc, angle_pitch_acc, angle_pitch, angle_roll;
 boolean gyro_angles_set;
 
-bool auto_level; 
+bool auto_level = true; 
 
 MPU6050 accelgyro; 
 Servo motA,motB,motC,motD; 
 PPMReader ppm(interruptPin, channelAmount);
-bool motor_on  = false;  //state of motor 
 
 
 void setup() {
@@ -106,7 +102,9 @@ void setup() {
   
   Wire.begin();                                                             //Start the I2C as master.
 
-
+    
+  calibrateMPU650();
+  accelgyro.CalibrateGyro();
 
   // Set up the motors
   motA.attach(MOTOR_1_PIN,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH);
@@ -134,10 +132,10 @@ void loop() {
   // Serial.print("ROLL: "); Serial.println(receiver_input_channel_1);
   // Serial.print("PITCH: "); Serial.println(receiver_input_channel_2);
   
-  // Read accelerometer and gyroscope values
-  int16_t acc_x = accelgyro.getAccelerationX();
-  int16_t acc_y = accelgyro.getAccelerationY();
-  int16_t acc_z = accelgyro.getAccelerationZ();
+  // // Read accelerometer values.
+  // int16_t acc_x = accelgyro.getAccelerationX();
+  // int16_t acc_y = accelgyro.getAccelerationY();
+  // int16_t acc_z = accelgyro.getAccelerationZ();
   
   readGyroData(); 
   
@@ -183,10 +181,11 @@ void loop() {
     pitch_level_adjust = 0;                                                 //Set the pitch angle correction to zero.
     roll_level_adjust = 0;                                                  //Set the roll angle correcion to zero.
   }
-  // Serial.println();
-  // PRINTLN(angle_pitch);
-  // PRINTLN(angle_roll);   
 
+  Serial.println();
+  PRINTLN(pitch_level_adjust);
+  PRINTLN(roll_level_adjust);   
+  PRINTLN(gyro_yaw);
    //For starting the motors: throttle low and yaw left (step 1).
   if(receiver_input_channel_3 < 1065 && receiver_input_channel_4 < 1050)start = 1;
 
@@ -277,7 +276,7 @@ void loop() {
     motB.writeMicroseconds(esc_2); //
     motC.writeMicroseconds(esc_3); //
     motD.writeMicroseconds(esc_4); //
-    //delay(500); 
+    delay(500); 
 }
 
 void calculate_pid(){
@@ -320,5 +319,44 @@ void calculate_pid(){
 
 void readGyroData() {
   // Read gyroscope values
-  accelgyro.getRotation(&gyro_roll, &gyro_pitch, &gyro_yaw);
+accelgyro.getMotion6(&acc_x, &acc_y, &acc_z, &gyro_roll, &gyro_pitch, &gyro_yaw);
+}
+
+
+void calibrateMPU650() {
+  // Assuming you need to calibrate gyroX, gyroY, and gyroZ
+  const int calibrationSamples = 2000; // Number of samples to collect for calibration
+  float gyroXOffset = 0.0;
+  float gyroYOffset = 0.0;
+  float gyroZOffset = 0.0;
+  
+  Serial.println("Starting sensor calibration...");
+  
+  // Collect samples and calculate the average
+  for (int i = 0; i < calibrationSamples; i++) {
+    
+    // Read gyro data
+    float gyroX = accelgyro.getRotationX();
+    float gyroY = accelgyro.getRotationY();
+    float gyroZ = accelgyro.getRotationZ();
+    
+    // Accumulate offsets
+    gyroXOffset += gyroX;
+    gyroYOffset += gyroY;
+    gyroZOffset += gyroZ;
+    
+    delay(1); // Delay between readings
+  }
+  
+  // Calculate the average offsets
+  gyroXOffset /= calibrationSamples;
+  gyroYOffset /= calibrationSamples;
+  gyroZOffset /= calibrationSamples;
+  
+  // Set the gyro offsets
+  accelgyro.setXGyroOffset(gyroXOffset);
+  accelgyro.setYGyroOffset(gyroYOffset);
+  accelgyro.setZGyroOffset(gyroZOffset);
+  
+  Serial.println("Calibration complete.");
 }
