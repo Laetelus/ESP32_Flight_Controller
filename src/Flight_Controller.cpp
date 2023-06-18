@@ -5,8 +5,9 @@
 #include <EEPROM.h>
 // TODO: correct inaccurate gyro reading when stationary 
 // TODO: Test CW and CCW rotation of propellers 
-// TODO: check autolevel works 
-
+// TODO: check if autolevel functionality works properly
+// TODO: update loop timer. Remove any delay() functions 
+// TODO: Adjust pitch,roll, and yaw setpoints  
 
 //
 //  FR             BR
@@ -104,7 +105,7 @@ void setup() {
 
     
   calibrateMPU650();
-  accelgyro.CalibrateGyro();
+  //accelgyro.CalibrateGyro();
 
   // Set up the motors
   motA.attach(MOTOR_1_PIN,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH);
@@ -182,10 +183,11 @@ void loop() {
     roll_level_adjust = 0;                                                  //Set the roll angle correcion to zero.
   }
 
-  Serial.println();
-  PRINTLN(pitch_level_adjust);
-  PRINTLN(roll_level_adjust);   
-  PRINTLN(gyro_yaw);
+  // Serial.println();
+  // PRINTLN(pitch_level_adjust);
+  // PRINTLN(roll_level_adjust);   
+  // PRINTLN(gyro_yaw);
+
    //For starting the motors: throttle low and yaw left (step 1).
   if(receiver_input_channel_3 < 1065 && receiver_input_channel_4 < 1050)start = 1;
 
@@ -205,19 +207,18 @@ void loop() {
     pid_i_mem_yaw = 0;
     pid_last_yaw_d_error = 0;
   }
-  //Stopping the motors: throttle low and yaw right.
-  if(start == 2 && receiver_input_channel_3 < 1065 && receiver_input_channel_4 > 1950)start = 0;
-
+  
+    //Stopping the motors: throttle low and yaw right.
+  if(start == 2 && receiver_input_channel_3 <= 1064 && receiver_input_channel_4 > 1976) start = 0;
   //The PID set point in degrees per second is determined by the roll receiver input.
   //In the case of deviding by 3 the max roll rate is aprox 164 degrees per second ( (500-8)/3 = 164d/s ).
   pid_roll_setpoint = 0;
   //We need a little dead band of 16us for better results.
-  if(receiver_input_channel_2 > 1508)pid_pitch_setpoint = receiver_input_channel_2 - 1508;
-  else if(receiver_input_channel_2 < 1492)pid_pitch_setpoint = receiver_input_channel_2 - 1492;
+  if(receiver_input_channel_1 > 1508)pid_roll_setpoint = receiver_input_channel_1 - 1508;
+  else if(receiver_input_channel_1 < 1492)pid_roll_setpoint = receiver_input_channel_1 - 1492;
 
   pid_roll_setpoint -= roll_level_adjust;                                   //Subtract the angle correction from the standardized receiver roll input value.
   pid_roll_setpoint /= 3.0;                                                 //Divide the setpoint for the PID roll controller by 3 to get angles in degrees.
-
 
   //The PID set point in degrees per second is determined by the pitch receiver input.
   //In the case of deviding by 3 the max pitch rate is aprox 164 degrees per second ( (500-8)/3 = 164d/s ).
@@ -238,9 +239,7 @@ void loop() {
     else if(receiver_input_channel_4 < 1492)pid_yaw_setpoint = (receiver_input_channel_4 - 1492)/3.0;
   }
   
-  //MeasurePitchRollYaw(measured_pitch, measured_roll, measured_yaw);
   calculate_pid();                                                            //PID inputs are known. So we can calculate the pid output.
-
 
   throttle = receiver_input_channel_3;                                      //We need the throttle signal as a base signal.
   if (start == 2)
@@ -248,10 +247,10 @@ void loop() {
     if (throttle > 1800) throttle = 1800;                                   //We need some room to keep full control at full throttle.
     
     //escs are motor motA,motB,motC,motD 
-    esc_1 = map(throttle - pid_output_pitch + pid_output_roll - pid_output_yaw,1000,2000,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH); //Calculate the pulse for esc 1 (front-right - CCW)
-    esc_2 = map(throttle + pid_output_pitch + pid_output_roll + pid_output_yaw,1000,2000,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH); //Calculate the pulse for esc 2 (rear-right - CW)
-    esc_3 = map(throttle + pid_output_pitch - pid_output_roll - pid_output_yaw,1000,2000,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH); //Calculate the pulse for esc 3 (rear-left - CCW)
-    esc_4 = map(throttle - pid_output_pitch - pid_output_roll + pid_output_yaw,1000,2000,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH); //Calculate the pulse for esc 4 (front-left - CW)
+    esc_1 = map(throttle + pid_output_pitch - pid_output_roll + pid_output_yaw,1000,2000,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH); // FR
+    esc_2 = map(throttle - pid_output_pitch - pid_output_roll - pid_output_yaw,1000,2000,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH); // BR
+    esc_3 = map(throttle + pid_output_pitch + pid_output_roll - pid_output_yaw,1000,2000,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH); // FL
+    esc_4 = map(throttle - pid_output_pitch + pid_output_roll + pid_output_yaw,1000,2000,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH); // BL 
     
     if (esc_1 < 1100) esc_1 = 1100;                                         //Keep the motors running.
     if (esc_2 < 1100) esc_2 = 1100;                                         //Keep the motors running.
@@ -272,11 +271,14 @@ void loop() {
     esc_4 = 1000;                                                           //If start is not 2 keep a 1000us pulse for ess-4.
   }
 
-    motA.writeMicroseconds(esc_1); //
-    motB.writeMicroseconds(esc_2); //
-    motC.writeMicroseconds(esc_3); //
-    motD.writeMicroseconds(esc_4); //
-    delay(500); 
+    motA.writeMicroseconds(esc_1); // CCW
+    motB.writeMicroseconds(esc_2); // CW
+    motC.writeMicroseconds(esc_3); // CW
+    motD.writeMicroseconds(esc_4); // CCW
+
+  //custom loop added. additional requirements needs to be added 
+  while(micros() - loop_timer < 4000);                                      //We wait until 4000us are passed.
+  loop_timer = micros();                                                    //Set the timer for the next loop.    
 }
 
 void calculate_pid(){
