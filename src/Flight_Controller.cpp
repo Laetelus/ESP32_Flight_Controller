@@ -3,12 +3,19 @@
 #include "I2Cdev.h"
 #include "MPU6050.h"
 #include <EEPROM.h>
-// TODO: correct inaccurate gyro reading when stationary 
-// TODO: Test CW and CCW rotation of propellers 
-// TODO: check if autolevel functionality works properly
-// TODO: update loop timer. Remove any delay() functions 
-// TODO: Adjust pitch,roll, and yaw setpoints  
-// TODO: Interrupt states for receiver. delays won't work here 
+
+/*
+
+TODO: correct inaccurate gyro reading when stationary 
+TODO: Test CW and CCW rotation of propellers 
+TODO: check if auto-level functionality works properly
+TODO: update loop timer. Remove any delay() functions 
+TODO: Adjust pitch,roll, and yaw set-points  
+TODO: Interrupt states for receiver. delays won't work here 
+TODO: Can no longer use PPM. Switching to PWM 
+
+*/
+
 //
 //  FR             BR
 //     \           /
@@ -18,6 +25,8 @@
 //     /           \ 
 //  FL             BL
 
+
+//Need to remove PPM 
 
 // Initialize a PPMReader on digital pin 13 with 6 expected channels. 
 byte interruptPin = 13; // PPM pin connector 
@@ -53,20 +62,15 @@ float pid_i_gain_yaw = 0.02;               //Gain setting for the pitch I-contro
 float pid_d_gain_yaw = 0.0;                //Gain setting for the pitch D-controller.
 int pid_max_yaw = 400;                     //Maximum output of the PID-controller (+/-)
 
-byte last_channel_1, last_channel_2, last_channel_3, last_channel_4;
 volatile int receiver_input_channel_1, receiver_input_channel_2, receiver_input_channel_3, receiver_input_channel_4;
-int counter_channel_1, counter_channel_2, counter_channel_3, counter_channel_4, loop_counter;
 int esc_1, esc_2, esc_3, esc_4;
 int throttle;
 int start;   
-int temperature;
 float roll_level_adjust, pitch_level_adjust;
 
 int16_t acc_x, acc_y, acc_z, acc_total_vector;
-unsigned long timer_channel_1, timer_channel_2, timer_channel_3, timer_channel_4, esc_timer, esc_loop_timer;
 unsigned long loop_timer;
 int16_t gyro_pitch, gyro_roll, gyro_yaw;
-double gyro_axis_cal[4];
 float pid_error_temp;
 float pid_i_mem_roll, pid_roll_setpoint, gyro_roll_input, pid_output_roll, pid_last_roll_d_error;
 float pid_i_mem_pitch, pid_pitch_setpoint, gyro_pitch_input, pid_output_pitch, pid_last_pitch_d_error;
@@ -78,6 +82,8 @@ bool auto_level = true;
 
 MPU6050 accelgyro; 
 Servo motA,motB,motC,motD; 
+
+//Removed PPM here 
 PPMReader ppm(interruptPin, channelAmount);
 
 
@@ -123,6 +129,8 @@ void setup() {
 
 void loop() {
 
+
+  //Remove PPM here, PWM will be replaced 
   //Read the raw channel values
   int16_t receiver_input_channel_3 = ppm.rawChannelValue(3); //throttle 
   int16_t receiver_input_channel_4 = ppm.rawChannelValue(4); //Yaw
@@ -252,23 +260,23 @@ void loop() {
     esc_3 = map(throttle + pid_output_pitch + pid_output_roll - pid_output_yaw,1000,2000,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH); // FL
     esc_4 = map(throttle - pid_output_pitch + pid_output_roll + pid_output_yaw,1000,2000,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH); // BL 
     
-    if (esc_1 < 1100) esc_1 = 1100;                                         //Keep the motors running.
-    if (esc_2 < 1100) esc_2 = 1100;                                         //Keep the motors running.
-    if (esc_3 < 1100) esc_3 = 1100;                                         //Keep the motors running.
-    if (esc_4 < 1100) esc_4 = 1100;                                         //Keep the motors running.
+    if (esc_1 < 1100) esc_1 = 1100;     //Keep the motors running.
+    if (esc_2 < 1100) esc_2 = 1100;     //Keep the motors running.
+    if (esc_3 < 1100) esc_3 = 1100;     //Keep the motors running.
+    if (esc_4 < 1100) esc_4 = 1100;     //Keep the motors running.
 
-    if(esc_1 > 2000)esc_1 = 2000;                                           //Limit the esc-1 pulse to 2000us.
-    if(esc_2 > 2000)esc_2 = 2000;                                           //Limit the esc-2 pulse to 2000us.
-    if(esc_3 > 2000)esc_3 = 2000;                                           //Limit the esc-3 pulse to 2000us.
-    if(esc_4 > 2000)esc_4 = 2000;                                           //Limit the esc-4 pulse to 2000us.  
+    if(esc_1 > 2000)esc_1 = 2000;       //Limit the esc-1 pulse to 2000us.
+    if(esc_2 > 2000)esc_2 = 2000;       //Limit the esc-2 pulse to 2000us.
+    if(esc_3 > 2000)esc_3 = 2000;       //Limit the esc-3 pulse to 2000us.
+    if(esc_4 > 2000)esc_4 = 2000;       //Limit the esc-4 pulse to 2000us.  
   }
 
   else
   {
-    esc_1 = 1000;                                                           //If start is not 2 keep a 1000us pulse for ess-1.
-    esc_2 = 1000;                                                           //If start is not 2 keep a 1000us pulse for ess-2.
-    esc_3 = 1000;                                                           //If start is not 2 keep a 1000us pulse for ess-3.
-    esc_4 = 1000;                                                           //If start is not 2 keep a 1000us pulse for ess-4.
+    esc_1 = 1000;                       //If start is not 2 keep a 1000us pulse for ess-1.
+    esc_2 = 1000;                       //If start is not 2 keep a 1000us pulse for ess-2.
+    esc_3 = 1000;                       //If start is not 2 keep a 1000us pulse for ess-3.
+    esc_4 = 1000;                       //If start is not 2 keep a 1000us pulse for ess-4.
   }
 
 
@@ -285,6 +293,8 @@ void loop() {
   //the Q&A page: 
   //! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !
 
+  while (micros() - loop_timer < 4000);                                            //We wait until 4000us are passed.
+  loop_timer = micros();                                                           //Set the timer for the next loop.
 
   //uncomment for debugging
   //delay(500);
@@ -357,7 +367,12 @@ void calibrateMPU650() {
     gyroZOffset += gyroZ;
 
     digitalWrite(2,HIGH);  //Calibration indication 
-    delay(1); // Delay between readings
+
+   //removed delay added custom delay function 
+   //delay(1); // Delay between readings
+   while (micros() - loop_timer < 1000);                                            //We wait until 1000us are passed.
+   loop_timer = micros();                                                           //Set the timer for the next loop.
+
   }
   
   // Calculate the average offsets
