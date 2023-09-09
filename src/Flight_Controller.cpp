@@ -1,11 +1,10 @@
-#include <PPMReader.h>
+#include <Arduino.h>
 #include <ESP32Servo.h> 
 #include "I2Cdev.h"
 #include "MPU6050.h"
 #include <EEPROM.h>
 
 /*
-
 TODO: correct inaccurate gyro reading when stationary 
 TODO: Test CW and CCW rotation of propellers 
 TODO: check if auto-level functionality works properly
@@ -13,7 +12,6 @@ TODO: update loop timer. Remove any delay() functions
 TODO: Adjust pitch,roll, and yaw set-points  
 TODO: Interrupt states for receiver. delays won't work here 
 TODO: Can no longer use PPM. Switching to PWM 
-
 */
 
 //
@@ -25,23 +23,26 @@ TODO: Can no longer use PPM. Switching to PWM
 //     /           \ 
 //  FL             BL
 
-
-//Need to remove PPM 
-
-// Initialize a PPMReader on digital pin 13 with 6 expected channels. 
-byte interruptPin = 13; // PPM pin connector 
-byte channelAmount = 4; // Number of channels to use 
-
-// Define motor pins 
-#define MOTOR_1_PIN 14
-#define MOTOR_2_PIN 27
-#define MOTOR_3_PIN 26
-#define MOTOR_4_PIN 25
-
+//Might need to remove later if no use 
 #define MIN_PULSE_LENGTH 1000 // Minimum pulse length in µs
 #define MAX_PULSE_LENGTH 2000 // Maximum pulse length in µs
 
+//Controller 
+#define THROTTLE 36 
+#define YAW 39  // rudder
+#define PITCH 34 // elevator
+#define ROLL 35 // aileron
+
+//ESC
+#define esc_pin1 32 // FR/CCW 
+#define esc_pin2 33 // FL/CW
+#define esc_pin3 25 // BR/CW 
+#define esc_pin4 26 // BL/CCW 
+
+Servo esc1, esc2, esc3, esc4; 
+
 #define PRINTLN(var) Serial.print(#var ": "); Serial.println(var);
+
 void calculate_pid(); 
 void readGyroData(); 
 void calibrateMPU650(); 
@@ -57,8 +58,8 @@ float pid_i_gain_pitch = pid_i_gain_roll;  //Gain setting for the pitch I-contro
 float pid_d_gain_pitch = pid_d_gain_roll;  //Gain setting for the pitch D-controller.
 int pid_max_pitch = pid_max_roll;          //Maximum output of the PID-controller (+/-)
 
-float pid_p_gain_yaw = 4.0;                //Gain setting for the pitch P-controller. //4.0
-float pid_i_gain_yaw = 0.02;               //Gain setting for the pitch I-controller. //0.02
+float pid_p_gain_yaw = 4.0;                //Gain setting for the pitch P-controller.
+float pid_i_gain_yaw = 0.02;               //Gain setting for the pitch I-controller. 
 float pid_d_gain_yaw = 0.0;                //Gain setting for the pitch D-controller.
 int pid_max_yaw = 400;                     //Maximum output of the PID-controller (+/-)
 
@@ -81,11 +82,8 @@ boolean gyro_angles_set;
 bool auto_level = true; 
 
 MPU6050 accelgyro; 
+
 Servo motA,motB,motC,motD; 
-
-//Removed PPM here 
-PPMReader ppm(interruptPin, channelAmount);
-
 
 void setup() {
 
@@ -114,17 +112,24 @@ void setup() {
   calibrateMPU650();
   //accelgyro.CalibrateGyro();
 
-  // Set up the motors
-  motA.attach(MOTOR_1_PIN,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH);
-  motB.attach(MOTOR_2_PIN,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH);
-  motC.attach(MOTOR_3_PIN,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH);
-  motD.attach(MOTOR_4_PIN,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH);
   
-  //Calibrate the ESCs
-  motA.writeMicroseconds(MIN_PULSE_LENGTH); 
-  motB.writeMicroseconds(MIN_PULSE_LENGTH); 
-  motC.writeMicroseconds(MIN_PULSE_LENGTH); 
-  motD.writeMicroseconds(MIN_PULSE_LENGTH); 
+  //attach esc pins 
+  esc1.attach(esc_pin1,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH);
+  esc2.attach(esc_pin2,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH);
+  esc3.attach(esc_pin3,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH);
+  esc4.attach(esc_pin4,MIN_PULSE_LENGTH,MAX_PULSE_LENGTH);
+
+  //arm ecs
+  esc1.writeMicroseconds(MIN_PULSE_LENGTH);
+  esc2.writeMicroseconds(MIN_PULSE_LENGTH);
+  esc3.writeMicroseconds(MIN_PULSE_LENGTH); 
+  esc4.writeMicroseconds(MIN_PULSE_LENGTH);
+
+  pinMode(THROTTLE, INPUT);
+  pinMode(YAW, INPUT);
+  pinMode(PITCH, INPUT);
+  pinMode(ROLL, INPUT);
+
 }
 
 void loop() {
@@ -132,15 +137,15 @@ void loop() {
 
   //Remove PPM here, PWM will be replaced 
   //Read the raw channel values
-  int16_t receiver_input_channel_3 = ppm.rawChannelValue(3); //throttle 
-  int16_t receiver_input_channel_4 = ppm.rawChannelValue(4); //Yaw
-  int16_t receiver_input_channel_1 = ppm.rawChannelValue(1); //roll
-  int16_t receiver_input_channel_2 = ppm.rawChannelValue(2); //PITCH
+  int16_t receiver_input_channel_3 = pulseIn(THROTTLE, HIGH, 25000); //throttle 
+  int16_t receiver_input_channel_4 = pulseIn(YAW, HIGH, 25000); //Yaw
+  int16_t receiver_input_channel_1 = pulseIn(ROLL, HIGH, 25000); //roll
+  int16_t receiver_input_channel_2 = pulseIn(PITCH, HIGH, 25000); //PITCH
 
-  // Serial.print("\nTHROTTLE: "); Serial.println(receiver_input_channel_3); 
-  // Serial.print("YAW: "); Serial.println(receiver_input_channel_4); 
-  // Serial.print("ROLL: "); Serial.println(receiver_input_channel_1);
-  // Serial.print("PITCH: "); Serial.println(receiver_input_channel_2);
+  Serial.print("\nTHROTTLE: "); Serial.println(receiver_input_channel_3); 
+  Serial.print("YAW: "); Serial.println(receiver_input_channel_4); 
+  Serial.print("ROLL: "); Serial.println(receiver_input_channel_1);
+  Serial.print("PITCH: "); Serial.println(receiver_input_channel_2);
   
   // // Read accelerometer values.
   // int16_t acc_x = accelgyro.getAccelerationX();
@@ -197,10 +202,15 @@ void loop() {
   // PRINTLN(gyro_yaw);
 
    //For starting the motors: throttle low and yaw left (step 1).
-  if(receiver_input_channel_3 < 1065 && receiver_input_channel_4 < 1050)start = 1;
+  if(receiver_input_channel_3 < 1065 && receiver_input_channel_4 < 1050)
+  {
+    start = 1;
+  }
+  
 
   //When yaw stick is back in the center position start the motors (step 2).
-  if(start == 1 && receiver_input_channel_3 < 1065 && receiver_input_channel_4 > 1450){
+  if(start == 1 && receiver_input_channel_3 < 1550 && receiver_input_channel_4 > 1450)
+  {
     start = 2;
 
     angle_pitch = angle_pitch_acc;                                          //Set the gyro pitch angle equal to the accelerometer pitch angle when the quadcopter is started.
@@ -216,14 +226,23 @@ void loop() {
     pid_last_yaw_d_error = 0;
   }
   
-    //Stopping the motors: throttle low and yaw right.
-  if(start == 2 && receiver_input_channel_3 <= 1064 && receiver_input_channel_4 > 1976) start = 0;
+  //Stopping the motors: throttle low and yaw right.
+  if(start == 2 && receiver_input_channel_3 <= 1064 && receiver_input_channel_4 > 1976)
+  {
+    start = 0;
+  }
+
   //The PID set point in degrees per second is determined by the roll receiver input.
   //In the case of deviding by 3 the max roll rate is aprox 164 degrees per second ( (500-8)/3 = 164d/s ).
   pid_roll_setpoint = 0;
+  
   //We need a little dead band of 16us for better results.
-  if(receiver_input_channel_1 > 1508)pid_roll_setpoint = receiver_input_channel_1 - 1508;
-  else if(receiver_input_channel_1 < 1492)pid_roll_setpoint = receiver_input_channel_1 - 1492;
+  if(receiver_input_channel_1 > 1508){
+    pid_roll_setpoint = receiver_input_channel_1 - 1508;
+  }
+  else if(receiver_input_channel_1 < 1492){
+    pid_roll_setpoint = receiver_input_channel_1 - 1492;
+  }
 
   pid_roll_setpoint -= roll_level_adjust;                                   //Subtract the angle correction from the standardized receiver roll input value.
   pid_roll_setpoint /= 3.0;                                                 //Divide the setpoint for the PID roll controller by 3 to get angles in degrees.
@@ -231,16 +250,22 @@ void loop() {
   //The PID set point in degrees per second is determined by the pitch receiver input.
   //In the case of deviding by 3 the max pitch rate is aprox 164 degrees per second ( (500-8)/3 = 164d/s ).
   pid_pitch_setpoint = 0;
+  
   //We need a little dead band of 16us for better results.
-  if(receiver_input_channel_2 > 1508)pid_pitch_setpoint = receiver_input_channel_2 - 1508;
-  else if(receiver_input_channel_2 < 1492)pid_pitch_setpoint = receiver_input_channel_2 - 1492;
+  if(receiver_input_channel_2 > 1508){
+    pid_pitch_setpoint = receiver_input_channel_2 - 1508;
+  }
+  else if(receiver_input_channel_2 < 1492){
+    pid_pitch_setpoint = receiver_input_channel_2 - 1492;
+  }
 
   pid_pitch_setpoint -= pitch_level_adjust;                                  //Subtract the angle correction from the standardized receiver pitch input value.
   pid_pitch_setpoint /= 3.0;                                                 //Divide the setpoint for the PID pitch controller by 3 to get angles in degrees.
 
   //The PID set point in degrees per second is determined by the yaw receiver input.
-  //In the case of deviding by 3 the max yaw rate is aprox 164 degrees per second ( (500-8)/3 = 164d/s ).
+  //In the case of dividing by 3 the max yaw rate is aprox 164 degrees per second ( (500-8)/3 = 164d/s ).
   pid_yaw_setpoint = 0;
+  
   //We need a little dead band of 16us for better results.
   if(receiver_input_channel_3 > 1050){ //Do not yaw when turning off the motors.
     if(receiver_input_channel_4 > 1508)pid_yaw_setpoint = (receiver_input_channel_4 - 1508)/3.0;
@@ -279,12 +304,16 @@ void loop() {
     esc_4 = 1000;                       //If start is not 2 keep a 1000us pulse for ess-4.
   }
 
+    esc1.writeMicroseconds(esc_1); // CCW
+    esc2.writeMicroseconds(esc_2); // CW
+    esc3.writeMicroseconds(esc_3); // CW
+    esc4.writeMicroseconds(esc_4); // CCW
 
-
-    motA.writeMicroseconds(esc_1); // CCW
-    motB.writeMicroseconds(esc_2); // CW
-    motC.writeMicroseconds(esc_3); // CW
-    motD.writeMicroseconds(esc_4); // CCW
+  Serial.println();
+  // PRINTLN(esc_1);
+  // PRINTLN(esc_2);   
+  // PRINTLN(esc_3);
+  // PRINTLN(esc_4);
     
   //! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !
   //Because of the angle calculation the loop time is getting very important. If the loop time is 
@@ -293,11 +322,11 @@ void loop() {
   //the Q&A page: 
   //! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !
 
-  while (micros() - loop_timer < 4000);                                            //We wait until 4000us are passed.
-  loop_timer = micros();                                                           //Set the timer for the next loop.
+  // while (micros() - loop_timer < 4000);                                            //We wait until 4000us are passed.
+  // loop_timer = micros();                                                           //Set the timer for the next loop.
 
   //uncomment for debugging
-  //delay(500);
+  delay(500);
 }
 
 void calculate_pid(){
@@ -351,8 +380,6 @@ void calibrateMPU650() {
   float gyroYOffset = 0.0;
   float gyroZOffset = 0.0;
   
-  Serial.println("Starting sensor calibration...");
-  
   // Collect samples and calculate the average
   for (int i = 0; i < calibrationSamples; i++) {
     
@@ -360,21 +387,18 @@ void calibrateMPU650() {
     float gyroX = accelgyro.getRotationX();
     float gyroY = accelgyro.getRotationY();
     float gyroZ = accelgyro.getRotationZ();
-    
+
     // Accumulate offsets
     gyroXOffset += gyroX;
     gyroYOffset += gyroY;
-    gyroZOffset += gyroZ;
-
+    gyroZOffset += gyroZ; 
     digitalWrite(2,HIGH);  //Calibration indication 
 
-   //removed delay added custom delay function 
-   //delay(1); // Delay between readings
-   while (micros() - loop_timer < 1000);                                            //We wait until 1000us are passed.
-   loop_timer = micros();                                                           //Set the timer for the next loop.
+    while (micros() - loop_timer < 5000);                                            //We wait until 5000us are passed.
+      loop_timer = micros();                                                         //Set the timer for the next loop.
 
   }
-  
+
   // Calculate the average offsets
   gyroXOffset /= calibrationSamples;
   gyroYOffset /= calibrationSamples;
@@ -385,6 +409,5 @@ void calibrateMPU650() {
   accelgyro.setYGyroOffset(gyroYOffset);
   accelgyro.setZGyroOffset(gyroZOffset);
   
-  Serial.println("Calibration complete.");
   digitalWrite(2, LOW); //turn off led indicating calibration completed 
 }
