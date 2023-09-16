@@ -4,8 +4,9 @@
 #include "MPU6050.h"
 #include <EEPROM.h>
 
+
 /*
-TODO: correct inaccurate gyro reading when stationary 
+TODO: correct inaccurate gyro reading when stationary (complimentary filtering)
 TODO: Test CW and CCW rotation of propellers 
 TODO: check if auto-level functionality works properly
 TODO: update loop timer. Remove any delay() functions 
@@ -15,11 +16,11 @@ TODO: Can no longer use PPM. Switching to PWM
 */
 
 //
-//  FR             BR
+//  FR             BR     
 //     \           /
 //      \---------/
-//      |          >      This arrow indicates this is the back side of the quadcopter 
-//      /---------\        which is also the battery side of the drone.
+//      |             <-- back side of the quadcopter 
+//      /---------\       hich is also the battery side of the drone.
 //     /           \ 
 //  FL             BL
 
@@ -47,7 +48,6 @@ void calculate_pid();
 void readGyroData(); 
 void calibrateMPU650(); 
 
-
 float pid_p_gain_roll = 1.3;               //Gain setting for the roll P-controller
 float pid_i_gain_roll = 0.04;              //Gain setting for the roll I-controller
 float pid_d_gain_roll = 18.0;              //Gain setting for the roll D-controller
@@ -63,7 +63,6 @@ float pid_i_gain_yaw = 0.02;               //Gain setting for the pitch I-contro
 float pid_d_gain_yaw = 0.0;                //Gain setting for the pitch D-controller.
 int pid_max_yaw = 400;                     //Maximum output of the PID-controller (+/-)
 
-volatile int receiver_input_channel_1, receiver_input_channel_2, receiver_input_channel_3, receiver_input_channel_4;
 int esc_1, esc_2, esc_3, esc_4;
 int throttle;
 int start;   
@@ -134,18 +133,16 @@ void setup() {
 
 void loop() {
 
-
-  //Remove PPM here, PWM will be replaced 
   //Read the raw channel values
-  int16_t receiver_input_channel_3 = pulseIn(THROTTLE, HIGH, 25000); //throttle 
-  int16_t receiver_input_channel_4 = pulseIn(YAW, HIGH, 25000); //Yaw
-  int16_t receiver_input_channel_1 = pulseIn(ROLL, HIGH, 25000); //roll
-  int16_t receiver_input_channel_2 = pulseIn(PITCH, HIGH, 25000); //PITCH
+  volatile int16_t receiver_input_channel_3 = pulseIn(THROTTLE, HIGH, 25000); //throttle 
+  volatile int16_t receiver_input_channel_4 = pulseIn(YAW, HIGH, 25000); //Yaw
+  volatile int16_t receiver_input_channel_1 = pulseIn(ROLL, HIGH, 25000); //roll
+  volatile int16_t receiver_input_channel_2 = pulseIn(PITCH, HIGH, 25000); //PITCH
 
-  Serial.print("\nTHROTTLE: "); Serial.println(receiver_input_channel_3); 
-  Serial.print("YAW: "); Serial.println(receiver_input_channel_4); 
-  Serial.print("ROLL: "); Serial.println(receiver_input_channel_1);
-  Serial.print("PITCH: "); Serial.println(receiver_input_channel_2);
+  // Serial.print("\nTHROTTLE: "); Serial.println(receiver_input_channel_3); 
+  // Serial.print("YAW: "); Serial.println(receiver_input_channel_4); 
+  // Serial.print("ROLL: "); Serial.println(receiver_input_channel_1);
+  // Serial.print("PITCH: "); Serial.println(receiver_input_channel_2);
   
   // // Read accelerometer values.
   // int16_t acc_x = accelgyro.getAccelerationX();
@@ -309,7 +306,7 @@ void loop() {
     esc3.writeMicroseconds(esc_3); // CW
     esc4.writeMicroseconds(esc_4); // CCW
 
-  Serial.println();
+  // Serial.println();
   // PRINTLN(esc_1);
   // PRINTLN(esc_2);   
   // PRINTLN(esc_3);
@@ -322,11 +319,12 @@ void loop() {
   //the Q&A page: 
   //! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !
 
-  // while (micros() - loop_timer < 4000);                                            //We wait until 4000us are passed.
-  // loop_timer = micros();                                                           //Set the timer for the next loop.
+  while (micros() - loop_timer < 4000){
+     loop_timer = micros();    
+  }                                           
 
   //uncomment for debugging
-  delay(500);
+  //delay(500);
 }
 
 void calculate_pid(){
@@ -394,7 +392,7 @@ void calibrateMPU650() {
     gyroZOffset += gyroZ; 
     digitalWrite(2,HIGH);  //Calibration indication 
 
-    while (micros() - loop_timer < 5000);                                            //We wait until 5000us are passed.
+    while (micros() - loop_timer < 4000)                                            //We wait until 5000us are passed.
       loop_timer = micros();                                                         //Set the timer for the next loop.
 
   }
@@ -411,3 +409,4 @@ void calibrateMPU650() {
   
   digitalWrite(2, LOW); //turn off led indicating calibration completed 
 }
+
