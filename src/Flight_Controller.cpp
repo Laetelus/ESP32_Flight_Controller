@@ -82,12 +82,10 @@ bool auto_level = true;
 
 MPU6050 accelgyro; 
 
-Servo motA,motB,motC,motD; 
 
 void setup() {
 
   Serial.begin(115200);
-  Wire.begin();
   // join I2C bus (I2Cdev library doesn't do this automatically)
   #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
       Wire.begin();
@@ -103,9 +101,7 @@ void setup() {
     Serial.println("Testing device connections...");
     Serial.println(accelgyro.testConnection() ? "accelgyro6050 connection successful" : "accelgyro6050 connection failed");
   #endif
-  
-  Wire.begin();                                                             //Start the I2C as master.
-  
+    
   pinMode(2,OUTPUT); //LED status 
 
   calibrateMPU650();
