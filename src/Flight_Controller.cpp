@@ -11,7 +11,6 @@ TODO: Test CW and CCW rotation of propellers
 TODO: check if auto-level functionality works properly
 TODO: update loop timer. Remove any delay() functions
 TODO: Adjust pitch,roll, and yaw set-points
-TODO: Interrupt states for receiver. delays won't work here
 TODO: Can no longer use PPM. Switching to PWM
 */
 
@@ -32,7 +31,7 @@ TODO: Can no longer use PPM. Switching to PWM
 #define THROTTLE 36
 #define YAW 39   // rudder
 #define PITCH 34 // elevator
-#define ROLL 35  // aileron
+#define ROLL 35  // aileronw
 
 // ESC
 #define esc_pin1 32 // FR/CCW
@@ -100,7 +99,7 @@ void setup() {
   #ifdef I2CDEV_IMPLEMENTATION
     Serial.println("Testing device connections...");
     Serial.println(accelgyro.testConnection() ? "accelgyro6050 connection successful" : "accelgyro6050 connection failed");
-  #endif
+  #endif                             
     
   pinMode(2,OUTPUT); //LED status 
 
@@ -128,7 +127,7 @@ esc4.attach(esc_pin4, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BL (Back Left)
 void loop()
 {
 
-  //Read the raw channel values
+  //Read the raw channel values                                                                                                            
   volatile int16_t receiver_input_channel_3 = pulseIn(THROTTLE, HIGH, 25000); //throttle 
   volatile int16_t receiver_input_channel_4 = pulseIn(YAW, HIGH, 25000); //Yaw
   volatile int16_t receiver_input_channel_1 = pulseIn(ROLL, HIGH, 25000); //roll
@@ -169,6 +168,7 @@ void loop()
   angle_pitch = angle_pitch * 0.9996 + angle_pitch_acc * 0.0004; // Correct the drift of the gyro pitch angle with the accelerometer pitch angle.
   angle_roll = angle_roll * 0.9996 + angle_roll_acc * 0.0004;    // Correct the drift of the gyro roll angle with the accelerometer roll angle.
 
+ 
   pitch_level_adjust = angle_pitch * 15; // Calculate the pitch angle correction
   roll_level_adjust = angle_roll * 15;   // Calculate the roll angle correction
 
@@ -177,11 +177,6 @@ void loop()
     pitch_level_adjust = 0; // Set the pitch angle correction to zero.
     roll_level_adjust = 0;  // Set the roll angle correcion to zero.
   }
-
-  // Serial.println();
-  // PRINTLN(pitch_level_adjust);
-  // PRINTLN(roll_level_adjust);
-  // PRINTLN(gyro_yaw);
 
   // For starting the motors: throttle low and yaw left (step 1).
   if (receiver_input_channel_3 < 1065 && receiver_input_channel_4 < 1050)
@@ -196,6 +191,10 @@ void loop()
 
     angle_pitch = angle_pitch_acc; // Set the gyro pitch angle equal to the accelerometer pitch angle when the quadcopter is started.
     angle_roll = angle_roll_acc;   // Set the gyro roll angle equal to the accelerometer roll angle when the quadcopter is started.
+    
+    PRINTLN(angle_pitch); 
+    PRINTLN(angle_roll);
+
     gyro_angles_set = true;        // Set the IMU started flag.
 
     // Reset the PID controllers for a bumpless start.
@@ -268,13 +267,17 @@ void loop()
     if (throttle > 1800)
       throttle = 1800; // We need some room to keep full control at full throttle.
 
-// Mixing algorithm for appropriate motors 
-esc_1 = constrain(map(throttle - pid_output_pitch + pid_output_roll - pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FR (Front Right)
-esc_2 = constrain(map(throttle + pid_output_pitch + pid_output_roll + pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BR (Back Right)
-esc_3 = constrain(map(throttle - pid_output_pitch - pid_output_roll + pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FL (Front Left)
-esc_4 = constrain(map(throttle + pid_output_pitch - pid_output_roll - pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BL (Back Left)
+    // Mixing algorithm for appropriate motors 
+    esc_1 = constrain(map(throttle - pid_output_pitch + pid_output_roll - pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FR (Front Right)
+    esc_2 = constrain(map(throttle + pid_output_pitch + pid_output_roll + pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BR (Back Right)
+    esc_3 = constrain(map(throttle - pid_output_pitch - pid_output_roll + pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FL (Front Left)
+    esc_4 = constrain(map(throttle + pid_output_pitch - pid_output_roll - pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BL (Back Left)
 
-
+    // PRINTLN(pid_output_pitch);
+    // PRINTLN(pid_output_roll);
+    // PRINTLN(pid_output_yaw);
+    
+    //PRINTLN(esc_2);
     if (esc_1 < 1100)
       esc_1 = 1100; // Keep the motors running.
     if (esc_2 < 1100)
@@ -302,17 +305,6 @@ esc_4 = constrain(map(throttle + pid_output_pitch - pid_output_roll - pid_output
     esc_4 = 1000; // If start is not 2 keep a 1000us pulse for ess-4.
   }
 
-  esc1.writeMicroseconds(esc_1); // CCW
-  esc2.writeMicroseconds(esc_2); // CW
-  esc3.writeMicroseconds(esc_3); // CW
-  esc4.writeMicroseconds(esc_4); // CCW
-
-  Serial.println();
-  PRINTLN(esc_1);
-  PRINTLN(esc_2);
-  PRINTLN(esc_3);
-  PRINTLN(esc_4);
-
   //! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !
   // Because of the angle calculation the loop time is getting very important. If the loop time is
   // longer or shorter than 4000us the angle calculation is off. If you modify the code make sure
@@ -321,10 +313,15 @@ esc_4 = constrain(map(throttle + pid_output_pitch - pid_output_roll - pid_output
 
   while (micros() - loop_timer < 4000){
      loop_timer = micros();    
-  }                                           
+  }         
+
+  esc1.writeMicroseconds(esc_1); // CCW
+  esc2.writeMicroseconds(esc_2); // CW
+  esc3.writeMicroseconds(esc_3); // CW
+  esc4.writeMicroseconds(esc_4); // CCW                                  
 
   //uncomment for debugging
-  //delay(500);
+ //delay(500);
 }
 
 void calculate_pid()
@@ -391,21 +388,29 @@ void calibrateMPU650()
   float gyroXOffset = 0.0;
   float gyroYOffset = 0.0;
   float gyroZOffset = 0.0;
+  float gyroX = 0.0;
+  float gyroY = 0.0;
+  float gyroZ = 0.0;
 
   // Collect samples and calculate the average
   for (int i = 0; i < calibrationSamples; i++)
   {
-
-    // Read gyro data
-    float gyroX = accelgyro.getRotationX();
-    float gyroY = accelgyro.getRotationY();
-    float gyroZ = accelgyro.getRotationZ();
-
+    if (i == 1999){ 
+        // Read gyro data
+        gyroX = accelgyro.getRotationX() - gyroXOffset;
+        gyroY = accelgyro.getRotationY() - gyroYOffset;
+        gyroZ = accelgyro.getRotationZ() - gyroZOffset;
+    } else {
+        // Just read the data
+        gyroX = accelgyro.getRotationX();
+        gyroY = accelgyro.getRotationY();
+        gyroZ = accelgyro.getRotationZ();
+    }
     // Accumulate offsets
     gyroXOffset += gyroX;
     gyroYOffset += gyroY;
     gyroZOffset += gyroZ;
-    digitalWrite(2, HIGH); // Calibration indication
+    digitalWrite(2, 0x1); // Calibration indication
 
     while (micros() - loop_timer < 4000)                                            //We wait until 5000us are passed.
       loop_timer = micros();                                                         //Set the timer for the next loop.
@@ -422,6 +427,6 @@ void calibrateMPU650()
   accelgyro.setYGyroOffset(gyroYOffset);
   accelgyro.setZGyroOffset(gyroZOffset);
 
-  digitalWrite(2, LOW); // turn off led indicating calibration completed
+  digitalWrite(2, 0x1); // turn off led indicating calibration completed
 }
 
