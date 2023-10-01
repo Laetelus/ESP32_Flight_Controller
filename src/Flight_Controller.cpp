@@ -85,6 +85,13 @@ Servo esc1, esc2, esc3, esc4;
 void setup() {
 
   Serial.begin(115200);
+
+  // Allow allocation of all timers. Consistent and accurate PWM. 
+  ESP32PWM::allocateTimer(0);
+  ESP32PWM::allocateTimer(1);
+  ESP32PWM::allocateTimer(2);
+  ESP32PWM::allocateTimer(3);
+
   // join I2C bus (I2Cdev library doesn't do this automatically)
   #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
       Wire.begin();
@@ -427,6 +434,6 @@ void calibrateMPU650()
   accelgyro.setYGyroOffset(gyroYOffset);
   accelgyro.setZGyroOffset(gyroZOffset);
 
-  digitalWrite(2, 0x1); // turn off led indicating calibration completed
+  digitalWrite(2, 0x0); // turn off led indicating calibration completed
 }
 
