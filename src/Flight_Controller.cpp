@@ -4,14 +4,14 @@
 #include "MPU6050.h"
 #include <EEPROM.h>
 
-
 /*
-TODO: correct inaccurate gyro reading when stationary (complimentary filtering)
+TO̶D̶O̶:̶ c̶o̶r̶r̶e̶c̶t̶ i̶n̶a̶c̶c̶u̶r̶a̶t̶e̶ g̶y̶r̶o̶ r̶e̶a̶d̶i̶n̶g̶ w̶h̶e̶n̶ s̶t̶a̶t̶i̶o̶n̶a̶r̶y̶.̶ 
 TODO: Test CW and CCW rotation of propellers 
 TODO: check if auto-level functionality works properly
-TODO: update loop timer. Remove any delay() functions
-TODO: Adjust pitch,roll, and yaw set-points
-TODO: Can no longer use PPM. Switching to PWM
+TODO: update loop timer.
+TODO: Store gyro and accel values to EEPROM. 
+T̶O̶D̶O̶:̶ A̶d̶j̶u̶s̶t̶ p̶i̶t̶c̶h̶,̶r̶o̶l̶l̶,̶ a̶n̶d̶ y̶a̶w̶ s̶e̶t̶-̶p̶o̶i̶n̶t̶s̶
+T̶O̶D̶O̶:̶ C̶a̶n̶ n̶o̶ l̶o̶n̶g̶e̶r̶ u̶s̶e̶ P̶P̶M̶.̶ S̶w̶i̶t̶c̶h̶i̶n̶g̶ t̶o̶ P̶W̶M̶
 */
 
 //
@@ -31,7 +31,7 @@ TODO: Can no longer use PPM. Switching to PWM
 #define THROTTLE 36
 #define YAW 39   // rudder
 #define PITCH 34 // elevator
-#define ROLL 35  // aileronw
+#define ROLL 35  // aileron
 
 // ESC
 #define esc_pin1 32 // FR/CCW
@@ -46,7 +46,7 @@ TODO: Can no longer use PPM. Switching to PWM
 
 void calculate_pid(); 
 void readGyroData(); 
-void calibrateMPU650(); 
+void calibrateMPU6050(); 
 
 float pid_p_gain_roll = 1.3;               //Gain setting for the roll P-controller
 float pid_i_gain_roll = 0.04;              //Gain setting for the roll I-controller
@@ -69,22 +69,33 @@ int start;
 float roll_level_adjust, pitch_level_adjust;
 
 int16_t acc_x, acc_y, acc_z, acc_total_vector;
-unsigned long loop_timer;
+unsigned long loop_timer,elapsed_time;
 int16_t gyro_pitch, gyro_roll, gyro_yaw;
 float pid_error_temp;
 float pid_i_mem_roll, pid_roll_setpoint, gyro_roll_input, pid_output_roll, pid_last_roll_d_error;
 float pid_i_mem_pitch, pid_pitch_setpoint, gyro_pitch_input, pid_output_pitch, pid_last_pitch_d_error;
 float pid_i_mem_yaw, pid_yaw_setpoint, gyro_yaw_input, pid_output_yaw, pid_last_yaw_d_error;
 float angle_roll_acc, angle_pitch_acc, angle_pitch, angle_roll;
+float gyroXOffset = 0.0 , gyroYOffset = 0.0, gyroZOffset = 0.0,accXOffset = 0.0,  accYOffset = 0.0, accZOffset = 0.0;
 boolean gyro_angles_set;
-bool auto_level = true;
 
+byte clockspeed_ok; 
+bool auto_level = true;
 MPU6050 accelgyro;
 Servo esc1, esc2, esc3, esc4;
 
 void setup() {
 
   Serial.begin(115200);
+
+  // Wire.setClock(400000L);  // Set I2C clock speed to 400kHz
+
+  // if(Wire.getClock() == 400000 && clockspeed_ok){
+  //   Serial.println(F("I2C clock speed is correctly set to 400kHz."));
+  // }
+  // else{
+  //   Serial.println(F("I2C clock speed is not set to 400kHz. (ERROR 8)"));
+  // }
 
   // Allow allocation of all timers. Consistent and accurate PWM. 
   ESP32PWM::allocateTimer(0);
@@ -110,14 +121,17 @@ void setup() {
     
   pinMode(2,OUTPUT); //LED status 
 
-  calibrateMPU650();
-  // accelgyro.CalibrateGyro();
 
-// attach esc pins
-esc1.attach(esc_pin1, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FR (Front Right)
-esc2.attach(esc_pin3, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BR (Back Right)
-esc3.attach(esc_pin2, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FL (Front Left)
-esc4.attach(esc_pin4, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BL (Back Left)
+  digitalWrite(2,HIGH); // Calibration indicator 
+  calibrateMPU6050(); 
+  delay(5000); // Lets give it a 5 sec delay
+  digitalWrite(2,LOW); //Calibration indicator 
+
+  // attach esc pins
+  esc1.attach(esc_pin1, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FR (Front Right)
+  esc2.attach(esc_pin3, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BR (Back Right)
+  esc3.attach(esc_pin2, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FL (Front Left)
+  esc4.attach(esc_pin4, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BL (Back Left)
 
   // arm ecs
   esc1.writeMicroseconds(MIN_PULSE_LENGTH);
@@ -129,6 +143,8 @@ esc4.attach(esc_pin4, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BL (Back Left)
   pinMode(YAW, INPUT);
   pinMode(PITCH, INPUT);
   pinMode(ROLL, INPUT);
+
+   loop_timer = micros(); // Initialize loop_timer at the beginning.
 }
 
 void loop()
@@ -139,8 +155,6 @@ void loop()
   volatile int16_t receiver_input_channel_4 = pulseIn(YAW, HIGH, 25000); //Yaw
   volatile int16_t receiver_input_channel_1 = pulseIn(ROLL, HIGH, 25000); //roll
   volatile int16_t receiver_input_channel_2 = pulseIn(PITCH, HIGH, 25000); //PITCH
-
-  readGyroData();
 
   // 65.5 = 1 deg/sec (check the datasheet of the accelgyro-6050 for more information).
   gyro_roll_input = (gyro_roll_input * 0.7) + ((gyro_roll / 65.5) * 0.3);    // Gyro pid input is deg/sec.
@@ -178,7 +192,8 @@ void loop()
  
   pitch_level_adjust = angle_pitch * 15; // Calculate the pitch angle correction
   roll_level_adjust = angle_roll * 15;   // Calculate the roll angle correction
-
+  
+  
   if (!auto_level)
   {                         // If the quadcopter is not in auto-level mode
     pitch_level_adjust = 0; // Set the pitch angle correction to zero.
@@ -199,9 +214,6 @@ void loop()
     angle_pitch = angle_pitch_acc; // Set the gyro pitch angle equal to the accelerometer pitch angle when the quadcopter is started.
     angle_roll = angle_roll_acc;   // Set the gyro roll angle equal to the accelerometer roll angle when the quadcopter is started.
     
-    PRINTLN(angle_pitch); 
-    PRINTLN(angle_roll);
-
     gyro_angles_set = true;        // Set the IMU started flag.
 
     // Reset the PID controllers for a bumpless start.
@@ -280,11 +292,6 @@ void loop()
     esc_3 = constrain(map(throttle - pid_output_pitch - pid_output_roll + pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FL (Front Left)
     esc_4 = constrain(map(throttle + pid_output_pitch - pid_output_roll - pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BL (Back Left)
 
-    // PRINTLN(pid_output_pitch);
-    // PRINTLN(pid_output_roll);
-    // PRINTLN(pid_output_yaw);
-    
-    //PRINTLN(esc_2);
     if (esc_1 < 1100)
       esc_1 = 1100; // Keep the motors running.
     if (esc_2 < 1100)
@@ -318,17 +325,39 @@ void loop()
   // that the loop time is still 4000us and no longer! 
   //! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !
 
-  while (micros() - loop_timer < 4000){
-     loop_timer = micros();    
-  }         
+  elapsed_time = micros() - loop_timer;  // Calculate the elapsed time
 
-  esc1.writeMicroseconds(esc_1); // CCW
-  esc2.writeMicroseconds(esc_2); // CW
-  esc3.writeMicroseconds(esc_3); // CW
-  esc4.writeMicroseconds(esc_4); // CCW                                  
+  if (elapsed_time > 4050) {
+    digitalWrite(2, HIGH); // Turn on the LED if the loop time exceeds 4050us.
+  }
 
-  //uncomment for debugging
- //delay(500);
+  while (micros() - loop_timer < 4000) {
+    loop_timer = micros();    
+  }
+
+  esc1.writeMicroseconds(esc_1);
+  esc2.writeMicroseconds(esc_2);
+  esc3.writeMicroseconds(esc_3);
+  esc4.writeMicroseconds(esc_4);
+
+  // There is always 1000us of spare time. So let's do something useful that is very time consuming.
+  // Get the current gyro and receiver data and scale it to degrees per second for the pid calculations.
+  readGyroData();
+
+  /*
+    whenever we retrieve gyro and accelerometer data, 
+    we'll want to subtract these offsets from the raw values
+  */
+  gyro_roll -= gyroXOffset;
+  gyro_pitch -= gyroYOffset;
+  gyro_yaw -= gyroZOffset;
+
+  acc_x -= accXOffset;
+  acc_y -= accYOffset;
+  acc_z -= accZOffset;
+
+  PRINTLN(elapsed_time);
+
 }
 
 void calculate_pid()
@@ -384,44 +413,30 @@ void calculate_pid()
 
 void readGyroData()
 {
-  // Read gyroscope values
+  // Read Raw gyroscope/accelerometer values
   accelgyro.getMotion6(&acc_x, &acc_y, &acc_z, &gyro_roll, &gyro_pitch, &gyro_yaw);
 }
 
-void calibrateMPU650()
+/*
+After calibration, the gyro offsets should help ensure 
+that the gyro readings are close to zero when the IMU 
+is stationary, which is the desired behavior for accurate sensor data
+*/
+void calibrateMPU6050()
 {
-  // Assuming you need to calibrate gyroX, gyroY, and gyroZ
-  const int calibrationSamples = 2000; // Number of samples to collect for calibration
-  float gyroXOffset = 0.0;
-  float gyroYOffset = 0.0;
-  float gyroZOffset = 0.0;
-  float gyroX = 0.0;
-  float gyroY = 0.0;
-  float gyroZ = 0.0;
+  const int calibrationSamples = 2000;
 
-  // Collect samples and calculate the average
   for (int i = 0; i < calibrationSamples; i++)
   {
-    if (i == 1999){ 
-        // Read gyro data
-        gyroX = accelgyro.getRotationX() - gyroXOffset;
-        gyroY = accelgyro.getRotationY() - gyroYOffset;
-        gyroZ = accelgyro.getRotationZ() - gyroZOffset;
-    } else {
-        // Just read the data
-        gyroX = accelgyro.getRotationX();
-        gyroY = accelgyro.getRotationY();
-        gyroZ = accelgyro.getRotationZ();
-    }
-    // Accumulate offsets
-    gyroXOffset += gyroX;
-    gyroYOffset += gyroY;
-    gyroZOffset += gyroZ;
-    digitalWrite(2, 0x1); // Calibration indication
+    readGyroData(); 
+    
+    gyroXOffset += gyro_roll;
+    gyroYOffset += gyro_pitch;
+    gyroZOffset += gyro_yaw;
 
-    while (micros() - loop_timer < 4000)                                            //We wait until 5000us are passed.
-      loop_timer = micros();                                                         //Set the timer for the next loop.
-
+    accXOffset += acc_x;
+    accYOffset += acc_y;
+    accZOffset += acc_z;
   }
 
   // Calculate the average offsets
@@ -429,11 +444,7 @@ void calibrateMPU650()
   gyroYOffset /= calibrationSamples;
   gyroZOffset /= calibrationSamples;
 
-  // Set the gyro offsets
-  accelgyro.setXGyroOffset(gyroXOffset);
-  accelgyro.setYGyroOffset(gyroYOffset);
-  accelgyro.setZGyroOffset(gyroZOffset);
-
-  digitalWrite(2, 0x0); // turn off led indicating calibration completed
+  accXOffset /= calibrationSamples;
+  accYOffset /= calibrationSamples;
+  accZOffset /= calibrationSamples;
 }
-
