@@ -69,7 +69,6 @@ int start;
 float roll_level_adjust, pitch_level_adjust;
 
 int16_t acc_x, acc_y, acc_z, acc_total_vector;
-unsigned long loop_timer,elapsed_time;
 int16_t gyro_pitch, gyro_roll, gyro_yaw;
 float pid_error_temp;
 float pid_i_mem_roll, pid_roll_setpoint, gyro_roll_input, pid_output_roll, pid_last_roll_d_error;
@@ -325,29 +324,16 @@ void loop()
   // that the loop time is still 4000us and no longer! 
   //! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !
 
-  elapsed_time = micros() - loop_timer;  // Calculate the elapsed time
-
-  if (elapsed_time > 4050) {
-    digitalWrite(2, HIGH); // Turn on the LED if the loop time exceeds 4050us.
-  }
-
-  while (micros() - loop_timer < 4000) {
-    loop_timer = micros();    
-  }
-
-  esc1.writeMicroseconds(esc_1);
-  esc2.writeMicroseconds(esc_2);
-  esc3.writeMicroseconds(esc_3);
-  esc4.writeMicroseconds(esc_4);
+  delayMicroseconds(40000); 
 
   // There is always 1000us of spare time. So let's do something useful that is very time consuming.
   // Get the current gyro and receiver data and scale it to degrees per second for the pid calculations.
   readGyroData();
-
   /*
     whenever we retrieve gyro and accelerometer data, 
     we'll want to subtract these offsets from the raw values
   */
+
   gyro_roll -= gyroXOffset;
   gyro_pitch -= gyroYOffset;
   gyro_yaw -= gyroZOffset;
@@ -355,8 +341,15 @@ void loop()
   acc_x -= accXOffset;
   acc_y -= accYOffset;
   acc_z -= accZOffset;
+  
+  esc1.writeMicroseconds(esc_1);
+  esc2.writeMicroseconds(esc_2);
+  esc3.writeMicroseconds(esc_3);
+  esc4.writeMicroseconds(esc_4);
 
-  PRINTLN(elapsed_time);
+  // PRINTLN(gyro_roll); 
+  // PRINTLN(gyro_pitch); 
+  // PRINTLN(gyro_yaw); 
 
 }
 
@@ -415,6 +408,12 @@ void readGyroData()
 {
   // Read Raw gyroscope/accelerometer values
   accelgyro.getMotion6(&acc_x, &acc_y, &acc_z, &gyro_roll, &gyro_pitch, &gyro_yaw);
+
+  //Scale values in degrees 
+ // Scale gyro values to degrees
+  gyro_roll = (gyro_roll / 65.5);   // Assuming 65.5 is the appropriate scaling factor for your gyro
+  gyro_pitch = (gyro_pitch / 65.5); // Assuming 65.5 is the appropriate scaling factor for your gyro
+  gyro_yaw = (gyro_yaw / 65.5);     // Assuming 65.5 is the appropriate scaling factor for your gyro
 }
 
 /*
