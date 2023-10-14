@@ -143,7 +143,7 @@ void setup() {
   pinMode(PITCH, INPUT);
   pinMode(ROLL, INPUT);
 
-   loop_timer = micros(); // Initialize loop_timer at the beginning.
+
 }
 
 void loop()
