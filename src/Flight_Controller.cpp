@@ -10,8 +10,10 @@ TODO: Test CW and CCW rotation of propellers
 TODO: check if auto-level functionality works properly
 TODO: update loop timer.
 TODO: Store gyro and accel values to EEPROM. 
-T̶O̶D̶O̶:̶ A̶d̶j̶u̶s̶t̶ p̶i̶t̶c̶h̶,̶r̶o̶l̶l̶,̶ a̶n̶d̶ y̶a̶w̶ s̶e̶t̶-̶p̶o̶i̶n̶t̶s̶
-T̶O̶D̶O̶:̶ C̶a̶n̶ n̶o̶ l̶o̶n̶g̶e̶r̶ u̶s̶e̶ P̶P̶M̶.̶ S̶w̶i̶t̶c̶h̶i̶n̶g̶ t̶o̶ P̶W̶M̶
+NOTE: if we write gyro and Accel values to EEPROM
+we need to call setgyrooffset instead of 
+subracting the offsets functions because 
+this will be done once. 
 */
 
 //
@@ -38,7 +40,6 @@ T̶O̶D̶O̶:̶ C̶a̶n̶ n̶o̶ l̶o̶n̶g̶e̶r̶ u̶s̶e̶ P̶P̶M̶.̶ S̶w�
 #define esc_pin2 33 // FL/CW
 #define esc_pin3 25 // BR/CW
 #define esc_pin4 26 // BL/CCW
-
 
 #define PRINTLN(var)       \
   Serial.print(#var ": "); \
@@ -78,23 +79,47 @@ float angle_roll_acc, angle_pitch_acc, angle_pitch, angle_roll;
 float gyroXOffset = 0.0 , gyroYOffset = 0.0, gyroZOffset = 0.0,accXOffset = 0.0,  accYOffset = 0.0, accZOffset = 0.0;
 boolean gyro_angles_set;
 
-byte clockspeed_ok; 
 bool auto_level = true;
 MPU6050 accelgyro;
 Servo esc1, esc2, esc3, esc4;
 
+void print_output()
+{
+  Serial.print("Pitch:");
+  if (gyro_pitch >= 0)
+    Serial.print("+");
+  Serial.print(gyro_pitch / 57.14286, 0); // Convert to degree per second
+  if (gyro_pitch / 57.14286 - 2 > 0)
+    Serial.print(" NoU");
+  else if (gyro_pitch / 57.14286 + 2 < 0)
+    Serial.print(" NoD");
+  else
+    Serial.print(" ---");
+  Serial.print("  Roll:");
+  if (gyro_roll >= 0)
+    Serial.print("+");
+  Serial.print(gyro_roll / 57.14286, 0); // Convert to degree per second
+  if (gyro_roll / 57.14286 - 2 > 0)
+    Serial.print(" RwD");
+  else if (gyro_roll / 57.14286 + 2 < 0)
+    Serial.print(" RwU");
+  else
+    Serial.print(" ---");
+  Serial.print("  Yaw:");
+  if (gyro_yaw >= 0)
+    Serial.print("+");
+  Serial.print(gyro_yaw / 57.14286, 0); // Convert to degree per second
+  if (gyro_yaw / 57.14286 - 2 > 0)
+    Serial.println(" NoR");
+  else if (gyro_yaw / 57.14286 + 2 < 0)
+    Serial.println(" NoL");
+  else
+    Serial.println(" ---");
+}
+
 void setup() {
 
   Serial.begin(115200);
-
-  // Wire.setClock(400000L);  // Set I2C clock speed to 400kHz
-
-  // if(Wire.getClock() == 400000 && clockspeed_ok){
-  //   Serial.println(F("I2C clock speed is correctly set to 400kHz."));
-  // }
-  // else{
-  //   Serial.println(F("I2C clock speed is not set to 400kHz. (ERROR 8)"));
-  // }
 
   // Allow allocation of all timers. Consistent and accurate PWM. 
   ESP32PWM::allocateTimer(0);
@@ -109,7 +134,7 @@ void setup() {
       Fastwire::setup(400, true);
   #endif
 
-  // initialize device
+  // initialize device. This also sets the gyros and accelerometers 
   Serial.println("Initializing I2C devices...");
   accelgyro.initialize();
   // verify connection
@@ -119,7 +144,6 @@ void setup() {
   #endif                             
     
   pinMode(2,OUTPUT); //LED status 
-
 
   digitalWrite(2,HIGH); // Calibration indicator 
   calibrateMPU6050(); 
@@ -142,8 +166,6 @@ void setup() {
   pinMode(YAW, INPUT);
   pinMode(PITCH, INPUT);
   pinMode(ROLL, INPUT);
-
-
 }
 
 void loop()
@@ -324,16 +346,16 @@ void loop()
   // that the loop time is still 4000us and no longer! 
   //! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !
 
-  delayMicroseconds(40000); 
+  delayMicroseconds(4000); 
 
   // There is always 1000us of spare time. So let's do something useful that is very time consuming.
   // Get the current gyro and receiver data and scale it to degrees per second for the pid calculations.
   readGyroData();
+
   /*
     whenever we retrieve gyro and accelerometer data, 
     we'll want to subtract these offsets from the raw values
   */
-
   gyro_roll -= gyroXOffset;
   gyro_pitch -= gyroYOffset;
   gyro_yaw -= gyroZOffset;
@@ -347,10 +369,8 @@ void loop()
   esc3.writeMicroseconds(esc_3);
   esc4.writeMicroseconds(esc_4);
 
-  // PRINTLN(gyro_roll); 
-  // PRINTLN(gyro_pitch); 
-  // PRINTLN(gyro_yaw); 
-
+  //Checking angles 
+  print_output();
 }
 
 void calculate_pid()
@@ -408,22 +428,16 @@ void readGyroData()
 {
   // Read Raw gyroscope/accelerometer values
   accelgyro.getMotion6(&acc_x, &acc_y, &acc_z, &gyro_roll, &gyro_pitch, &gyro_yaw);
-
-  //Scale values in degrees 
- // Scale gyro values to degrees
-  gyro_roll = (gyro_roll / 65.5);   // Assuming 65.5 is the appropriate scaling factor for your gyro
-  gyro_pitch = (gyro_pitch / 65.5); // Assuming 65.5 is the appropriate scaling factor for your gyro
-  gyro_yaw = (gyro_yaw / 65.5);     // Assuming 65.5 is the appropriate scaling factor for your gyro
 }
 
 /*
 After calibration, the gyro offsets should help ensure 
-that the gyro readings are close to zero when the IMU 
+that the gyro readings are about zero when the IMU 
 is stationary, which is the desired behavior for accurate sensor data
 */
 void calibrateMPU6050()
 {
-  const int calibrationSamples = 2000;
+  const int calibrationSamples = 3000;
 
   for (int i = 0; i < calibrationSamples; i++)
   {
