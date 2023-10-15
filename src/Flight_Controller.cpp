@@ -25,7 +25,7 @@ this will be done once.
 //     /           \ 
 //  FL             BL
 
-// Might need to remove later if no use
+
 #define MIN_PULSE_LENGTH 1000 // Minimum pulse length in µs
 #define MAX_PULSE_LENGTH 2000 // Maximum pulse length in µs
 
@@ -78,48 +78,18 @@ float pid_i_mem_yaw, pid_yaw_setpoint, gyro_yaw_input, pid_output_yaw, pid_last_
 float angle_roll_acc, angle_pitch_acc, angle_pitch, angle_roll;
 float gyroXOffset = 0.0 , gyroYOffset = 0.0, gyroZOffset = 0.0,accXOffset = 0.0,  accYOffset = 0.0, accZOffset = 0.0;
 boolean gyro_angles_set;
+boolean auto_level = true;
 
-bool auto_level = true;
-MPU6050 accelgyro;
+// Initialize MPU6050 with I2C address 0x68 (AD0 high)
+MPU6050 accelgyro(0x68);
+
+//Servo motors 
 Servo esc1, esc2, esc3, esc4;
-
-void print_output()
-{
-  Serial.print("Pitch:");
-  if (gyro_pitch >= 0)
-    Serial.print("+");
-  Serial.print(gyro_pitch / 57.14286, 0); // Convert to degree per second
-  if (gyro_pitch / 57.14286 - 2 > 0)
-    Serial.print(" NoU");
-  else if (gyro_pitch / 57.14286 + 2 < 0)
-    Serial.print(" NoD");
-  else
-    Serial.print(" ---");
-  Serial.print("  Roll:");
-  if (gyro_roll >= 0)
-    Serial.print("+");
-  Serial.print(gyro_roll / 57.14286, 0); // Convert to degree per second
-  if (gyro_roll / 57.14286 - 2 > 0)
-    Serial.print(" RwD");
-  else if (gyro_roll / 57.14286 + 2 < 0)
-    Serial.print(" RwU");
-  else
-    Serial.print(" ---");
-  Serial.print("  Yaw:");
-  if (gyro_yaw >= 0)
-    Serial.print("+");
-  Serial.print(gyro_yaw / 57.14286, 0); // Convert to degree per second
-  if (gyro_yaw / 57.14286 - 2 > 0)
-    Serial.println(" NoR");
-  else if (gyro_yaw / 57.14286 + 2 < 0)
-    Serial.println(" NoL");
-  else
-    Serial.println(" ---");
-}
 
 void setup() {
 
   Serial.begin(115200);
+  pinMode(2,OUTPUT); //LED status 
 
   // Allow allocation of all timers. Consistent and accurate PWM. 
   ESP32PWM::allocateTimer(0);
@@ -130,8 +100,9 @@ void setup() {
   // join I2C bus (I2Cdev library doesn't do this automatically)
   #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
       Wire.begin();
+      Wire.setClock(400000); // 400kHz I2C clock (200kHz if CPU is 8MHz). Comment this line if having compilation difficulties
   #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
-      Fastwire::setup(400, true);
+     Fastwire::setup(400, true);
   #endif
 
   // initialize device. This also sets the gyros and accelerometers 
@@ -141,15 +112,22 @@ void setup() {
   #ifdef I2CDEV_IMPLEMENTATION
     Serial.println("Testing device connections...");
     Serial.println(accelgyro.testConnection() ? "accelgyro6050 connection successful" : "accelgyro6050 connection failed");
-  #endif                             
-    
-  pinMode(2,OUTPUT); //LED status 
+  #endif     
+
+  // reset offsets
+  accelgyro.setXAccelOffset(0);
+  accelgyro.setYAccelOffset(0);
+  accelgyro.setZAccelOffset(0);
+  accelgyro.setXGyroOffset(0);
+  accelgyro.setYGyroOffset(0);
+  accelgyro.setZGyroOffset(0);                        
+
 
   digitalWrite(2,HIGH); // Calibration indicator 
   calibrateMPU6050(); 
-  delay(5000); // Lets give it a 5 sec delay
+  delay(2000); // Lets give it a 2 sec delay
   digitalWrite(2,LOW); //Calibration indicator 
-
+  
   // attach esc pins
   esc1.attach(esc_pin1, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FR (Front Right)
   esc2.attach(esc_pin3, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BR (Back Right)
@@ -170,7 +148,6 @@ void setup() {
 
 void loop()
 {
-
   //Read the raw channel values                                                                                                            
   volatile int16_t receiver_input_channel_3 = pulseIn(THROTTLE, HIGH, 25000); //throttle 
   volatile int16_t receiver_input_channel_4 = pulseIn(YAW, HIGH, 25000); //Yaw
@@ -369,8 +346,14 @@ void loop()
   esc3.writeMicroseconds(esc_3);
   esc4.writeMicroseconds(esc_4);
 
-  //Checking angles 
-  print_output();
+  Serial.print("Roll: ");
+  Serial.print((float)gyro_roll / 131);
+  Serial.print(", ");
+  Serial.print("Pitch: ");
+  Serial.print((float)gyro_pitch / 131);
+  Serial.print(", ");
+    Serial.print("Yaw: ");
+  Serial.println((float)gyro_yaw / 131);  
 }
 
 void calculate_pid()
@@ -432,32 +415,83 @@ void readGyroData()
 
 /*
 After calibration, the gyro offsets should help ensure 
-that the gyro readings are about zero when the IMU 
-is stationary, which is the desired behavior for accurate sensor data
+that the gyro readings are about zero or close to zero 
+when the IMU is stationary, which is the desired behavior 
+for accurate sensor data
 */
-void calibrateMPU6050()
-{
-  const int calibrationSamples = 3000;
+void calibrateMPU6050() {
+  const int calibrationSamples = 1000;
+  const int discardSamples = 100;
+  const int acel_deadzone = 8;
+  const int giro_deadzone = 1;
+  const int max_iterations = 10; // Maximum number of iterative calibration rounds
+  
+  long buff_ax, buff_ay, buff_az, buff_gx, buff_gy, buff_gz;
 
-  for (int i = 0; i < calibrationSamples; i++)
-  {
-    readGyroData(); 
-    
-    gyroXOffset += gyro_roll;
-    gyroYOffset += gyro_pitch;
-    gyroZOffset += gyro_yaw;
+  for (int iteration = 0; iteration < max_iterations; iteration++) {
+    buff_ax = buff_ay = buff_az = buff_gx = buff_gy = buff_gz = 0;
 
-    accXOffset += acc_x;
-    accYOffset += acc_y;
-    accZOffset += acc_z;
+    for (int i = 0; i < calibrationSamples + discardSamples; i++) {
+      readGyroData(); 
+      if (i >= discardSamples) { // Discard the first "discardSamples" readings
+        buff_ax += acc_x;
+        buff_ay += acc_y;
+        buff_az += acc_z;
+        buff_gx += gyro_roll;
+        buff_gy += gyro_pitch;
+        buff_gz += gyro_yaw;
+      }
+      delay(2); 
+    }
+
+    // Calculate the average offsets
+    int mean_ax = buff_ax / calibrationSamples;
+    int mean_ay = buff_ay / calibrationSamples;
+    int mean_az = buff_az / calibrationSamples;
+    int mean_gx = buff_gx / calibrationSamples;
+    int mean_gy = buff_gy / calibrationSamples;
+    int mean_gz = buff_gz / calibrationSamples;
+
+    // Start calibration integration
+    int ready = 0;
+
+    accXOffset = -mean_ax / 8.0;
+    accYOffset = -mean_ay / 8.0;
+    accZOffset = (16384 - mean_az) / 8.0;
+    gyroXOffset = -mean_gx / 4.0;
+    gyroYOffset = -mean_gy / 4.0;
+    gyroZOffset = -mean_gz / 4.0;
+
+    accelgyro.setXAccelOffset(accXOffset);
+    accelgyro.setYAccelOffset(accYOffset);
+    accelgyro.setZAccelOffset(accZOffset);
+    accelgyro.setXGyroOffset(gyroXOffset);
+    accelgyro.setYGyroOffset(gyroYOffset);
+    accelgyro.setZGyroOffset(gyroZOffset);
+
+    if (abs(mean_ax) <= acel_deadzone) ready++;
+    else accXOffset -= mean_ax / acel_deadzone;
+
+    if (abs(mean_ay) <= acel_deadzone) ready++;
+    else accYOffset -= mean_ay / acel_deadzone;
+
+    if (abs(16384 - mean_az) <= acel_deadzone) ready++;
+    else accZOffset += (16384 - mean_az) / acel_deadzone;
+
+    if (abs(mean_gx) <= giro_deadzone) ready++;
+    else gyroXOffset -= mean_gx / (giro_deadzone + 1);
+
+    if (abs(mean_gy) <= giro_deadzone) ready++;
+    else gyroYOffset -= mean_gy / (giro_deadzone + 1);
+
+    if (abs(mean_gz) <= giro_deadzone) ready++;
+    else gyroZOffset -= mean_gz / (giro_deadzone + 1);
+
+    if (ready == 6) break;
   }
-
-  // Calculate the average offsets
-  gyroXOffset /= calibrationSamples;
-  gyroYOffset /= calibrationSamples;
-  gyroZOffset /= calibrationSamples;
-
-  accXOffset /= calibrationSamples;
-  accYOffset /= calibrationSamples;
-  accZOffset /= calibrationSamples;
 }
+
+
+
+
+
