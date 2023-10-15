@@ -25,7 +25,6 @@ this will be done once.
 //     /           \ 
 //  FL             BL
 
-
 #define MIN_PULSE_LENGTH 1000 // Minimum pulse length in µs
 #define MAX_PULSE_LENGTH 2000 // Maximum pulse length in µs
 
@@ -122,7 +121,6 @@ void setup() {
   accelgyro.setYGyroOffset(0);
   accelgyro.setZGyroOffset(0);                        
 
-
   digitalWrite(2,HIGH); // Calibration indicator 
   calibrateMPU6050(); 
   delay(2000); // Lets give it a 2 sec delay
@@ -140,6 +138,7 @@ void setup() {
   esc3.writeMicroseconds(MIN_PULSE_LENGTH);
   esc4.writeMicroseconds(MIN_PULSE_LENGTH);
 
+  //setup our inputs 
   pinMode(THROTTLE, INPUT);
   pinMode(YAW, INPUT);
   pinMode(PITCH, INPUT);
@@ -190,7 +189,6 @@ void loop()
  
   pitch_level_adjust = angle_pitch * 15; // Calculate the pitch angle correction
   roll_level_adjust = angle_roll * 15;   // Calculate the roll angle correction
-  
   
   if (!auto_level)
   {                         // If the quadcopter is not in auto-level mode
@@ -337,6 +335,9 @@ void loop()
   gyro_pitch -= gyroYOffset;
   gyro_yaw -= gyroZOffset;
 
+  gyro_roll = -gyro_roll; // Invert the roll (because of my orientation of the IMU)
+  gyro_yaw = -gyro_yaw;  // Invert the roll (because of my orientation of the IMU)
+
   acc_x -= accXOffset;
   acc_y -= accYOffset;
   acc_z -= accZOffset;
@@ -346,14 +347,15 @@ void loop()
   esc3.writeMicroseconds(esc_3);
   esc4.writeMicroseconds(esc_4);
 
-  Serial.print("Roll: ");
-  Serial.print((float)gyro_roll / 131);
-  Serial.print(", ");
-  Serial.print("Pitch: ");
-  Serial.print((float)gyro_pitch / 131);
-  Serial.print(", ");
-    Serial.print("Yaw: ");
-  Serial.println((float)gyro_yaw / 131);  
+  // Serial.print("Roll: ");
+  // Serial.print((float)gyro_roll / 131);
+  // Serial.print(", ");
+  // Serial.print("Pitch: ");
+  // Serial.print((float)gyro_pitch / 131);
+  // Serial.print(", ");
+  // Serial.print("Yaw: ");
+  // Serial.println((float)gyro_yaw / 131);  
+
 }
 
 void calculate_pid()
@@ -490,8 +492,3 @@ void calibrateMPU6050() {
     if (ready == 6) break;
   }
 }
-
-
-
-
-
