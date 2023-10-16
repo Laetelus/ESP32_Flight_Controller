@@ -3,89 +3,10 @@
 #include "I2Cdev.h"
 #include "MPU6050.h"
 #include <EEPROM.h>
+#include "Flight_Controller.h"
 
-/*
-TO̶D̶O̶:̶ c̶o̶r̶r̶e̶c̶t̶ i̶n̶a̶c̶c̶u̶r̶a̶t̶e̶ g̶y̶r̶o̶ r̶e̶a̶d̶i̶n̶g̶ w̶h̶e̶n̶ s̶t̶a̶t̶i̶o̶n̶a̶r̶y̶.̶ 
-TODO: Test CW and CCW rotation of propellers 
-TODO: check if auto-level functionality works properly
-TODO: update loop timer.
-TODO: Store gyro and accel values to EEPROM. 
-NOTE: if we write gyro and Accel values to EEPROM
-we need to call setgyrooffset instead of 
-subracting the offsets functions because 
-this will be done once. 
-*/
-
-//
-//  FR             BR     
-//     \           /
-//      \---------/
-//      |             <-- back side of the quadcopter 
-//      /---------\       which is also the battery side of the drone.
-//     /           \ 
-//  FL             BL
-
-#define MIN_PULSE_LENGTH 1000 // Minimum pulse length in µs
-#define MAX_PULSE_LENGTH 2000 // Maximum pulse length in µs
-
-// Controller
-#define THROTTLE 36
-#define YAW 39   // rudder
-#define PITCH 34 // elevator
-#define ROLL 35  // aileron
-
-// ESC
-#define esc_pin1 32 // FR/CCW
-#define esc_pin2 33 // FL/CW
-#define esc_pin3 25 // BR/CW
-#define esc_pin4 26 // BL/CCW
-
-#define PRINTLN(var)       \
-  Serial.print(#var ": "); \
-  Serial.println(var);
-
-void calculate_pid(); 
-void readGyroData(); 
-void calibrateMPU6050(); 
-
-float pid_p_gain_roll = 1.3;               //Gain setting for the roll P-controller
-float pid_i_gain_roll = 0.04;              //Gain setting for the roll I-controller
-float pid_d_gain_roll = 18.0;              //Gain setting for the roll D-controller
-int pid_max_roll = 400;                    //Maximum output of the PID-controller (+/-)
-
-float pid_p_gain_pitch = pid_p_gain_roll; // Gain setting for the pitch P-controller.
-float pid_i_gain_pitch = pid_i_gain_roll; // Gain setting for the pitch I-controller.
-float pid_d_gain_pitch = pid_d_gain_roll; // Gain setting for the pitch D-controller.
-int pid_max_pitch = pid_max_roll;         // Maximum output of the PID-controller (+/-)
-
-float pid_p_gain_yaw = 4.0;  // Gain setting for the pitch P-controller.
-float pid_i_gain_yaw = 0.02; // Gain setting for the pitch I-controller.
-float pid_d_gain_yaw = 0.0;  // Gain setting for the pitch D-controller.
-int pid_max_yaw = 400;       // Maximum output of the PID-controller (+/-)
-
-int esc_1, esc_2, esc_3, esc_4;
-int throttle;
-int start;
-float roll_level_adjust, pitch_level_adjust;
-
-int16_t acc_x, acc_y, acc_z, acc_total_vector;
-int16_t gyro_pitch, gyro_roll, gyro_yaw;
-float pid_error_temp;
-float pid_i_mem_roll, pid_roll_setpoint, gyro_roll_input, pid_output_roll, pid_last_roll_d_error;
-float pid_i_mem_pitch, pid_pitch_setpoint, gyro_pitch_input, pid_output_pitch, pid_last_pitch_d_error;
-float pid_i_mem_yaw, pid_yaw_setpoint, gyro_yaw_input, pid_output_yaw, pid_last_yaw_d_error;
-float angle_roll_acc, angle_pitch_acc, angle_pitch, angle_roll;
-float gyroXOffset = 0.0 , gyroYOffset = 0.0, gyroZOffset = 0.0,accXOffset = 0.0,  accYOffset = 0.0, accZOffset = 0.0;
-boolean gyro_angles_set;
-boolean auto_level = true;
-
-// Initialize MPU6050 with I2C address 0x68 (AD0 high)
-MPU6050 accelgyro(0x68);
-
-//Servo motors 
-Servo esc1, esc2, esc3, esc4;
-
-void setup() {
+void Flight_Controller::initialize()
+{
 
   Serial.begin(115200);
   pinMode(2,OUTPUT); //LED status 
@@ -145,14 +66,15 @@ void setup() {
   pinMode(ROLL, INPUT);
 }
 
-void loop()
-{
-  //Read the raw channel values                                                                                                            
-  volatile int16_t receiver_input_channel_3 = pulseIn(THROTTLE, HIGH, 25000); //throttle 
-  volatile int16_t receiver_input_channel_4 = pulseIn(YAW, HIGH, 25000); //Yaw
-  volatile int16_t receiver_input_channel_1 = pulseIn(ROLL, HIGH, 25000); //roll
-  volatile int16_t receiver_input_channel_2 = pulseIn(PITCH, HIGH, 25000); //PITCH
+void Flight_Controller::read_Controller() {
+    // Read the raw channel values
+    receiver_input_channel_3 = pulseIn(THROTTLE, HIGH, 25000); // Throttle
+    receiver_input_channel_4 = pulseIn(YAW, HIGH, 25000);      // Yaw
+    receiver_input_channel_1 = pulseIn(ROLL, HIGH, 25000);     // Roll
+    receiver_input_channel_2 = pulseIn(PITCH, HIGH, 25000);    // Pitch
+}
 
+void Flight_Controller::level_flight() {
   // 65.5 = 1 deg/sec (check the datasheet of the accelgyro-6050 for more information).
   gyro_roll_input = (gyro_roll_input * 0.7) + ((gyro_roll / 65.5) * 0.3);    // Gyro pid input is deg/sec.
   gyro_pitch_input = (gyro_pitch_input * 0.7) + ((gyro_pitch / 65.5) * 0.3); // Gyro pid input is deg/sec.
@@ -195,7 +117,9 @@ void loop()
     pitch_level_adjust = 0; // Set the pitch angle correction to zero.
     roll_level_adjust = 0;  // Set the roll angle correcion to zero.
   }
+}
 
+void Flight_Controller::motorControls() {
   // For starting the motors: throttle low and yaw left (step 1).
   if (receiver_input_channel_3 < 1065 && receiver_input_channel_4 < 1050)
   {
@@ -273,93 +197,9 @@ void loop()
     else if (receiver_input_channel_4 < 1492)
       pid_yaw_setpoint = (receiver_input_channel_4 - 1492) / 3.0;
   }
-
-  calculate_pid(); // PID inputs are known. So we can calculate the pid output.
-
-  throttle = receiver_input_channel_3; // We need the throttle signal as a base signal.
-  if (start == 2)
-  { // The motors are started.
-    if (throttle > 1800)
-      throttle = 1800; // We need some room to keep full control at full throttle.
-
-    // Mixing algorithm for appropriate motors 
-    esc_1 = constrain(map(throttle - pid_output_pitch + pid_output_roll - pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FR (Front Right)
-    esc_2 = constrain(map(throttle + pid_output_pitch + pid_output_roll + pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BR (Back Right)
-    esc_3 = constrain(map(throttle - pid_output_pitch - pid_output_roll + pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FL (Front Left)
-    esc_4 = constrain(map(throttle + pid_output_pitch - pid_output_roll - pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BL (Back Left)
-
-    if (esc_1 < 1100)
-      esc_1 = 1100; // Keep the motors running.
-    if (esc_2 < 1100)
-      esc_2 = 1100; // Keep the motors running.
-    if (esc_3 < 1100)
-      esc_3 = 1100; // Keep the motors running.
-    if (esc_4 < 1100)
-      esc_4 = 1100; // Keep the motors running.
-
-    if (esc_1 > 2000)
-      esc_1 = 2000; // Limit the esc-1 pulse to 2000us.
-    if (esc_2 > 2000)
-      esc_2 = 2000; // Limit the esc-2 pulse to 2000us.
-    if (esc_3 > 2000)
-      esc_3 = 2000; // Limit the esc-3 pulse to 2000us.
-    if (esc_4 > 2000)
-      esc_4 = 2000; // Limit the esc-4 pulse to 2000us.
-  }
-
-  else
-  {
-    esc_1 = 1000; // If start is not 2 keep a 1000us pulse for ess-1.
-    esc_2 = 1000; // If start is not 2 keep a 1000us pulse for ess-2.
-    esc_3 = 1000; // If start is not 2 keep a 1000us pulse for ess-3.
-    esc_4 = 1000; // If start is not 2 keep a 1000us pulse for ess-4.
-  }
-
-  //! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !
-  // Because of the angle calculation the loop time is getting very important. If the loop time is
-  // longer or shorter than 4000us the angle calculation is off. If you modify the code make sure
-  // that the loop time is still 4000us and no longer! 
-  //! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !
-
-  delayMicroseconds(4000); 
-
-  // There is always 1000us of spare time. So let's do something useful that is very time consuming.
-  // Get the current gyro and receiver data and scale it to degrees per second for the pid calculations.
-  readGyroData();
-
-  /*
-    whenever we retrieve gyro and accelerometer data, 
-    we'll want to subtract these offsets from the raw values
-  */
-  gyro_roll -= gyroXOffset;
-  gyro_pitch -= gyroYOffset;
-  gyro_yaw -= gyroZOffset;
-
-  gyro_roll = -gyro_roll; // Invert the roll (because of my orientation of the IMU)
-  gyro_yaw = -gyro_yaw;  // Invert the roll (because of my orientation of the IMU)
-
-  acc_x -= accXOffset;
-  acc_y -= accYOffset;
-  acc_z -= accZOffset;
-  
-  esc1.writeMicroseconds(esc_1);
-  esc2.writeMicroseconds(esc_2);
-  esc3.writeMicroseconds(esc_3);
-  esc4.writeMicroseconds(esc_4);
-
-  // Serial.print("Roll: ");
-  // Serial.print((float)gyro_roll / 131);
-  // Serial.print(", ");
-  // Serial.print("Pitch: ");
-  // Serial.print((float)gyro_pitch / 131);
-  // Serial.print(", ");
-  // Serial.print("Yaw: ");
-  // Serial.println((float)gyro_yaw / 131);  
-
 }
 
-void calculate_pid()
-{
+void Flight_Controller::calculate_pid() {
   // Roll calculations
   pid_error_temp = gyro_roll_input - pid_roll_setpoint;
   pid_i_mem_roll += pid_i_gain_roll * pid_error_temp;
@@ -409,19 +249,13 @@ void calculate_pid()
   pid_last_yaw_d_error = pid_error_temp;
 }
 
-void readGyroData()
-{
-  // Read Raw gyroscope/accelerometer values
-  accelgyro.getMotion6(&acc_x, &acc_y, &acc_z, &gyro_roll, &gyro_pitch, &gyro_yaw);
+
+void Flight_Controller::readGyroData() {
+    // Read gyro and accelerometer data here
+    accelgyro.getMotion6(&acc_x, &acc_y, &acc_z, &gyro_roll, &gyro_pitch, &gyro_yaw);
 }
 
-/*
-After calibration, the gyro offsets should help ensure 
-that the gyro readings are about zero or close to zero 
-when the IMU is stationary, which is the desired behavior 
-for accurate sensor data
-*/
-void calibrateMPU6050() {
+void Flight_Controller::calibrateMPU6050() {
   const int calibrationSamples = 1000;
   const int discardSamples = 100;
   const int acel_deadzone = 8;
@@ -491,4 +325,79 @@ void calibrateMPU6050() {
 
     if (ready == 6) break;
   }
+}
+
+void Flight_Controller::applyOffsetsAndInvert() {
+  /*
+    whenever we retrieve gyro and accelerometer data, 
+    we'll want to subtract these offsets from the raw values
+  */
+  gyro_roll -= gyroXOffset;
+  gyro_pitch -= gyroYOffset;
+  gyro_yaw -= gyroZOffset;
+
+  gyro_roll = -gyro_roll; // Invert the roll (because of my orientation of the IMU)
+  gyro_yaw = -gyro_yaw;  // Invert the roll (because of my orientation of the IMU)
+
+  acc_x -= accXOffset;
+  acc_y -= accYOffset;
+  acc_z -= accZOffset;
+}
+
+void Flight_Controller::outputMotors() {
+    // Motor output logic here
+    throttle = receiver_input_channel_3; // We need the throttle signal as a base signal.
+    if (start == 2) {                   // The motors are started.
+        if (throttle > 1800)
+            throttle = 1800; // We need some room to keep full control at full throttle.
+
+        // Mixing algorithm for appropriate motors
+        esc_1 = constrain(map(throttle - pid_output_pitch + pid_output_roll - pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FR (Front Right)
+        esc_2 = constrain(map(throttle + pid_output_pitch + pid_output_roll + pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BR (Back Right)
+        esc_3 = constrain(map(throttle - pid_output_pitch - pid_output_roll + pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FL (Front Left)
+        esc_4 = constrain(map(throttle + pid_output_pitch - pid_output_roll - pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BL (Back Left)
+
+        if (esc_1 < 1100)
+            esc_1 = 1100; // Keep the motors running.
+        if (esc_2 < 1100)
+            esc_2 = 1100; // Keep the motors running.
+        if (esc_3 < 1100)
+            esc_3 = 1100; // Keep the motors running.
+        if (esc_4 < 1100)
+            esc_4 = 1100; // Keep the motors running.
+
+        if (esc_1 > 2000)
+            esc_1 = 2000; // Limit the esc-1 pulse to 2000us.
+        if (esc_2 > 2000)
+            esc_2 = 2000; // Limit the esc-2 pulse to 2000us.
+        if (esc_3 > 2000)
+            esc_3 = 2000; // Limit the esc-3 pulse to 2000us.
+        if (esc_4 > 2000)
+            esc_4 = 2000; // Limit the esc-4 pulse to 2000us.
+    } else {
+        esc_1 = 1000; // If start is not 2, keep a 1000us pulse for esc-1.
+        esc_2 = 1000; // If start is not 2, keep a 1000us pulse for esc-2.
+        esc_3 = 1000; // If start is not 2, keep a 1000us pulse for esc-3.
+        esc_4 = 1000; // If start is not 2, keep a 1000us pulse for esc-4.
+    }
+
+    delayMicroseconds(4000); // Ensure a consistent loop time
+    readGyroData();
+    applyOffsetsAndInvert();
+
+    esc1.writeMicroseconds(esc_1);
+    esc2.writeMicroseconds(esc_2);
+    esc3.writeMicroseconds(esc_3);
+    esc4.writeMicroseconds(esc_4);
+}
+
+void Flight_Controller::print_gyro_data() {
+    Serial.print("Roll: ");
+    Serial.print((float)gyro_roll / 131);
+    Serial.print(", ");
+    Serial.print("Pitch: ");
+    Serial.print((float)gyro_pitch / 131);
+    Serial.print(", ");
+    Serial.print("Yaw: ");
+    Serial.println((float)gyro_yaw / 131);  
 }
