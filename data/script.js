@@ -94,10 +94,10 @@ if (!!window.EventSource) {
     document.getElementById("acc_z").innerHTML = obj.acc_z;
 
     // Change cube rotation after receiving the readinds
-cube.rotation.x = THREE.Math.degToRad(obj.gyro_pitch);   // Pitch
-cube.rotation.y = THREE.Math.degToRad(obj.gyro_yaw);     // Yaw
-cube.rotation.z = THREE.Math.degToRad(obj.gyro_roll);    // Roll
- 
+  cube.rotation.x = THREE.Math.degToRad(obj.gyro_pitch);   // Pitch
+  cube.rotation.y = THREE.Math.degToRad(obj.gyro_yaw);     // Yaw
+  cube.rotation.z = THREE.Math.degToRad(obj.gyro_roll);    // Roll
+  
     renderer.render(scene, camera);
   }, false);
 }

@@ -31,6 +31,8 @@ public:
     void readGyroData();
     void Handle_Server();
     void Send_Event();
+    void initSPIFFS(); 
+    void initWiFi();
     void print_gyro_data();
 
 private:
