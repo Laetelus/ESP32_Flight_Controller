@@ -8,7 +8,6 @@ Custom Flight Controller using ESP32.
 # IN PROGRESS
 - <del> Add start_stop_takeoff for motors </del>
 - <del> PID algorithm </dev>
-- PCB board (being shipped)
 - Failsafe algorithm (Soon to be implemented)
 # DISCLAIMER 
 - This project is currently a work in progress.
