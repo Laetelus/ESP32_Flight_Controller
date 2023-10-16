@@ -5,11 +5,105 @@
 #include <EEPROM.h>
 #include "Flight_Controller.h"
 
+/*
+  uncomment to view IMU on webserver. DO NOT! upload both the flight controller
+  software and the Webserver software if not testing IMU. 
+*/ 
+
+#define DEBUG_IMU
+  #ifdef DEBUG_IMU
+  #include <WiFi.h>
+  #include <AsyncTCP.h>
+  #include <ESPAsyncWebServer.h>
+  #include <Wire.h>
+  #include <Arduino_JSON.h>
+  #include "SPIFFS.h"
+  // Replace with your network credentials
+  const char* ssid = "YOUR_SSID";
+  const char* password = "YOUR_PASSWORD";
+
+  // Create AsyncWebServer object on port 80
+  AsyncWebServer server(80);
+
+  // Create an Event Source on /events
+  AsyncEventSource events("/events");
+
+  // Json Variable to Hold Sensor Readings
+  JSONVar readings;
+
+  void initSPIFFS() {
+    if (!SPIFFS.begin()) {
+      Serial.println("An error has occurred while mounting SPIFFS");
+    }
+      Serial.println("SPIFFS mounted successfully");
+  }
+
+  // Initialize WiFi
+  void initWiFi() {
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(ssid, password);
+    Serial.println("");
+    Serial.print("Connecting to WiFi...");
+    while (WiFi.status() != WL_CONNECTED) {
+      Serial.print(".");
+      delay(1000);
+    }
+    Serial.println("");
+    Serial.println(WiFi.localIP());
+  }
+
+ void Flight_Controller::Handle_Server(){
+  
+    // Handle Web Server
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/index.html", "text/html");
+  });
+
+  server.serveStatic("/", SPIFFS, "/");
+
+  // Handle Web Server Events
+  events.onConnect([](AsyncEventSourceClient *client){
+    if(client->lastId()){
+      Serial.printf("Client reconnected! Last message ID that it got is: %u\n", client->lastId());
+    }
+    // send event with message "hello!", id current millis
+    // and set reconnect delay to 1 second
+    client->send("hello!", NULL, millis(), 10000);
+  });
+  server.addHandler(&events);
+
+  server.begin();
+}
+
+void Flight_Controller::Send_Event(){ 
+
+  readings["gyro_roll"] = String(gyro_roll /131);
+  readings["gyro_pitch"] = String(gyro_pitch /131);
+  readings["gyro_yaw"] = String(gyro_yaw /131);
+
+  readings["acc_x"] = String(acc_x /131);
+  readings["acc_y"] = String(acc_y /131);
+  readings["acc_z"] = String(acc_z /131);
+
+  String jsonString = JSON.stringify(readings);
+  // Send Events to the Web Server with the Sensor Readings
+    events.send(jsonString.c_str(),"imu_readings",millis());
+  }
+#endif
+
+
+// Flight controller interface 
 void Flight_Controller::initialize()
 {
 
   Serial.begin(115200);
   pinMode(2,OUTPUT); //LED status 
+
+  #ifdef DEBUG_IMU
+    initWiFi();
+    initSPIFFS();
+    Handle_Server(); 
+  #endif
 
   // Allow allocation of all timers. Consistent and accurate PWM. 
   ESP32PWM::allocateTimer(0);
@@ -342,10 +436,13 @@ void Flight_Controller::applyOffsetsAndInvert() {
   acc_x -= accXOffset;
   acc_y -= accYOffset;
   acc_z -= accZOffset;
+  
+  #ifdef DEBUG_IMU
+    Send_Event();
+  #endif // DEBUG_IMU
 }
 
 void Flight_Controller::outputMotors() {
-    // Motor output logic here
     throttle = receiver_input_channel_3; // We need the throttle signal as a base signal.
     if (start == 2) {                   // The motors are started.
         if (throttle > 1800)
@@ -384,6 +481,7 @@ void Flight_Controller::outputMotors() {
     delayMicroseconds(4000); // Ensure a consistent loop time
     readGyroData();
     applyOffsetsAndInvert();
+
 
     esc1.writeMicroseconds(esc_1);
     esc2.writeMicroseconds(esc_2);
