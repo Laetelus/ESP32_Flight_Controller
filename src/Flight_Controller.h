@@ -13,7 +13,6 @@
 #include <WiFi.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include <Wire.h>
 #include <Arduino_JSON.h>
 #include "SPIFFS.h"
 
