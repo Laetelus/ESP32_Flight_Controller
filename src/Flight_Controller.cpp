@@ -59,7 +59,6 @@ void Flight_Controller::initialize()
 
   digitalWrite(2,HIGH); // Calibration indicator 
   calibrateMPU6050(); 
-  delay(2000); // Lets give it a 2 sec delay
   digitalWrite(2,LOW); //Calibration indicator 
   
   // attach esc pins
