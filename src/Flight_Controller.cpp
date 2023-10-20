@@ -5,6 +5,8 @@
 #include <EEPROM.h>
 #include "Flight_Controller.h"
 
+//TODO: Correct Accelerometer readings. Test Accel values 
+
 /*
   uncomment DEBUG_IMU to view IMU on webserver. DO NOT! upload both the flight controller
   software and the Webserver software if not testing IMU. 
@@ -311,13 +313,6 @@ void Flight_Controller::calibrateMPU6050() {
     gyroYOffset = -mean_gy / 4.0;
     gyroZOffset = -mean_gz / 4.0;
 
-    accelgyro.setXAccelOffset(accXOffset);
-    accelgyro.setYAccelOffset(accYOffset);
-    accelgyro.setZAccelOffset(accZOffset);
-    accelgyro.setXGyroOffset(gyroXOffset);
-    accelgyro.setYGyroOffset(gyroYOffset);
-    accelgyro.setZGyroOffset(gyroZOffset);
-
     if (abs(mean_ax) <= acel_deadzone) ready++;
     else accXOffset -= mean_ax / acel_deadzone;
 
@@ -337,24 +332,33 @@ void Flight_Controller::calibrateMPU6050() {
     else gyroZOffset -= mean_gz / (giro_deadzone + 1);
 
     if (ready == 6) break;
+
+    accelgyro.setXAccelOffset(accXOffset);
+    accelgyro.setYAccelOffset(accYOffset);
+    accelgyro.setZAccelOffset(accZOffset);
+    accelgyro.setXGyroOffset(gyroXOffset);
+    accelgyro.setYGyroOffset(gyroYOffset);
+    accelgyro.setZGyroOffset(gyroZOffset);
+
   }
 }
 
 void Flight_Controller::applyOffsetsAndInvert() {
   /*
     whenever we retrieve gyro and accelerometer data, 
-    we'll want to subtract these offsets from the raw values
+    we'll want to subtract these offsets from the raw values. 
   */
+ 
   gyro_roll -= gyroXOffset;
   gyro_pitch -= gyroYOffset;
   gyro_yaw -= gyroZOffset;
+  acc_x -= accXOffset;
+  acc_y -= accYOffset;
+  acc_z -= accZOffset;
 
   gyro_roll = -gyro_roll; // Invert the roll (because of my orientation of the IMU)
   gyro_yaw = -gyro_yaw;  // Invert the roll (because of my orientation of the IMU)
 
-  acc_x -= accXOffset;
-  acc_y -= accYOffset;
-  acc_z -= accZOffset;
   
   #ifdef DEBUG_IMU
     Send_Event();
@@ -417,4 +421,14 @@ void Flight_Controller::print_gyro_data() {
     Serial.print(", ");
     Serial.print("Yaw: ");
     Serial.println((float)gyro_yaw / 131);  
+
+    Serial.print("Accel_X: ");
+    Serial.print((float)acc_x);
+    Serial.print(", ");
+    Serial.print("Accel_Y: ");
+    Serial.print((float)acc_y);
+    Serial.print(", ");
+    Serial.print("Accel_Z: ");
+    Serial.println((float)acc_z); 
+    
 }

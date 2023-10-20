@@ -92,6 +92,14 @@ private:
     volatile int16_t receiver_input_channel_1;
     volatile int16_t receiver_input_channel_2;
 
+    //intialize average readings 
+    int mean_ax = 0;
+    int mean_ay = 0;
+    int mean_az = 0;
+    int mean_gx = 0;
+    int mean_gy = 0;
+    int mean_gz = 0;
+
     // MPU6050 instance
     MPU6050 accelgyro;
 
