@@ -15,7 +15,8 @@ void loop() {
     f.read_Controller();
     f.level_flight();
     f.motorControls();
-    f.calculate_pid();
-    f.outputMotors();
+    f.mix_motors();
+    delayMicroseconds(4000); 
+    f.write_motors();
     //f.print_gyro_data();
 }

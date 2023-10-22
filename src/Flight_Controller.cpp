@@ -134,6 +134,7 @@ void Flight_Controller::level_flight() {
 }
 
 void Flight_Controller::motorControls() {
+  
   // For starting the motors: throttle low and yaw left (step 1).
   if (receiver_input_channel_3 < 1065 && receiver_input_channel_4 < 1050)
   {
@@ -211,6 +212,7 @@ void Flight_Controller::motorControls() {
     else if (receiver_input_channel_4 < 1492)
       pid_yaw_setpoint = (receiver_input_channel_4 - 1492) / 3.0;
   }
+    calculate_pid(); // PID inputs are known. So we can calculate the pid output.
 }
 
 void Flight_Controller::calculate_pid() {
@@ -364,7 +366,7 @@ void Flight_Controller::applyOffsetsAndInvert() {
   #endif // DEBUG_IMU
 }
 
-void Flight_Controller::outputMotors() {
+void Flight_Controller::mix_motors() {
     throttle = receiver_input_channel_3; // We need the throttle signal as a base signal.
     if (start == 2) {                   // The motors are started.
         if (throttle > 1800)
@@ -399,11 +401,11 @@ void Flight_Controller::outputMotors() {
         esc_3 = 1000; // If start is not 2, keep a 1000us pulse for esc-3.
         esc_4 = 1000; // If start is not 2, keep a 1000us pulse for esc-4.
     }
+}
 
-    delayMicroseconds(4000); // Ensure a consistent loop time
+void Flight_Controller::write_motors(){
     readGyroData();
     applyOffsetsAndInvert();
-
 
     esc1.writeMicroseconds(esc_1);
     esc2.writeMicroseconds(esc_2);

@@ -24,10 +24,11 @@ public:
     void level_flight();
     void motorControls();
     void calculate_pid();
-    void outputMotors();
+    void mix_motors();
     void calibrateMPU6050(); 
     void applyOffsetsAndInvert();
     void readGyroData();
+    void write_motors(); 
     void Handle_Server();
     void Send_Event();
     void initSPIFFS(); 
