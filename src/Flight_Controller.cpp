@@ -100,7 +100,7 @@ void Flight_Controller::level_flight() {
   angle_roll += angle_pitch * sin(gyro_yaw * 0.000001066); // If the IMU has yawed transfer the pitch angle to the roll angel.
 
   // Accelerometer angle calculations
-  acc_total_vector = sqrt((acc_x * acc_x) + (acc_y * acc_y) + (acc_z * acc_z)); // Calculate the total accelerometer vector.
+  acc_total_vector = sqrt((acc_x * acc_x) + (acc_y * acc_y) + (az_mps2 * az_mps2)); // Calculate the total accelerometer vector.
 
   if (abs(acc_y) < acc_total_vector)
   {                                                                   // Prevent the asin function to produce a NaN
@@ -269,7 +269,7 @@ void Flight_Controller::readGyroData() {
 
 void Flight_Controller::calibrateMPU6050() {
 
-  long buff_ax, buff_ay, buff_az, buff_gx, buff_gy, buff_gz;
+  long buff_ax = 0, buff_ay = 0, buff_az = 0, buff_gx = 0, buff_gy = 0, buff_gz = 0;
 
   const int num_samples = 3000;
   for (int i = 0; i < num_samples; i++) {
@@ -300,7 +300,7 @@ int16_t Flight_Controller::applyDeadzone(int16_t value, int16_t deadzone) {
   return value;
 }
 
-void Flight_Controller::applyOffsetsAndInvert() {
+void Flight_Controller::processIMUData() {
   /*
     whenever we retrieve gyro and accelerometer data, 
     we'll want to subtract these offsets from the raw values. 
@@ -318,14 +318,13 @@ void Flight_Controller::applyOffsetsAndInvert() {
   acc_y = applyDeadzone(acc_y, 100);
   acc_z = applyDeadzone(acc_z, 100);
     
-
   gyro_roll  = applyDeadzone(gyro_roll, 1);
   gyro_pitch = applyDeadzone(gyro_pitch, 1);
   gyro_yaw   = applyDeadzone(gyro_yaw , 1);
 
-  gyro_roll = -gyro_roll; // Invert the roll (because of my orientation of the IMU)
-  gyro_yaw = -gyro_yaw;  // Invert the roll (because of my orientation of the IMU)
-  acc_z = -acc_z;
+  gyro_roll = -gyro_roll; // Invert the roll
+  gyro_yaw = -gyro_yaw;  // Invert the roll
+  acc_z = acc_z;
 
   // Convert raw Z-axis reading to g, then convert g to m/s^2
   az_g = (float)acc_z / 16384.0;
@@ -375,7 +374,7 @@ void Flight_Controller::mix_motors() {
 
 void Flight_Controller::write_motors(){
     readGyroData();
-    applyOffsetsAndInvert();
+    processIMUData();
 
     esc1.writeMicroseconds(esc_1);
     esc2.writeMicroseconds(esc_2);

@@ -27,7 +27,7 @@ public:
     void mix_motors();
     void calibrateMPU6050(); 
     int16_t applyDeadzone(int16_t,int16_t);
-    void applyOffsetsAndInvert();
+    void processIMUData();
     void readGyroData();
     void write_motors(); 
     void Handle_Server();
@@ -86,8 +86,10 @@ private:
     float gyroXOffset = 0.0, gyroYOffset = 0.0, gyroZOffset = 0.0, accXOffset = 0.0, accYOffset = 0.0, accZOffset = 0.0;
     boolean gyro_angles_set;
     boolean auto_level = true; //Auto level on (true) or off (false)
-    float az_g;
-    float az_mps2; 
+   
+
+    float az_g = 0;
+    float az_mps2 = 0; 
 
     const int acel_deadzone = 8;
     const int giro_deadzone = 1;
