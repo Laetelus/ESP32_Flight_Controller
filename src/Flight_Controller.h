@@ -26,6 +26,7 @@ public:
     void calculate_pid();
     void mix_motors();
     void calibrateMPU6050(); 
+    int16_t applyDeadzone(int16_t,int16_t);
     void applyOffsetsAndInvert();
     void readGyroData();
     void write_motors(); 
@@ -42,16 +43,16 @@ private:
     static constexpr int MAX_PULSE_LENGTH = 2000;
 
     // Controller
-    static constexpr int THROTTLE = 36;
-    static constexpr int YAW = 39;
-    static constexpr int PITCH = 34;
-    static constexpr int ROLL = 35;
+    static constexpr int THROTTLE = 36; 
+    static constexpr int YAW = 39; // rudder
+    static constexpr int PITCH = 34; // elevator
+    static constexpr int ROLL = 35; // aileron
 
     // ESC Pins
-    static constexpr int esc_pin1 = 32;
-    static constexpr int esc_pin2 = 33;
-    static constexpr int esc_pin3 = 25;
-    static constexpr int esc_pin4 = 26;
+    static constexpr int esc_pin1 = 32; // FR/CCW
+    static constexpr int esc_pin2 = 33; // FL/CW
+    static constexpr int esc_pin3 = 25; // BR/CW
+    static constexpr int esc_pin4 = 26; // BL/CCW
 
     // PID Parameters
     float pid_p_gain_roll = 1.3;
@@ -84,8 +85,12 @@ private:
     float angle_roll_acc, angle_pitch_acc, angle_pitch, angle_roll;
     float gyroXOffset = 0.0, gyroYOffset = 0.0, gyroZOffset = 0.0, accXOffset = 0.0, accYOffset = 0.0, accZOffset = 0.0;
     boolean gyro_angles_set;
-    boolean auto_level;
+    boolean auto_level = true; //Auto level on (true) or off (false)
+    float az_g;
+    float az_mps2; 
 
+    const int acel_deadzone = 8;
+    const int giro_deadzone = 1;
     // Receiver input variables
     volatile int16_t receiver_input_channel_3;
     volatile int16_t receiver_input_channel_4;

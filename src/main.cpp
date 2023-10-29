@@ -4,7 +4,7 @@
 #include "MPU6050.h"
 #include <EEPROM.h>
 #include "Flight_Controller.h"
-
+int loop_timer; 
 Flight_Controller f; 
 
 void setup() {
@@ -16,7 +16,9 @@ void loop() {
     f.level_flight();
     f.motorControls();
     f.mix_motors();
-    delayMicroseconds(4000); 
+    while(micros() - loop_timer < 4000); 
+     //Reset the loop timer                                
+    loop_timer = micros();
     f.write_motors();
-    //f.print_gyro_data();
+    f.print_gyro_data();
 }

@@ -50,12 +50,8 @@ void Flight_Controller::initialize()
   #endif     
 
   // reset offsets
-  accelgyro.setXAccelOffset(0);
-  accelgyro.setYAccelOffset(0);
-  accelgyro.setZAccelOffset(0);
-  accelgyro.setXGyroOffset(0);
-  accelgyro.setYGyroOffset(0);
-  accelgyro.setZGyroOffset(0);                        
+  accelgyro.setFullScaleAccelRange(2);  // Set accelerometer range to ±2g
+  accelgyro.setFullScaleGyroRange(250);  // Set gyroscope range to ±250°/s
 
   digitalWrite(2,HIGH); // Calibration indicator 
   calibrateMPU6050(); 
@@ -272,76 +268,36 @@ void Flight_Controller::readGyroData() {
 }
 
 void Flight_Controller::calibrateMPU6050() {
-  const int calibrationSamples = 1000;
-  const int discardSamples = 100;
-  const int acel_deadzone = 8;
-  const int giro_deadzone = 1;
-  const int max_iterations = 10; // Maximum number of iterative calibration rounds
-  
+
   long buff_ax, buff_ay, buff_az, buff_gx, buff_gy, buff_gz;
 
-  for (int iteration = 0; iteration < max_iterations; iteration++) {
-    buff_ax = buff_ay = buff_az = buff_gx = buff_gy = buff_gz = 0;
-
-    for (int i = 0; i < calibrationSamples + discardSamples; i++) {
-      readGyroData(); 
-      if (i >= discardSamples) { // Discard the first "discardSamples" readings
-        buff_ax += acc_x;
-        buff_ay += acc_y;
-        buff_az += acc_z;
-        buff_gx += gyro_roll;
-        buff_gy += gyro_pitch;
-        buff_gz += gyro_yaw;
-      }
-      delay(2); 
-    }
-
-    // Calculate the average offsets
-    int mean_ax = buff_ax / calibrationSamples;
-    int mean_ay = buff_ay / calibrationSamples;
-    int mean_az = buff_az / calibrationSamples;
-    int mean_gx = buff_gx / calibrationSamples;
-    int mean_gy = buff_gy / calibrationSamples;
-    int mean_gz = buff_gz / calibrationSamples;
-
-    // Start calibration integration
-    int ready = 0;
-
-    accXOffset = -mean_ax / 8.0;
-    accYOffset = -mean_ay / 8.0;
-    accZOffset = (16384 - mean_az) / 8.0;
-    gyroXOffset = -mean_gx / 4.0;
-    gyroYOffset = -mean_gy / 4.0;
-    gyroZOffset = -mean_gz / 4.0;
-
-    if (abs(mean_ax) <= acel_deadzone) ready++;
-    else accXOffset -= mean_ax / acel_deadzone;
-
-    if (abs(mean_ay) <= acel_deadzone) ready++;
-    else accYOffset -= mean_ay / acel_deadzone;
-
-    if (abs(16384 - mean_az) <= acel_deadzone) ready++;
-    else accZOffset += (16384 - mean_az) / acel_deadzone;
-
-    if (abs(mean_gx) <= giro_deadzone) ready++;
-    else gyroXOffset -= mean_gx / (giro_deadzone + 1);
-
-    if (abs(mean_gy) <= giro_deadzone) ready++;
-    else gyroYOffset -= mean_gy / (giro_deadzone + 1);
-
-    if (abs(mean_gz) <= giro_deadzone) ready++;
-    else gyroZOffset -= mean_gz / (giro_deadzone + 1);
-
-    if (ready == 6) break;
-
-    accelgyro.setXAccelOffset(accXOffset);
-    accelgyro.setYAccelOffset(accYOffset);
-    accelgyro.setZAccelOffset(accZOffset);
-    accelgyro.setXGyroOffset(gyroXOffset);
-    accelgyro.setYGyroOffset(gyroYOffset);
-    accelgyro.setZGyroOffset(gyroZOffset);
-
+  const int num_samples = 3000;
+  for (int i = 0; i < num_samples; i++) {
+    readGyroData(); 
+    buff_ax += acc_x;
+    buff_ay += acc_y;
+    buff_az += acc_z;
+    buff_gx += gyro_roll;
+    buff_gy += gyro_pitch;
+    buff_gz += gyro_yaw;
+    delay(2); // wait for sampling at 500Hz
   }
+
+  // Average the values
+  accXOffset  = buff_ax  / num_samples;
+  accYOffset  = buff_ay  / num_samples;
+  accZOffset  =(buff_az  / num_samples) - 16384; // considering 1g offset
+  gyroXOffset = buff_gx / num_samples;
+  gyroYOffset = buff_gy / num_samples;
+  gyroZOffset = buff_gz / num_samples;
+
+}
+
+int16_t Flight_Controller::applyDeadzone(int16_t value, int16_t deadzone) {
+  if (abs(value) < deadzone) {
+    return 0;
+  }
+  return value;
 }
 
 void Flight_Controller::applyOffsetsAndInvert() {
@@ -350,17 +306,31 @@ void Flight_Controller::applyOffsetsAndInvert() {
     we'll want to subtract these offsets from the raw values. 
   */
  
-  gyro_roll -= gyroXOffset;
+  gyro_roll  -= gyroXOffset;
   gyro_pitch -= gyroYOffset;
-  gyro_yaw -= gyroZOffset;
+  gyro_yaw   -= gyroZOffset;
   acc_x -= accXOffset;
   acc_y -= accYOffset;
   acc_z -= accZOffset;
 
+    // Apply the deadzone
+  acc_x = applyDeadzone(acc_x, 100);
+  acc_y = applyDeadzone(acc_y, 100);
+  acc_z = applyDeadzone(acc_z, 100);
+    
+
+  gyro_roll  = applyDeadzone(gyro_roll, 1);
+  gyro_pitch = applyDeadzone(gyro_pitch, 1);
+  gyro_yaw   = applyDeadzone(gyro_yaw , 1);
+
   gyro_roll = -gyro_roll; // Invert the roll (because of my orientation of the IMU)
   gyro_yaw = -gyro_yaw;  // Invert the roll (because of my orientation of the IMU)
+  acc_z = -acc_z;
 
-  
+  // Convert raw Z-axis reading to g, then convert g to m/s^2
+  az_g = (float)acc_z / 16384.0;
+  az_mps2 = az_g * 9.81;
+
   #ifdef DEBUG_IMU
     Send_Event();
   #endif // DEBUG_IMU
@@ -414,22 +384,26 @@ void Flight_Controller::write_motors(){
 }
 
 void Flight_Controller::print_gyro_data() {
-    Serial.print("Roll: ");
-    Serial.print((float)gyro_roll / 131);
-    Serial.print(", ");
-    Serial.print("Pitch: ");
-    Serial.print((float)gyro_pitch / 131);
-    Serial.print(", ");
-    Serial.print("Yaw: ");
-    Serial.println((float)gyro_yaw / 131);  
 
-    Serial.print("Accel_X: ");
-    Serial.print((float)acc_x);
-    Serial.print(", ");
-    Serial.print("Accel_Y: ");
-    Serial.print((float)acc_y);
-    Serial.print(", ");
-    Serial.print("Accel_Z: ");
-    Serial.println((float)acc_z); 
-    
+  Serial.print("\nPitch: "); 
+  Serial.println(angle_pitch);
+
+  Serial.print("Roll: "); 
+  Serial.println(angle_roll);
+
+  Serial.print("\nPitch Adjust: "); 
+  Serial.println(pitch_level_adjust);
+
+  Serial.print("Roll Adjust: "); 
+  Serial.println(roll_level_adjust);
+
+  Serial.print("\nAcc X: "); 
+  Serial.println(acc_x);
+
+  Serial.print("Acc Y: "); 
+  Serial.println(acc_y);
+
+  Serial.print("Acc Z (m/s^2): "); 
+  Serial.println(az_mps2);
+  Serial.print("--------------------------------"); 
 }
