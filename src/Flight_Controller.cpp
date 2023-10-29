@@ -49,7 +49,6 @@ void Flight_Controller::initialize()
     Serial.println(accelgyro.testConnection() ? "accelgyro6050 connection successful" : "accelgyro6050 connection failed");
   #endif     
 
-  // reset offsets
   accelgyro.setFullScaleAccelRange(2);  // Set accelerometer range to ±2g
   accelgyro.setFullScaleGyroRange(250);  // Set gyroscope range to ±250°/s
 
@@ -100,7 +99,7 @@ void Flight_Controller::level_flight() {
   angle_roll += angle_pitch * sin(gyro_yaw * 0.000001066); // If the IMU has yawed transfer the pitch angle to the roll angel.
 
   // Accelerometer angle calculations
-  acc_total_vector = sqrt((acc_x * acc_x) + (acc_y * acc_y) + (az_mps2 * az_mps2)); // Calculate the total accelerometer vector.
+  acc_total_vector = sqrt((ax_mps2 * ax_mps2) + (ay_mps2 * ay_mps2) + (az_mps2 * az_mps2));
 
   if (abs(acc_y) < acc_total_vector)
   {                                                                   // Prevent the asin function to produce a NaN
@@ -111,9 +110,10 @@ void Flight_Controller::level_flight() {
     angle_roll_acc = asin((float)acc_x / acc_total_vector) * -57.296; // Calculate the roll angle.
   }
 
-  // Place the accelgyro-6050 spirit level and note the values in the following two lines for calibration.
-  angle_pitch_acc -= 0.0; // Accelerometer calibration value for pitch.
-  angle_roll_acc -= 0.0;  // Accelerometer calibration value for roll.
+  // // Place the accelgyro-6050 spirit level and note the values in the following two lines for calibration.
+  //No need since we are already subtracting our offset. 
+  // angle_pitch_acc -= 0.0; // Accelerometer calibration value for pitch.
+  // angle_roll_acc -= 0.0;  // Accelerometer calibration value for roll.
 
   angle_pitch = angle_pitch * 0.9996 + angle_pitch_acc * 0.0004; // Correct the drift of the gyro pitch angle with the accelerometer pitch angle.
   angle_roll = angle_roll * 0.9996 + angle_roll_acc * 0.0004;    // Correct the drift of the gyro roll angle with the accelerometer roll angle.
@@ -271,7 +271,7 @@ void Flight_Controller::calibrateMPU6050() {
 
   long buff_ax = 0, buff_ay = 0, buff_az = 0, buff_gx = 0, buff_gy = 0, buff_gz = 0;
 
-  const int num_samples = 3000;
+  const int num_samples = 1000;
   for (int i = 0; i < num_samples; i++) {
     readGyroData(); 
     buff_ax += acc_x;
@@ -297,7 +297,7 @@ int16_t Flight_Controller::applyDeadzone(int16_t value, int16_t deadzone) {
   if (abs(value) < deadzone) {
     return 0;
   }
-  return value;
+  return value > 0 ? value - deadzone : value + deadzone;
 }
 
 void Flight_Controller::processIMUData() {
@@ -326,9 +326,13 @@ void Flight_Controller::processIMUData() {
   gyro_yaw = -gyro_yaw;  // Invert the roll
   acc_z = acc_z;
 
-  // Convert raw Z-axis reading to g, then convert g to m/s^2
-  az_g = (float)acc_z / 16384.0;
-  az_mps2 = az_g * 9.81;
+  /*All three axes of the accelerometer (X, Y, and Z) measure acceleration 
+    in units of g, and thus all three need to be converted to m/s² to have 
+    consistent units across all axes. 
+  */
+  ax_mps2 = ((float)acc_x / 16384.0) * 9.81;
+  ay_mps2 = ((float)acc_y / 16384.0) * 9.81;
+  az_mps2 = ((float)acc_z / 16384.0) * 9.81;
 
   #ifdef DEBUG_IMU
     Send_Event();
@@ -390,6 +394,9 @@ void Flight_Controller::print_gyro_data() {
   Serial.print("Roll: "); 
   Serial.println(angle_roll);
 
+  Serial.print("Yaw: "); 
+  Serial.println(gyro_yaw_input);
+
   Serial.print("\nPitch Adjust: "); 
   Serial.println(pitch_level_adjust);
 
@@ -397,10 +404,10 @@ void Flight_Controller::print_gyro_data() {
   Serial.println(roll_level_adjust);
 
   Serial.print("\nAcc X: "); 
-  Serial.println(acc_x);
+  Serial.println(ax_mps2);
 
   Serial.print("Acc Y: "); 
-  Serial.println(acc_y);
+  Serial.println(ay_mps2);
 
   Serial.print("Acc Z (m/s^2): "); 
   Serial.println(az_mps2);
