@@ -41,7 +41,8 @@
   "C_Cpp_Runner.useAddressSanitizer": false,
   "files.associations": {
     "*.tcc": "cpp",
-    "algorithm": "cpp"
+    "algorithm": "cpp",
+    "cmath": "cpp"
   },
   "C_Cpp_Runner.showCompilationTime": false,
   "C_Cpp_Runner.msvcWarnings": [

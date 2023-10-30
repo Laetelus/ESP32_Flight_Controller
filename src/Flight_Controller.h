@@ -91,6 +91,7 @@ private:
     float pid_i_mem_yaw, pid_yaw_setpoint, gyro_yaw_input, pid_output_yaw, pid_last_yaw_d_error;
     float angle_roll_acc, angle_pitch_acc, angle_pitch, angle_roll;
     float gyroXOffset = 0.0, gyroYOffset = 0.0, gyroZOffset = 0.0, accXOffset = 0.0, accYOffset = 0.0, accZOffset = 0.0;
+    float temperature = 0.0;  
     boolean gyro_angles_set;
     boolean auto_level = true; //Auto level on (true) or off (false)
    
