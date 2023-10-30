@@ -87,13 +87,11 @@ private:
     boolean gyro_angles_set;
     boolean auto_level = true; //Auto level on (true) or off (false)
    
+    // initialize  units of g
+    float ax_mps2 = 0.0f; 
+    float ay_mps2 = 0.0f; 
+    float az_mps2 = 0.0f; 
 
-    float ax_mps2 = 0; 
-    float ay_mps2 = 0; 
-    float az_mps2 = 0; 
-
-    const int acel_deadzone = 8;
-    const int giro_deadzone = 1;
     // Receiver input variables
     volatile int16_t receiver_input_channel_3;
     volatile int16_t receiver_input_channel_4;

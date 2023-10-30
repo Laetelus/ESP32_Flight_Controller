@@ -63,13 +63,13 @@
 }
 
 void Flight_Controller::Send_Event(){ 
-  readings["gyro_roll"] = String(gyro_roll /131);
-  readings["gyro_pitch"] = String(gyro_pitch /131);
-  readings["gyro_yaw"] = String(gyro_yaw /131);
+  readings["gyro_roll"] = String(angle_roll);
+  readings["gyro_pitch"] = String(angle_pitch);
+  readings["gyro_yaw"] = String(gyro_yaw_input);
 
-  readings["acc_x"] = String(acc_x /131);
-  readings["acc_y"] = String(acc_y /131);
-  readings["acc_z"] = String(acc_z /131);
+  readings["acc_x"] = String(ax_mps2);
+  readings["acc_y"] = String(ay_mps2);
+  readings["acc_z"] = String(az_mps2);
 
   String jsonString = JSON.stringify(readings);
   // Send Events to the Web Server with the Sensor Readings

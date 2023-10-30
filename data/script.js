@@ -85,13 +85,13 @@ if (!!window.EventSource) {
   source.addEventListener('imu_readings', function(e) {
     //console.log("gyro_readings", e.data);
     var obj = JSON.parse(e.data);
-    document.getElementById("gyro_roll").innerHTML = obj.gyro_roll;
-    document.getElementById("gyro_pitch").innerHTML = obj.gyro_pitch;
-    document.getElementById("gyro_yaw").innerHTML = obj.gyro_yaw;
+    document.getElementById("gyro_roll").innerHTML = obj.angle_roll;
+    document.getElementById("gyro_pitch").innerHTML = obj.angle_pitch;
+    document.getElementById("gyro_yaw").innerHTML = obj.gyro_yaw_input;
 
-    document.getElementById("acc_x").innerHTML = obj.acc_x;
-    document.getElementById("acc_y").innerHTML = obj.acc_y;
-    document.getElementById("acc_z").innerHTML = obj.acc_z;
+    document.getElementById("acc_x").innerHTML = obj.ax_mps2;
+    document.getElementById("acc_y").innerHTML = obj.ay_mps2;
+    document.getElementById("acc_z").innerHTML = obj.az_mps2;
 
     // Change cube rotation after receiving the readinds
   cube.rotation.x = THREE.Math.degToRad(obj.gyro_pitch);   // Pitch

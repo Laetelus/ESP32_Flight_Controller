@@ -5,7 +5,6 @@
 #include <EEPROM.h>
 #include "Flight_Controller.h"
 
-//TODO: Correct Accelerometer readings. Test Accel values 
 
 /*
   uncomment DEBUG_IMU to view IMU on webserver. DO NOT! upload both the flight controller
@@ -95,21 +94,20 @@ void Flight_Controller::level_flight() {
   angle_roll += gyro_roll * 0.0000611;   // Calculate the traveled roll angle and add this to the angle_roll variable.
 
   // 0.000001066 = 0.0000611 * (3.142(PI) / 180degr) The Arduino sin function is in radians
-  angle_pitch -= angle_roll * sin(gyro_yaw * 0.000001066); // If the IMU has yawed transfer the roll angle to the pitch angel.
-  angle_roll += angle_pitch * sin(gyro_yaw * 0.000001066); // If the IMU has yawed transfer the pitch angle to the roll angel.
+  angle_pitch -= angle_roll * sin(gyro_yaw * 0.000001066);                  //If the IMU has yawed transfer the roll angle to the pitch angel.
+  angle_roll += angle_pitch * sin(gyro_yaw * 0.000001066);                  //If the IMU has yawed transfer the pitch angle to the roll angel.
 
   // Accelerometer angle calculations
   acc_total_vector = sqrt((ax_mps2 * ax_mps2) + (ay_mps2 * ay_mps2) + (az_mps2 * az_mps2));
 
-  if (abs(acc_y) < acc_total_vector)
+  if (abs(ax_mps2) < acc_total_vector)
   {                                                                   // Prevent the asin function to produce a NaN
-    angle_pitch_acc = asin((float)acc_y / acc_total_vector) * 57.296; // Calculate the pitch angle.
+    angle_pitch_acc = -asin((float)ax_mps2 / acc_total_vector) * 57.296; // Calculate the pitch angle.
   }
-  if (abs(acc_x) < acc_total_vector)
+  if (abs(ay_mps2) < acc_total_vector)
   {                                                                   // Prevent the asin function to produce a NaN
-    angle_roll_acc = asin((float)acc_x / acc_total_vector) * -57.296; // Calculate the roll angle.
+    angle_roll_acc = asin((float)ay_mps2 / acc_total_vector) * -57.296; // Calculate the roll angle.
   }
-
   // // Place the accelgyro-6050 spirit level and note the values in the following two lines for calibration.
   //No need since we are already subtracting our offset. 
   // angle_pitch_acc -= 0.0; // Accelerometer calibration value for pitch.
@@ -118,7 +116,6 @@ void Flight_Controller::level_flight() {
   angle_pitch = angle_pitch * 0.9996 + angle_pitch_acc * 0.0004; // Correct the drift of the gyro pitch angle with the accelerometer pitch angle.
   angle_roll = angle_roll * 0.9996 + angle_roll_acc * 0.0004;    // Correct the drift of the gyro roll angle with the accelerometer roll angle.
 
- 
   pitch_level_adjust = angle_pitch * 15; // Calculate the pitch angle correction
   roll_level_adjust = angle_roll * 15;   // Calculate the roll angle correction
   
@@ -269,7 +266,9 @@ void Flight_Controller::readGyroData() {
 
 void Flight_Controller::calibrateMPU6050() {
 
-  long buff_ax = 0, buff_ay = 0, buff_az = 0, buff_gx = 0, buff_gy = 0, buff_gz = 0;
+  long buff_ax = 0, buff_ay = 0, 
+  buff_az = 0, buff_gx = 0, 
+  buff_gy = 0, buff_gz = 0;
 
   const int num_samples = 1000;
   for (int i = 0; i < num_samples; i++) {
@@ -313,7 +312,7 @@ void Flight_Controller::processIMUData() {
   acc_y -= accYOffset;
   acc_z -= accZOffset;
 
-    // Apply the deadzone
+  // Apply the deadzone
   acc_x = applyDeadzone(acc_x, 100);
   acc_y = applyDeadzone(acc_y, 100);
   acc_z = applyDeadzone(acc_z, 100);
@@ -324,7 +323,6 @@ void Flight_Controller::processIMUData() {
 
   gyro_roll = -gyro_roll; // Invert the roll
   gyro_yaw = -gyro_yaw;  // Invert the roll
-  acc_z = acc_z;
 
   /*All three axes of the accelerometer (X, Y, and Z) measure acceleration 
     in units of g, and thus all three need to be converted to m/s² to have 
@@ -388,21 +386,37 @@ void Flight_Controller::write_motors(){
 
 void Flight_Controller::print_gyro_data() {
 
-  Serial.print("\nPitch: "); 
+  Serial.print("\nRaw Gyro Pitch: "); 
+  Serial.println(gyro_pitch);
+  
+  Serial.print("Raw Gyro Roll: "); 
+  Serial.println(gyro_roll);
+  
+  Serial.print("Raw Gyro Yaw: "); 
+  Serial.println(gyro_yaw);
+
+  Serial.print("--------------------"); 
+  Serial.print("\nAngle Pitch: "); 
   Serial.println(angle_pitch);
 
-  Serial.print("Roll: "); 
+  Serial.print("Angle Roll: "); 
   Serial.println(angle_roll);
 
-  Serial.print("Yaw: "); 
-  Serial.println(gyro_yaw_input);
+  Serial.print("--------------------");   
+  Serial.print("\nangle_pitch_acc: ");
+  Serial.println(angle_pitch_acc);
 
+  Serial.print("angle_roll_acc: ");
+  Serial.println(angle_roll_acc);
+
+  Serial.print("--------------------"); 
   Serial.print("\nPitch Adjust: "); 
   Serial.println(pitch_level_adjust);
 
   Serial.print("Roll Adjust: "); 
   Serial.println(roll_level_adjust);
 
+  Serial.print("--------------------"); 
   Serial.print("\nAcc X: "); 
   Serial.println(ax_mps2);
 
@@ -411,5 +425,5 @@ void Flight_Controller::print_gyro_data() {
 
   Serial.print("Acc Z (m/s^2): "); 
   Serial.println(az_mps2);
-  Serial.print("--------------------------------"); 
+  Serial.print("--------------------"); 
 }
