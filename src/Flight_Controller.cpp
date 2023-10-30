@@ -2,8 +2,10 @@
 #include <ESP32Servo.h>
 #include "I2Cdev.h"
 #include "MPU6050.h"
+#include <Wire.h>
 #include <EEPROM.h>
 #include "Flight_Controller.h"
+
 
 /*
   uncomment DEBUG_IMU to view IMU on webserver. DO NOT! upload both the flight controller
@@ -39,31 +41,51 @@ void Flight_Controller::initialize()
      Fastwire::setup(400, true);
   #endif
 
-  // initialize device. This also sets the gyros and accelerometers 
+  // initialize device. This also initialises the gyros and accelerometers 
   Serial.println("Initializing I2C devices...");
   accelgyro.initialize();
+  // Verify gyroscope range
+  uint8_t gyroRange = accelgyro.getFullScaleGyroRange();
+  if (gyroRange == MPU6050_IMU::MPU6050_GYRO_FS_250) {
+    Serial.println("Gyroscope range verified as ±250°/s");
+  } else {
+    Serial.println("Gyroscope range verification failed");
+  }
+
+  // Verify accelerometer range
+  uint8_t accelRange = accelgyro.getFullScaleAccelRange();
+  if (accelRange == MPU6050_IMU::MPU6050_ACCEL_FS_2) {
+    Serial.println("Accelerometer range verified as ±2g");
+  } else {
+    Serial.println("Accelerometer range verification failed");
+  }
   // verify connection
   #ifdef I2CDEV_IMPLEMENTATION
     Serial.println("Testing device connections...");
     Serial.println(accelgyro.testConnection() ? "accelgyro6050 connection successful" : "accelgyro6050 connection failed");
-  #endif     
+  #endif   
+  delay(100);  
 
-  accelgyro.setFullScaleAccelRange(2);  // Set accelerometer range to ±2g
-  accelgyro.setFullScaleGyroRange(250);  // Set gyroscope range to ±250°/s
-  
+ 
   //Be careful with commenting and uncommenting this function. 
- //clearCalibrationData();
+  //clearCalibrationData();
 
-  // Warm-up time for the MPU6050 (LED will stay on for 500ms to indicate warm-up time)
+  // Warm-up time for the MPU6050 (LED will stay on for 3secs to indicate warm-up time)
   Serial.println("Warming up MPU6050...");
   digitalWrite(2, HIGH);
-  delay(500);
+  delay(3000);
   digitalWrite(2, LOW);
   Serial.println("Warm-up complete.");
 
+  // accelgyro.setFullScaleAccelRange(MPU6050_IMU::MPU6050_ACCEL_FS_2);  // Set accelerometer range to ±2g
+  // accelgyro.setFullScaleGyroRange(MPU6050_IMU::MPU6050_GYRO_FS_250);  // Set gyroscope range to ±250°/s
+  // delay(100); // wait for 100 milliseconds
+
+
+
   // Read current temperature
-  int16_t temp = accelgyro.getTemperature();
-  float temperatureC = temp / 340.00 + 36.53;
+  temp = accelgyro.getTemperature();
+  temperatureC = float(temp) / 340.00 + 36.53;
   Serial.print("Current temperature: ");
   Serial.println(temperatureC);
 
@@ -94,7 +116,6 @@ void Flight_Controller::initialize()
   } else {
     Serial.println("Calibration data loaded from EEPROM.");
   }
-
   #else
     Serial.println("Calibrating without EEPROM...");
     digitalWrite(2, HIGH);
@@ -103,14 +124,14 @@ void Flight_Controller::initialize()
     int minTemp = -40; // Replace with your minimum temperature value
     int maxTemp = 85;  // Replace with your maximum temperature value
     if (temperatureC >= minTemp && temperatureC <= maxTemp) {
-      Serial.println("Calibration complete within acceptable temperature range.");
+      Serial.println("Temperature data stored without EEPROM.");
     } else {
       Serial.println("Calibration complete but temperature out of range.");
     }
     digitalWrite(2, LOW);
   #endif
   
-  printStoredCalibrationValues(); // Add this line to print the stored values
+  printStoredCalibrationValues(); 
  
   // attach esc pins
   esc1.attach(esc_pin1, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FR (Front Right)
@@ -151,18 +172,18 @@ void Flight_Controller::level_flight() {
   angle_roll += gyro_roll * 0.0000611;   // Calculate the traveled roll angle and add this to the angle_roll variable.
 
   // 0.000001066 = 0.0000611 * (3.142(PI) / 180degr) The Arduino sin function is in radians
-  angle_pitch -= angle_roll * sin(gyro_yaw * 0.000001066);                  //If the IMU has yawed transfer the roll angle to the pitch angel.
-  angle_roll += angle_pitch * sin(gyro_yaw * 0.000001066);                  //If the IMU has yawed transfer the pitch angle to the roll angel.
+  angle_pitch -= angle_roll * sin(gyro_yaw * 0.000001066); //If the IMU has yawed transfer the roll angle to the pitch angel.
+  angle_roll += angle_pitch * sin(gyro_yaw * 0.000001066); //If the IMU has yawed transfer the pitch angle to the roll angel.
 
   // Accelerometer angle calculations
   acc_total_vector = sqrt((ax_mps2 * ax_mps2) + (ay_mps2 * ay_mps2) + (az_mps2 * az_mps2));
 
   if (abs(ax_mps2) < acc_total_vector)
-  {                                                                   // Prevent the asin function to produce a NaN
+  { // Prevent the asin function to produce a NaN
     angle_pitch_acc = asin((float)ax_mps2 / acc_total_vector) * 57.296; // Calculate the pitch angle.
   }
   if (abs(ay_mps2) < acc_total_vector)
-  {                                                                   // Prevent the asin function to produce a NaN
+  {  // Prevent the asin function to produce a NaN
     angle_roll_acc = -asin((float)ay_mps2 / acc_total_vector) * -57.296; // Calculate the roll angle.
   }
 
@@ -329,7 +350,7 @@ void Flight_Controller::calibrateMPU6050() {
   buff_az = 0, buff_gx = 0, 
   buff_gy = 0, buff_gz = 0;
 
-  const int num_samples = 1000;
+  const int num_samples = 3000;
   for (int i = 0; i < num_samples; i++) {
     readGyroData(); 
     buff_ax += acc_x;
@@ -352,14 +373,15 @@ void Flight_Controller::calibrateMPU6050() {
 }
 
 void Flight_Controller::saveCalibrationValues() {
-  if (EEPROM.readLong(0) == 0xFFFFFFFF) {
-    EEPROM.writeLong(0, accXOffset);
-    EEPROM.writeLong(4, accYOffset);
-    EEPROM.writeLong(8, accZOffset);
-    EEPROM.writeLong(12, gyroXOffset);
-    EEPROM.writeLong(16, gyroYOffset);
-    EEPROM.writeLong(20, gyroZOffset);
-    EEPROM.writeFloat(24, temperature); 
+  if (EEPROM.readLong(0) != 0x12345678) {
+    EEPROM.writeLong(0, 0x12345678);  // Unique identifier indicating values have been saved
+    EEPROM.writeLong(4, accXOffset);
+    EEPROM.writeLong(8, accYOffset);
+    EEPROM.writeLong(12, accZOffset);
+    EEPROM.writeLong(16, gyroXOffset);
+    EEPROM.writeLong(20, gyroYOffset);
+    EEPROM.writeLong(24, gyroZOffset);
+    EEPROM.writeFloat(28, temperatureC); 
     EEPROM.commit();
     Serial.println("Calibration values saved to EEPROM");
   } else {
@@ -368,24 +390,25 @@ void Flight_Controller::saveCalibrationValues() {
 }
 
 bool Flight_Controller::loadCalibrationValues() {
-  if (EEPROM.readLong(0) == 0xFFFFFFFF) {
-    return false; // Calibration data not found
+  if (EEPROM.readLong(0) != 0x12345678) {
+    return false; // Calibration data not found or not valid
   }
-  
-  accXOffset  = EEPROM.readLong(0);
-  accYOffset  = EEPROM.readLong(4);
-  accZOffset  = EEPROM.readLong(8);
-  gyroXOffset = EEPROM.readLong(12);
-  gyroYOffset = EEPROM.readLong(16);
-  gyroZOffset = EEPROM.readLong(20);
-  temperature = EEPROM.readFloat(24);  
+  accXOffset  = EEPROM.readLong(4);
+  accYOffset  = EEPROM.readLong(8);
+  accZOffset  = EEPROM.readLong(12);
+  gyroXOffset = EEPROM.readLong(16);
+  gyroYOffset = EEPROM.readLong(20);
+  gyroZOffset = EEPROM.readLong(24);
+  temperatureC = EEPROM.readFloat(28);  
   return true;
 }
 
+
 //Only used if needed to get new values or writing did not go well. 
 void Flight_Controller::clearCalibrationData() {
+  EEPROM.begin(EEPROM_SIZE);
   // Set a specific value to indicate that the data is cleared or invalid
-  long invalidValue = 0xFFFFFFFF;
+  long invalidValue = 0;
   
   EEPROM.writeLong(0, invalidValue);
   EEPROM.writeLong(4, invalidValue);
@@ -393,29 +416,26 @@ void Flight_Controller::clearCalibrationData() {
   EEPROM.writeLong(12, invalidValue);
   EEPROM.writeLong(16, invalidValue);
   EEPROM.writeLong(20, invalidValue);
-  EEPROM.writeFloat(24, invalidValue); //temperature
+  EEPROM.writeLong(24, invalidValue); 
+  EEPROM.writeFloat(28, invalidValue); 
+
   EEPROM.commit(); // Make sure to commit the changes to EEPROM
-  
   Serial.println("Calibration data cleared.");
 }
 
 void Flight_Controller::printStoredCalibrationValues() {
 
   // Addresses where the calibration values are stored
-  const int gyroXOffsetAddr = 0;
-  const int gyroYOffsetAddr = 4;
-  const int gyroZOffsetAddr = 8;
-  const int accXOffsetAddr = 12;
-  const int accYOffsetAddr = 16;
-  const int accZOffsetAddr = 20;
-  const int tempOffsetAddr = 24;  
+  const int gyroXOffsetAddr = 4;
+  const int gyroYOffsetAddr = 8;
+  const int gyroZOffsetAddr = 12;
+  const int accXOffsetAddr = 16;
+  const int accYOffsetAddr = 20;
+  const int accZOffsetAddr = 24;
+  const int tempOffsetAddr = 28;  
 
-  // Check if there is valid data in EEPROM
-  if (EEPROM.readLong(gyroXOffsetAddr) != 0 || EEPROM.readLong(gyroYOffsetAddr) != 0 || 
-      EEPROM.readLong(gyroZOffsetAddr) != 0 || EEPROM.readLong(accXOffsetAddr) != 0 || 
-      EEPROM.readLong(accYOffsetAddr) != 0 || EEPROM.readLong(accZOffsetAddr) != 0 || 
-      EEPROM.readFloat(tempOffsetAddr) != 0.0f) {
-    
+  // Check for unique ID
+  if (EEPROM.readLong(0) == 0x12345678) {
     // Read and print stored offset values
     int32_t storedGyroXOffset = EEPROM.readLong(gyroXOffsetAddr);
     int32_t storedGyroYOffset = EEPROM.readLong(gyroYOffsetAddr);
@@ -432,11 +452,12 @@ void Flight_Controller::printStoredCalibrationValues() {
     Serial.print("Acc X Offset: "); Serial.println(storedAccXOffset);
     Serial.print("Acc Y Offset: "); Serial.println(storedAccYOffset);
     Serial.print("Acc Z Offset: "); Serial.println(storedAccZOffset);
-    Serial.print("Temperature Offset: "); Serial.println(storedTempOffset);
+    Serial.print("Temperature: "); Serial.println(tempOffsetAddr);
   } else {
     Serial.println("No valid data found in EEPROM");
   }
 }
+
 
 
 int16_t Flight_Controller::applyDeadzone(int16_t value, int16_t deadzone) {
@@ -451,7 +472,6 @@ void Flight_Controller::processIMUData() {
     whenever we retrieve gyro and accelerometer data, 
     we'll want to subtract these offsets from the raw values. 
   */
- 
   gyro_roll  -= gyroXOffset;
   gyro_pitch -= gyroYOffset;
   gyro_yaw   -= gyroZOffset;
