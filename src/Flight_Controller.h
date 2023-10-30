@@ -28,6 +28,10 @@ public:
     void calibrateMPU6050(); 
     int16_t applyDeadzone(int16_t,int16_t);
     void processIMUData();
+    void saveCalibrationValues();
+    bool loadCalibrationValues(); 
+    void printStoredCalibrationValues(); 
+    void clearCalibrationData();
     void readGyroData();
     void write_motors(); 
     void Handle_Server();
@@ -37,6 +41,9 @@ public:
     void print_gyro_data();
 
 private:
+    
+    //Allocate 32 bytes 
+    #define EEPROM_SIZE 32
 
     // Constants
     static constexpr int MIN_PULSE_LENGTH = 1000;

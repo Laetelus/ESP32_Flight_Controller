@@ -12,13 +12,15 @@
 */ 
 //#define DEBUG_IMU
 
+
+//#define USE_EEPROM
+
 // Flight controller interface 
 void Flight_Controller::initialize()
 {
 
   Serial.begin(115200);
   pinMode(2,OUTPUT); //LED status 
-
   #ifdef DEBUG_IMU
     initWiFi();
     initSPIFFS();
@@ -50,11 +52,33 @@ void Flight_Controller::initialize()
 
   accelgyro.setFullScaleAccelRange(2);  // Set accelerometer range to ±2g
   accelgyro.setFullScaleGyroRange(250);  // Set gyroscope range to ±250°/s
-
-  digitalWrite(2,HIGH); // Calibration indicator 
-  calibrateMPU6050(); 
-  digitalWrite(2,LOW); //Calibration indicator 
   
+  //Be careful with commenting and uncommenting this function. 
+  //clearCalibrationData();
+
+  #ifdef USE_EEPROM
+    EEPROM.begin(EEPROM_SIZE);
+    if (!loadCalibrationValues()) {
+      Serial.println("Calibration data not found. Calibrating...");
+      digitalWrite(2, HIGH);
+      calibrateMPU6050();
+      saveCalibrationValues();
+      Serial.println("Calibration complete.");
+      digitalWrite(2, LOW);
+    } else {
+      //Won't turn on LED here to indicate we have calibration values in EEPROM.
+      Serial.println("Calibration data loaded.");
+    }
+  #else
+    Serial.println("Calibrating without EEPROM...");
+    digitalWrite(2, HIGH);
+    calibrateMPU6050();
+    Serial.println("Calibration complete.");
+    digitalWrite(2, LOW);
+  #endif
+  
+  printStoredCalibrationValues(); // Add this line to print the stored values
+ 
   // attach esc pins
   esc1.attach(esc_pin1, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FR (Front Right)
   esc2.attach(esc_pin3, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BR (Back Right)
@@ -290,6 +314,88 @@ void Flight_Controller::calibrateMPU6050() {
   gyroYOffset = buff_gy / num_samples;
   gyroZOffset = buff_gz / num_samples;
 
+}
+
+void Flight_Controller::saveCalibrationValues() {
+  if (EEPROM.readLong(0) == 0xFFFFFFFF) {
+    EEPROM.writeLong(0, accXOffset);
+    EEPROM.writeLong(4, accYOffset);
+    EEPROM.writeLong(8, accZOffset);
+    EEPROM.writeLong(12, gyroXOffset);
+    EEPROM.writeLong(16, gyroYOffset);
+    EEPROM.writeLong(20, gyroZOffset);
+    EEPROM.commit();
+    Serial.println("Calibration values saved to EEPROM");
+  } else {
+    Serial.println("EEPROM already contains calibration values. Skipping save.");
+  }
+}
+
+bool Flight_Controller::loadCalibrationValues() {
+  if (EEPROM.readLong(0) == 0xFFFFFFFF) {
+    return false; // Calibration data not found
+  }
+  
+  accXOffset  = EEPROM.readLong(0);
+  accYOffset  = EEPROM.readLong(4);
+  accZOffset  = EEPROM.readLong(8);
+  gyroXOffset = EEPROM.readLong(12);
+  gyroYOffset = EEPROM.readLong(16);
+  gyroZOffset = EEPROM.readLong(20);
+  return true;
+}
+
+//Only used if needed to get new values or writing did not go well. 
+void Flight_Controller::clearCalibrationData() {
+  // Set a specific value to indicate that the data is cleared or invalid
+  long invalidValue = 0xFFFFFFFF;
+  
+  EEPROM.writeLong(0, invalidValue);
+  EEPROM.writeLong(4, invalidValue);
+  EEPROM.writeLong(8, invalidValue);
+  EEPROM.writeLong(12, invalidValue);
+  EEPROM.writeLong(16, invalidValue);
+  EEPROM.writeLong(20, invalidValue);
+  
+  EEPROM.commit(); // Make sure to commit the changes to EEPROM
+  
+  Serial.println("Calibration data cleared.");
+}
+
+
+void Flight_Controller::printStoredCalibrationValues() {
+
+  // Addresses where the gyro offset values are stored
+  const int gyroXOffsetAddr = 0;
+  const int gyroYOffsetAddr = 4;
+  const int gyroZOffsetAddr = 8;
+  const int accXOffsetAddr = 12;
+  const int accYOffsetAddr = 16;
+  const int accZOffsetAddr = 20;
+
+  // Check if there is valid data in EEPROM
+  if (EEPROM.read(gyroXOffsetAddr) != 255 || EEPROM.read(gyroYOffsetAddr) != 255 || 
+      EEPROM.read(gyroZOffsetAddr) != 255 || EEPROM.read(accXOffsetAddr) != 255 || 
+      EEPROM.read(accYOffsetAddr) != 255 || EEPROM.read(accZOffsetAddr) != 255) {
+    
+    // Read and print stored gyro offset values
+    int32_t storedGyroXOffset = EEPROM.readLong(gyroXOffsetAddr);
+    int32_t storedGyroYOffset = EEPROM.readLong(gyroYOffsetAddr);
+    int32_t storedGyroZOffset = EEPROM.readLong(gyroZOffsetAddr);
+    int32_t storedAccXOffset = EEPROM.readLong(accXOffsetAddr);
+    int32_t storedAccYOffset = EEPROM.readLong(accYOffsetAddr);
+    int32_t storedAccZOffset = EEPROM.readLong(accZOffsetAddr);
+
+    Serial.println("Stored calibration values in EEPROM:");
+    Serial.print("Gyro X Offset: "); Serial.println(storedGyroXOffset);
+    Serial.print("Gyro Y Offset: "); Serial.println(storedGyroYOffset);
+    Serial.print("Gyro Z Offset: "); Serial.println(storedGyroZOffset);
+    Serial.print("Acc X Offset: "); Serial.println(storedAccXOffset);
+    Serial.print("Acc Y Offset: "); Serial.println(storedAccYOffset);
+    Serial.print("Acc Z Offset: "); Serial.println(storedAccZOffset);
+  } else {
+    Serial.println("No valid data found in EEPROM");
+  }
 }
 
 int16_t Flight_Controller::applyDeadzone(int16_t value, int16_t deadzone) {
