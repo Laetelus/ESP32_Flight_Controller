@@ -7,6 +7,13 @@
 #include "Flight_Controller.h"
 
 
+ unsigned long timer, timer_1, timer_2, timer_3, timer_4, current_time;
+ int last_channel_1, last_channel_2, last_channel_3, last_channel_4;
+volatile unsigned long receiver_input_channel_3;
+volatile unsigned long receiver_input_channel_4;
+volatile unsigned long receiver_input_channel_1;
+volatile unsigned long receiver_input_channel_2;
+
 /*
   uncomment DEBUG_IMU to view IMU on webserver. DO NOT! upload both the flight controller
   software and the Webserver software if not testing IMU. 
@@ -19,7 +26,7 @@
 void Flight_Controller::initialize()
 {
 
-  Serial.begin(115200);
+  Serial.begin(250000);
   pinMode(2,OUTPUT); //LED status 
   #ifdef DEBUG_IMU
     initWiFi();
@@ -51,7 +58,6 @@ void Flight_Controller::initialize()
   } else {
     Serial.println("Gyroscope range verification failed");
   }
-
   // Verify accelerometer range
   uint8_t accelRange = accelgyro.getFullScaleAccelRange();
   if (accelRange == MPU6050_IMU::MPU6050_ACCEL_FS_2) {
@@ -77,11 +83,6 @@ void Flight_Controller::initialize()
   digitalWrite(2, LOW);
   Serial.println("Warm-up complete.");
 
-  // accelgyro.setFullScaleAccelRange(MPU6050_IMU::MPU6050_ACCEL_FS_2);  // Set accelerometer range to ±2g
-  // accelgyro.setFullScaleGyroRange(MPU6050_IMU::MPU6050_GYRO_FS_250);  // Set gyroscope range to ±250°/s
-  // delay(100); // wait for 100 milliseconds
-
-
 
   // Read current temperature
   temp = accelgyro.getTemperature();
@@ -104,7 +105,7 @@ void Flight_Controller::initialize()
       calibrateMPU6050();
       // Check if the temperature is within the acceptable range
       int minTemp = -40; // Replace with your minimum temperature value (according to datasheet)
-      int maxTemp = 85; // Replace with your maximum temperature value (accelerated to datasheet)
+      int maxTemp = 85; // Replace with your maximum temperature value (according to datasheet)
       if (temperatureC >= minTemp && temperatureC <= maxTemp) {
         saveCalibrationValues();
         Serial.println("Calibration complete and saved to EEPROM.");
@@ -132,7 +133,14 @@ void Flight_Controller::initialize()
   #endif
   
   printStoredCalibrationValues(); 
- 
+  //setupInterrupts(); 
+  
+// Attach interrupts
+  attachInterrupt(digitalPinToInterrupt(THROTTLE), handleInterruptThrottle, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(YAW), handleInterruptYaw, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(ROLL), handleInterruptRoll, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(PITCH), handleInterruptPitch, CHANGE);
+
   // attach esc pins
   esc1.attach(esc_pin1, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FR (Front Right)
   esc2.attach(esc_pin3, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BR (Back Right)
@@ -145,19 +153,37 @@ void Flight_Controller::initialize()
   esc3.writeMicroseconds(MIN_PULSE_LENGTH);
   esc4.writeMicroseconds(MIN_PULSE_LENGTH);
 
-  //setup our inputs 
-  pinMode(THROTTLE, INPUT);
-  pinMode(YAW, INPUT);
-  pinMode(PITCH, INPUT);
-  pinMode(ROLL, INPUT);
 }
 
-void Flight_Controller::read_Controller() {
-    // Read the raw channel values
-    receiver_input_channel_3 = pulseIn(THROTTLE, HIGH, 25000); // Throttle
-    receiver_input_channel_4 = pulseIn(YAW, HIGH, 25000);      // Yaw
-    receiver_input_channel_1 = pulseIn(ROLL, HIGH, 25000);     // Roll
-    receiver_input_channel_2 = pulseIn(PITCH, HIGH, 25000);    // Pitch
+void IRAM_ATTR Flight_Controller::handleInterruptThrottle() {
+  handleInterruptGeneric(THROTTLE, last_channel_3, timer_3, receiver_input_channel_3);
+}
+
+void IRAM_ATTR Flight_Controller::handleInterruptYaw() {
+  handleInterruptGeneric(YAW, last_channel_4, timer_4, receiver_input_channel_4);
+}
+
+void IRAM_ATTR Flight_Controller::handleInterruptRoll() {
+  handleInterruptGeneric(ROLL, last_channel_1, timer_1, receiver_input_channel_1);
+}
+
+void IRAM_ATTR Flight_Controller::handleInterruptPitch() {
+  handleInterruptGeneric(PITCH, last_channel_2, timer_2, receiver_input_channel_2);
+}
+
+void Flight_Controller::handleInterruptGeneric(int pin, int& last_channel, volatile unsigned long& timer, volatile unsigned long& receiver_input_channel) {
+  unsigned long current_time = micros();
+  if (digitalRead(pin) == HIGH) {
+    if (last_channel == 0) {
+      last_channel = 1;
+      timer = current_time;
+    }
+  } else {
+    if (last_channel == 1) {
+      last_channel = 0;
+      receiver_input_channel = current_time - timer;
+    }
+  }
 }
 
 void Flight_Controller::level_flight() {
@@ -350,7 +376,7 @@ void Flight_Controller::calibrateMPU6050() {
   buff_az = 0, buff_gx = 0, 
   buff_gy = 0, buff_gz = 0;
 
-  const int num_samples = 3000;
+  const int num_samples = 1000;
   for (int i = 0; i < num_samples; i++) {
     readGyroData(); 
     buff_ax += acc_x;
@@ -403,11 +429,10 @@ bool Flight_Controller::loadCalibrationValues() {
   return true;
 }
 
-
-//Only used if needed to get new values or writing did not go well. 
+//Only use if needed to get new values or writing did not go well. 
 void Flight_Controller::clearCalibrationData() {
   EEPROM.begin(EEPROM_SIZE);
-  // Set a specific value to indicate that the data is cleared or invalid
+  //Set a specific value to indicate that the data is cleared or invalid
   long invalidValue = 0;
   
   EEPROM.writeLong(0, invalidValue);
@@ -555,13 +580,23 @@ void Flight_Controller::write_motors(){
 void Flight_Controller::print_gyro_data() {
 
   Serial.print("\nRaw Gyro Pitch: "); 
-  Serial.println(gyro_pitch);
+  Serial.println(gyro_pitch); 
   
   Serial.print("Raw Gyro Roll: "); 
-  Serial.println(gyro_roll);
+  Serial.println(gyro_roll); 
   
   Serial.print("Raw Gyro Yaw: "); 
-  Serial.println(gyro_yaw);
+  Serial.println(gyro_yaw); 
+
+  Serial.print("--------------------"); 
+  Serial.print("\ngyro_pitch_input: "); 
+  Serial.println(gyro_pitch_input);  //converted to degrees with comp filter data
+
+  Serial.print("gyro_roll_input: "); 
+  Serial.println(gyro_roll_input);
+  
+  Serial.print("gyro_yaw_input: "); 
+  Serial.println(gyro_yaw_input);
 
   Serial.print("--------------------"); 
   Serial.print("\nAngle Pitch: "); 

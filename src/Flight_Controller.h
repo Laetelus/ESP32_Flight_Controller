@@ -19,31 +19,44 @@
 class Flight_Controller {
 public:
 
-    void initialize(); // Initialize the quadcopter
-    void read_Controller();
-    void level_flight();
-    void motorControls();
-    void calculate_pid();
-    void mix_motors();
-    void calibrateMPU6050(); 
-    int16_t applyDeadzone(int16_t,int16_t);
-    void processIMUData();
-    void saveCalibrationValues();
-    bool loadCalibrationValues(); 
-    void printStoredCalibrationValues(); 
-    void clearCalibrationData();
-    void readGyroData();
-    void write_motors(); 
-    void Handle_Server();
-    void Send_Event();
-    void initSPIFFS(); 
-    void initWiFi();
-    void print_gyro_data();
+
+  void initialize(); // Initialize the quadcopter
+  static Flight_Controller* getInstance();
+  void setupInterrupts();
+  void read_Controller();
+  void level_flight();
+  void motorControls();
+  void calculate_pid();
+  void mix_motors();
+  void calibrateMPU6050(); 
+  int16_t applyDeadzone(int16_t,int16_t);
+  void processIMUData();
+  void saveCalibrationValues();
+  bool loadCalibrationValues(); 
+  void printStoredCalibrationValues(); 
+  void clearCalibrationData();
+  void readGyroData();
+  void write_motors(); 
+  void Handle_Server();
+  void Send_Event();
+  void initSPIFFS(); 
+  void initWiFi();
+  void print_gyro_data();
+ //static Flight_Controller* instance;
+ static void IRAM_ATTR handleInterruptThrottle(); 
+ static void IRAM_ATTR handleInterruptYaw(); 
+ static void IRAM_ATTR handleInterruptRoll(); 
+ static void IRAM_ATTR handleInterruptPitch(); 
 
 private:
     
     //Allocate 32 bytes 
     #define EEPROM_SIZE 32
+    volatile uint32_t start_pulse_time[4];
+    volatile uint32_t pulse_duration[4];
+    static void handleInterruptGeneric(int pin, int& last_channel, volatile unsigned long& timer, volatile unsigned long& receiver_input_channel); 
+
+
 
     // Constants
     static constexpr int MIN_PULSE_LENGTH = 1000;
@@ -101,11 +114,14 @@ private:
     float ay_mps2 = 0.0f; 
     float az_mps2 = 0.0f; 
 
+
     // Receiver input variables
-    volatile int16_t receiver_input_channel_3;
-    volatile int16_t receiver_input_channel_4;
-    volatile int16_t receiver_input_channel_1;
-    volatile int16_t receiver_input_channel_2;
+    // volatile int16_t receiver_input_channel_3;
+    // volatile int16_t receiver_input_channel_4;
+    // volatile int16_t receiver_input_channel_1;
+    // volatile int16_t receiver_input_channel_2;
+
+
 
     // MPU6050 instance
     MPU6050 accelgyro;
