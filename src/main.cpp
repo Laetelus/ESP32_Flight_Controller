@@ -5,35 +5,42 @@
 #include <EEPROM.h>
 #include "Flight_Controller.h"
 
-int loop_timer; 
 Flight_Controller f; 
 
+// Define the hardware timer
+hw_timer_t * timer = NULL;
+// Define the semaphore to signal from ISR to loop
+portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+
+volatile bool timeFlag = false; // A flag to indicate when the ISR has been executed
+
+void IRAM_ATTR onTimer() { // This function will run every time the timer is triggered
+  portENTER_CRITICAL_ISR(&timerMux);
+  timeFlag = true; // Set the flag
+  portEXIT_CRITICAL_ISR(&timerMux);
+}
+
 void setup() {
-    f.initialize();
+  f.initialize();
+
+  // Initialize hardware timer
+  timer = timerBegin(0, 80, true); // Timer 0, prescaler 80 (for 1MHz), count up
+  timerAttachInterrupt(timer, &onTimer, true); // Attach the callback function
+  timerAlarmWrite(timer, 4000, true); // Set the alarm to trigger every 4000us (4ms = 250Hz)
+  timerAlarmEnable(timer); // Enable the timer
 }
 
 void loop() {
-unsigned long start_time = micros();
-    //f.read_Controller();
+  if (timeFlag) { // Check if the timer flag has been set
+    portENTER_CRITICAL(&timerMux);
+    timeFlag = false; // Reset the flag
+    portEXIT_CRITICAL(&timerMux);
+
     f.level_flight();
     f.motorControls();
     f.mix_motors();
     f.write_motors();
-    //f.print_gyro_data(); //Only uncomment when debugging
-//! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !
-// Because of the angle calculation the loop time is getting very important. If the loop time is
-// longer or shorter than 4000us the angle calculation is off. If you modify the code make sure
-// that the loop time is still 4000us and no longer! 
-//! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !
-    // while(micros() - loop_timer < 4000); //250hz                                 
-    // loop_timer = micros();
-    unsigned long loop_duration = micros() - start_time;
-    if (loop_duration > 4000) {
-        //Serial.print("Warning: Loop time exceeded 4000us. Loop time: ");
-        //Serial.println(loop_duration);
-    } else {
-        while (micros() - start_time < 4000); // Wait until 4000us have passed since start of loop
-    }
-
+    //f.print_gyro_data(); 
+  }
 }
 
