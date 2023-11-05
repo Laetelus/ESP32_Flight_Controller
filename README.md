@@ -15,5 +15,4 @@
 # 
 <img src=  "https://github.com/Laetelus/ESP32_Flight_Controller/assets/72906227/b78775c0-7dcd-4036-8b22-69fa41ad47cc"  width=50% height=15%>
 <img src= "https://github.com/Laetelus/ESP32_Flight_Controller/assets/72906227/fc77d312-32a7-4ade-9a5c-19fcde3ee044" width=21.6% height=21%>
-<img src= "https://github.com/Laetelus/ESP32_Flight_Controller/assets/72906227/7e03fc05-0703-4f54-88c3-73563a5d81fd" width=50% height=15%>
 
