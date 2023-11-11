@@ -4,21 +4,7 @@
 #include "MPU6050.h"
 #include <Wire.h>
 #include <EEPROM.h>
-#include "driver/gpio.h" //GPIO registers 
 #include "Flight_Controller.h"
-
-
-// Definitions of the static member variables.
-volatile unsigned long Flight_Controller::last_rising_edge_throttle = 0;
-volatile unsigned long Flight_Controller::last_rising_edge_yaw = 0;
-volatile unsigned long Flight_Controller::last_rising_edge_pitch = 0;
-volatile unsigned long Flight_Controller::last_rising_edge_roll = 0;
-
-volatile unsigned long Flight_Controller::receiver_input_channel_3 = 0;
-volatile unsigned long Flight_Controller::receiver_input_channel_4 = 0;
-volatile unsigned long Flight_Controller::receiver_input_channel_1 = 0;
-volatile unsigned long Flight_Controller::receiver_input_channel_2 = 0;
-
 
 /*
   uncomment DEBUG_IMU to view IMU on webserver. DO NOT! upload both the flight controller
@@ -32,7 +18,7 @@ volatile unsigned long Flight_Controller::receiver_input_channel_2 = 0;
 void Flight_Controller::initialize()
 {
 
-  Serial.begin(250000);
+  Serial.begin(115200);
   pinMode(2,OUTPUT); //LED status 
   #ifdef DEBUG_IMU
     initWiFi();
@@ -64,6 +50,7 @@ void Flight_Controller::initialize()
   } else {
     Serial.println("Gyroscope range verification failed");
   }
+
   // Verify accelerometer range
   uint8_t accelRange = accelgyro.getFullScaleAccelRange();
   if (accelRange == MPU6050_IMU::MPU6050_ACCEL_FS_2) {
@@ -79,14 +66,13 @@ void Flight_Controller::initialize()
 
   delay(100);  
 
- 
   //Be careful with commenting and uncommenting this function. 
   //clearCalibrationData();
 
-  // Warm-up time for the MPU6050 (LED will stay on for 4secs to indicate warm-up time)
+  // Warm-up time for the MPU6050 (LED will stay on for 3secs to indicate warm-up time)
   Serial.println("Warming up MPU6050...");
   digitalWrite(2, HIGH);
-  delay(4000);
+  delay(3000);
   digitalWrite(2, LOW);
   Serial.println("Warm-up complete.");
 
@@ -111,7 +97,7 @@ void Flight_Controller::initialize()
       calibrateMPU6050();
       // Check if the temperature is within the acceptable range
       int minTemp = -40; // Replace with your minimum temperature value (according to datasheet)
-      int maxTemp = 85; // Replace with your maximum temperature value (according to datasheet)
+      int maxTemp = 85; // Replace with your maximum temperature value (accelerated to datasheet)
       if (temperatureC >= minTemp && temperatureC <= maxTemp) {
         saveCalibrationValues();
         Serial.println("Calibration complete and saved to EEPROM.");
@@ -139,21 +125,7 @@ void Flight_Controller::initialize()
   #endif
   
   printStoredCalibrationValues(); 
-  //setupInterrupts(); 
-
-  // Configure pins and attach interrupts
-  pinMode(THROTTLE, INPUT);
-  attachInterrupt(digitalPinToInterrupt(THROTTLE), Flight_Controller::handleThrottleInterrupt, CHANGE);
-  
-  pinMode(YAW, INPUT);
-  attachInterrupt(digitalPinToInterrupt(YAW), Flight_Controller::handleYawInterrupt, CHANGE);
-  
-  pinMode(PITCH, INPUT);
-  attachInterrupt(digitalPinToInterrupt(PITCH), Flight_Controller::handlePitchInterrupt, CHANGE);
-  
-  pinMode(ROLL, INPUT);
-  attachInterrupt(digitalPinToInterrupt(ROLL), Flight_Controller::handleRollInterrupt, CHANGE);
-
+ 
   // attach esc pins
   esc1.attach(esc_pin1, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FR (Front Right)
   esc2.attach(esc_pin3, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BR (Back Right)
@@ -166,58 +138,20 @@ void Flight_Controller::initialize()
   esc3.writeMicroseconds(MIN_PULSE_LENGTH);
   esc4.writeMicroseconds(MIN_PULSE_LENGTH);
 
+  //setup our inputs 
+  pinMode(THROTTLE, INPUT);
+  pinMode(YAW, INPUT);
+  pinMode(PITCH, INPUT);
+  pinMode(ROLL, INPUT);
 }
 
-void IRAM_ATTR Flight_Controller::handleThrottleInterrupt() {
-  uint32_t gpio_state = GPIO.in1.val; // For pins 32-39
-  unsigned long timestamp = micros(); // Capture the current time once
-
-  if (gpio_state & (1 << (THROTTLE - 32))) { // Adjust bit position for pins 32-39
-    last_rising_edge_throttle = timestamp;
-  } else { // Pin must be LOW
-    receiver_input_channel_3 = timestamp - last_rising_edge_throttle;
-  }
+void Flight_Controller::read_Controller() {
+    // Read the raw channel values
+    receiver_input_channel_3 = pulseIn(THROTTLE, HIGH, 25000); // Throttle
+    receiver_input_channel_4 = pulseIn(YAW, HIGH, 25000);      // Yaw
+    receiver_input_channel_1 = pulseIn(ROLL, HIGH, 25000);     // Roll
+    receiver_input_channel_2 = pulseIn(PITCH, HIGH, 25000);    // Pitch
 }
-
-
-
-void IRAM_ATTR Flight_Controller::handleYawInterrupt() {
-  uint32_t gpio_state = GPIO.in1.val; // For pins 32-39
-  unsigned long timestamp = micros(); // Capture the current time once
-
-  if (gpio_state & (1 << (YAW - 32))) { // Adjust bit position for pins 32-39
-    last_rising_edge_yaw = timestamp;
-  } else { // Pin must be LOW
-    receiver_input_channel_4 = timestamp - last_rising_edge_yaw;
-  }
-}
-
-
-
-void IRAM_ATTR Flight_Controller::handlePitchInterrupt() {
-  uint32_t gpio_state = GPIO.in1.val; // For pins 32-39
-  unsigned long timestamp = micros(); // Capture the current time once
-
-  if (gpio_state & (1 << (PITCH - 32))) { // Adjust bit position for pins 32-39
-    last_rising_edge_pitch = timestamp;
-  } else { // Pin must be LOW
-    receiver_input_channel_1 = timestamp - last_rising_edge_pitch;
-  }
-}
-
-
-void IRAM_ATTR Flight_Controller::handleRollInterrupt() {
-  uint32_t gpio_state = GPIO.in1.val; // For pins 32-39
-  unsigned long timestamp = micros(); // Capture the current time once
-
-  if (gpio_state & (1 << (ROLL - 32))) { // Adjust bit position for pins 32-39
-    last_rising_edge_roll = timestamp;
-  } else { // Pin must be LOW
-    receiver_input_channel_2 = timestamp - last_rising_edge_roll;
-  }
-}
-
-
 
 void Flight_Controller::level_flight() {
   // 65.5 = 1 deg/sec (check the datasheet of the accelgyro-6050 for more information).
@@ -265,22 +199,15 @@ void Flight_Controller::level_flight() {
 }
 
 void Flight_Controller::motorControls() {
-  noInterrupts(); // Disable interrupts to create a consistent snapshot of the variables.
-  // Create local copies of the input channels
-  unsigned long local_input_channel_1 = receiver_input_channel_1;
-  unsigned long local_input_channel_2 = receiver_input_channel_2;
-  unsigned long local_input_channel_3 = receiver_input_channel_3;
-  unsigned long local_input_channel_4 = receiver_input_channel_4;
-  interrupts(); // Re-enable interrupts as soon as possible
-
+  
   // For starting the motors: throttle low and yaw left (step 1).
-  if (local_input_channel_3 < 1065 && local_input_channel_4 < 1050)
+  if (receiver_input_channel_3 < 1065 && receiver_input_channel_4 < 1050)
   {
     start = 1;
   }
 
   // When yaw stick is back in the center position start the motors (step 2).
-  if (start == 1 && local_input_channel_3 < 1550 && local_input_channel_4 > 1450)
+  if (start == 1 && receiver_input_channel_3 < 1550 && receiver_input_channel_4 > 1450)
   {
     start = 2;
 
@@ -299,111 +226,58 @@ void Flight_Controller::motorControls() {
   }
 
   // Stopping the motors: throttle low and yaw right.
-  if (start == 2 && local_input_channel_3 <= 1064 && local_input_channel_4 > 1976)
+  if (start == 2 && receiver_input_channel_3 <= 1064 && receiver_input_channel_4 > 1976)
   {
     start = 0;
   }
 
   // The PID set point in degrees per second is determined by the roll receiver input.
-  // In the case of deviding by 3 the max roll rate is aprox 164 degrees per second ( (500-8)/3 = 164d/s ).
+  // In the case of dividing by 3 the max roll rate is approx 164 degrees per second ( (500-8)/3 = 164d/s ).
   pid_roll_setpoint = 0;
 
   // We need a little dead band of 16us for better results.
-  if (local_input_channel_1 > 1508)
+  if (receiver_input_channel_1 > 1508)
   {
-    pid_roll_setpoint = local_input_channel_1 - 1508;
+    pid_roll_setpoint = receiver_input_channel_1 - 1508;
   }
-  else if (local_input_channel_1 < 1492)
+  else if (receiver_input_channel_1 < 1492)
   {
-    pid_roll_setpoint = local_input_channel_1 - 1492;
+    pid_roll_setpoint = receiver_input_channel_1 - 1492;
   }
 
   pid_roll_setpoint -= roll_level_adjust; // Subtract the angle correction from the standardized receiver roll input value.
   pid_roll_setpoint /= 3.0;               // Divide the setpoint for the PID roll controller by 3 to get angles in degrees.
 
   // The PID set point in degrees per second is determined by the pitch receiver input.
-  // In the case of deviding by 3 the max pitch rate is aprox 164 degrees per second ( (500-8)/3 = 164d/s ).
+  // In the case of dividing by 3 the max pitch rate is approx 164 degrees per second ( (500-8)/3 = 164d/s ).
   pid_pitch_setpoint = 0;
 
   // We need a little dead band of 16us for better results.
-  if (local_input_channel_2 > 1508)
+  if (receiver_input_channel_2 > 1508)
   {
-    pid_pitch_setpoint = local_input_channel_2 - 1508;
+    pid_pitch_setpoint = receiver_input_channel_2 - 1508;
   }
-  else if (local_input_channel_2 < 1492)
+  else if (receiver_input_channel_2 < 1492)
   {
-    pid_pitch_setpoint = local_input_channel_2 - 1492;
+    pid_pitch_setpoint = receiver_input_channel_2 - 1492;
   }
 
   pid_pitch_setpoint -= pitch_level_adjust; // Subtract the angle correction from the standardized receiver pitch input value.
   pid_pitch_setpoint /= 3.0;                // Divide the setpoint for the PID pitch controller by 3 to get angles in degrees.
 
   // The PID set point in degrees per second is determined by the yaw receiver input.
-  // In the case of dividing by 3 the max yaw rate is aprox 164 degrees per second ( (500-8)/3 = 164d/s ).
+  // In the case of dividing by 3 the max yaw rate is approx 164 degrees per second ( (500-8)/3 = 164d/s ).
   pid_yaw_setpoint = 0;
 
   // We need a little dead band of 16us for better results.
-  if (local_input_channel_3 > 1050)
+  if (receiver_input_channel_3 > 1050)
   { // Do not yaw when turning off the motors.
-    if (local_input_channel_4 > 1508)
-      pid_yaw_setpoint = (local_input_channel_4 - 1508) / 3.0;
-    else if (local_input_channel_4 < 1492)
-      pid_yaw_setpoint = (local_input_channel_4 - 1492) / 3.0;
+    if (receiver_input_channel_4 > 1508)
+      pid_yaw_setpoint = (receiver_input_channel_4 - 1508) / 3.0;
+    else if (receiver_input_channel_4 < 1492)
+      pid_yaw_setpoint = (receiver_input_channel_4 - 1492) / 3.0;
   }
     calculate_pid(); // PID inputs are known. So we can calculate the pid output.
-}
-
-void Flight_Controller::mix_motors() {
-  
-    noInterrupts(); // Disable interrupts to create a consistent snapshot of the variables.
-    unsigned long local_throttle = receiver_input_channel_3; // Use a local copy of the throttle channel
-    interrupts(); // Re-enable interrupts as soon as possible.
-
-    throttle = local_throttle; // We need the throttle signal as a base signal.
-    if (start == 2) {                   // The motors are started.
-        if (throttle > 1800)
-            throttle = 1800; // We need some room to keep full control at full throttle.
-
-        // Mixing algorithm for appropriate motors
-        esc_1 = constrain(map(throttle - pid_output_pitch + pid_output_roll - pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FR (Front Right)
-        esc_2 = constrain(map(throttle + pid_output_pitch + pid_output_roll + pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BR (Back Right)
-        esc_3 = constrain(map(throttle - pid_output_pitch - pid_output_roll + pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FL (Front Left)
-        esc_4 = constrain(map(throttle + pid_output_pitch - pid_output_roll - pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BL (Back Left)
-
-        if (esc_1 < 1100)
-            esc_1 = 1100; // Keep the motors running.
-        if (esc_2 < 1100)
-            esc_2 = 1100; // Keep the motors running.
-        if (esc_3 < 1100)
-            esc_3 = 1100; // Keep the motors running.
-        if (esc_4 < 1100)
-            esc_4 = 1100; // Keep the motors running.
-
-        if (esc_1 > 2000)
-            esc_1 = 2000; // Limit the esc-1 pulse to 2000us.
-        if (esc_2 > 2000)
-            esc_2 = 2000; // Limit the esc-2 pulse to 2000us.
-        if (esc_3 > 2000)
-            esc_3 = 2000; // Limit the esc-3 pulse to 2000us.
-        if (esc_4 > 2000)
-            esc_4 = 2000; // Limit the esc-4 pulse to 2000us.
-    } else {
-        esc_1 = 1000; // If start is not 2, keep a 1000us pulse for esc-1.
-        esc_2 = 1000; // If start is not 2, keep a 1000us pulse for esc-2.
-        esc_3 = 1000; // If start is not 2, keep a 1000us pulse for esc-3.
-        esc_4 = 1000; // If start is not 2, keep a 1000us pulse for esc-4.
-    }
-}
-
-
-void Flight_Controller::write_motors(){
-    readGyroData();
-    processIMUData();
-
-    esc1.writeMicroseconds(esc_1);
-    esc2.writeMicroseconds(esc_2);
-    esc3.writeMicroseconds(esc_3);
-    esc4.writeMicroseconds(esc_4);
 }
 
 /**
@@ -483,14 +357,14 @@ void Flight_Controller::readGyroData() {
     accelgyro.getMotion6(&acc_x, &acc_y, &acc_z, &gyro_roll, &gyro_pitch, &gyro_yaw);
 }
 
-
 void Flight_Controller::calibrateMPU6050() {
 
   long buff_ax = 0, buff_ay = 0, 
   buff_az = 0, buff_gx = 0, 
   buff_gy = 0, buff_gz = 0;
 
-  const int num_samples = 1000;
+  //collect a couple samples 
+  const int num_samples = 3000;
   for (int i = 0; i < num_samples; i++) {
     readGyroData(); 
     buff_ax += acc_x;
@@ -543,10 +417,11 @@ bool Flight_Controller::loadCalibrationValues() {
   return true;
 }
 
-//Only use if needed to get new values or writing did not go well. 
+
+//Only used if needed to get new values or writing did not go well. 
 void Flight_Controller::clearCalibrationData() {
   EEPROM.begin(EEPROM_SIZE);
-  //Set a specific value to indicate that the data is cleared or invalid
+  // Set a specific value to indicate that the data is cleared or invalid
   long invalidValue = 0;
   
   EEPROM.writeLong(0, invalidValue);
@@ -643,26 +518,64 @@ void Flight_Controller::processIMUData() {
   #endif // DEBUG_IMU
 }
 
+
+void Flight_Controller::mix_motors() {
+    throttle = receiver_input_channel_3; // We need the throttle signal as a base signal.
+    if (start == 2) {                   // The motors are started.
+        if (throttle > 1800)
+            throttle = 1800; // We need some room to keep full control at full throttle.
+
+        // Mixing algorithm for appropriate motors
+        esc_1 = constrain(map(throttle - pid_output_pitch + pid_output_roll - pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FR (Front Right)
+        esc_2 = constrain(map(throttle + pid_output_pitch + pid_output_roll + pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BR (Back Right)
+        esc_3 = constrain(map(throttle - pid_output_pitch - pid_output_roll + pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FL (Front Left)
+        esc_4 = constrain(map(throttle + pid_output_pitch - pid_output_roll - pid_output_yaw, 1000, 2000, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH), MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BL (Back Left)
+
+        if (esc_1 < 1100)
+            esc_1 = 1100; // Keep the motors running.
+        if (esc_2 < 1100)
+            esc_2 = 1100; // Keep the motors running.
+        if (esc_3 < 1100)
+            esc_3 = 1100; // Keep the motors running.
+        if (esc_4 < 1100)
+            esc_4 = 1100; // Keep the motors running.
+
+        if (esc_1 > 2000)
+            esc_1 = 2000; // Limit the esc-1 pulse to 2000us.
+        if (esc_2 > 2000)
+            esc_2 = 2000; // Limit the esc-2 pulse to 2000us.
+        if (esc_3 > 2000)
+            esc_3 = 2000; // Limit the esc-3 pulse to 2000us.
+        if (esc_4 > 2000)
+            esc_4 = 2000; // Limit the esc-4 pulse to 2000us.
+    } else {
+        esc_1 = 1000; // If start is not 2, keep a 1000us pulse for esc-1.
+        esc_2 = 1000; // If start is not 2, keep a 1000us pulse for esc-2.
+        esc_3 = 1000; // If start is not 2, keep a 1000us pulse for esc-3.
+        esc_4 = 1000; // If start is not 2, keep a 1000us pulse for esc-4.
+    }
+}
+
+void Flight_Controller::write_motors(){
+    readGyroData();
+    processIMUData();
+
+    esc1.writeMicroseconds(esc_1);
+    esc2.writeMicroseconds(esc_2);
+    esc3.writeMicroseconds(esc_3);
+    esc4.writeMicroseconds(esc_4);
+}
+
 void Flight_Controller::print_gyro_data() {
 
   Serial.print("\nRaw Gyro Pitch: "); 
-  Serial.println(gyro_pitch); 
+  Serial.println(gyro_pitch);
   
   Serial.print("Raw Gyro Roll: "); 
-  Serial.println(gyro_roll); 
+  Serial.println(gyro_roll);
   
   Serial.print("Raw Gyro Yaw: "); 
-  Serial.println(gyro_yaw); 
-
-  Serial.print("--------------------"); 
-  Serial.print("\ngyro_pitch_input: "); 
-  Serial.println(gyro_pitch_input);  //converted to degrees with comp filter data
-
-  Serial.print("gyro_roll_input: "); 
-  Serial.println(gyro_roll_input);
-  
-  Serial.print("gyro_yaw_input: "); 
-  Serial.println(gyro_yaw_input);
+  Serial.println(gyro_yaw);
 
   Serial.print("--------------------"); 
   Serial.print("\nAngle Pitch: "); 
@@ -695,22 +608,4 @@ void Flight_Controller::print_gyro_data() {
   Serial.print("Acc Z (m/s^2): "); 
   Serial.println(az_mps2);
   Serial.print("--------------------"); 
-  
-  // Serial.print("\nThrottle: ");
-  // Serial.println(receiver_input_channel_3); 
-  // Serial.print("Yaw: ");
-  // Serial.println(receiver_input_channel_4); 
-  // Serial.print("Pitch: ");
-  // Serial.println(receiver_input_channel_1); 
-  // Serial.print("Roll: ");
-  // Serial.println(receiver_input_channel_2); 
-
-  // Serial.print("\nESC1: "); 
-  // Serial.println(esc_1);
-  // Serial.print("ESC2: "); 
-  // Serial.println(esc_2);
-  // Serial.print("ESC3: "); 
-  // Serial.println(esc_3);
-  // Serial.print("ESC4: "); 
-  // Serial.println(esc_4);
 }

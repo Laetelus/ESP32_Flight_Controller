@@ -7,40 +7,41 @@
 
 Flight_Controller f; 
 
-// Define the hardware timer
-hw_timer_t * timer = NULL;
-// Define the semaphore to signal from ISR to loop
-portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+// Task handle for the readController task
+TaskHandle_t Task1;
 
-volatile bool timeFlag = false; // A flag to indicate when the ISR has been executed
-
-void IRAM_ATTR onTimer() { // This function will run every time the timer is triggered
-  portENTER_CRITICAL_ISR(&timerMux);
-  timeFlag = true; // Set the flag
-  portEXIT_CRITICAL_ISR(&timerMux);
+// Task function that reads controller data
+void readControllerTask(void * parameter){
+    for(;;){
+        f.read_Controller(); // Read controller data
+        vTaskDelay(pdMS_TO_TICKS(4)); // 4ms delay for 250Hz loop rate
+    }
 }
 
 void setup() {
-  f.initialize();
+    f.initialize();
 
-  // Initialize hardware timer
-  timer = timerBegin(0, 80, true); // Timer 0, prescaler 80 (for 1MHz), count up
-  timerAttachInterrupt(timer, &onTimer, true); // Attach the callback function
-  timerAlarmWrite(timer, 4000, true); // Set the alarm to trigger every 4000us (4ms = 250Hz)
-  timerAlarmEnable(timer); // Enable the timer
+    // Create a task that will be executed in the readControllerTask function, on core 0
+    xTaskCreatePinnedToCore(
+        readControllerTask, /* Task function. */
+        "readControllerTask", /* Name of the task. */
+        10000, /* Stack size of task */
+        NULL, /* parameter of the task */
+        1, /* priority of the task */
+        &Task1, /* Task handle to keep track of created task */
+        0); /* pin task to core 0 */
 }
 
 void loop() {
-  if (timeFlag) { // Check if the timer flag has been set
-    portENTER_CRITICAL(&timerMux);
-    timeFlag = false; // Reset the flag
-    portEXIT_CRITICAL(&timerMux);
+    static int loop_timer = micros();
 
     f.level_flight();
     f.motorControls();
     f.mix_motors();
     f.write_motors();
-    //f.print_gyro_data(); 
-  }
+    //f.print_gyro_data();
+    
+    // Ensure loop runs at 4000us (250Hz) cycle
+    while(micros() - loop_timer < 4000);
+    loop_timer = micros();
 }
-
