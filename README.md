@@ -11,7 +11,7 @@
 # DISCLAIMER 
 - This project is currently a work in progress.
 # Future Updates
-- python script to show 3D visualization of IMU, motor outputs, and pid.  
+- python script to show 3D visualization and data of IMU, motor outputs, and pid.  
 # 
 <img src=  "https://github.com/Laetelus/ESP32_Flight_Controller/assets/72906227/b78775c0-7dcd-4036-8b22-69fa41ad47cc"  width=50% height=15%>
 <img src= "https://github.com/Laetelus/ESP32_Flight_Controller/assets/72906227/fc77d312-32a7-4ade-9a5c-19fcde3ee044" width=21.6% height=21%>
