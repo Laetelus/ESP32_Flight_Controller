@@ -4,6 +4,7 @@
 #include "MPU6050.h"
 #include <EEPROM.h>
 #include "Flight_Controller.h"
+#include <esp_task_wdt.h>
 
 Flight_Controller f; 
 
@@ -11,8 +12,9 @@ Flight_Controller f;
 TaskHandle_t Task1;
 
 // Task function that reads controller data
-void readControllerTask(void * parameter){
+void readControllerTask(void *parameter){
     for(;;){
+        esp_task_wdt_reset();
         f.read_Controller(); // Read controller data
         vTaskDelay(pdMS_TO_TICKS(4)); // 4ms delay for 250Hz loop rate
     }
@@ -20,14 +22,14 @@ void readControllerTask(void * parameter){
 
 void setup() {
     f.initialize();
-
+    esp_task_wdt_init(3, true); 
     // Create a task that will be executed in the readControllerTask function, on core 0
     xTaskCreatePinnedToCore(
         readControllerTask, /* Task function. */
         "readControllerTask", /* Name of the task. */
         10000, /* Stack size of task */
         NULL, /* parameter of the task */
-        1, /* priority of the task */
+        2, /* priority of the task, higher # increases priority */
         &Task1, /* Task handle to keep track of created task */
         0); /* pin task to core 0 */
 }

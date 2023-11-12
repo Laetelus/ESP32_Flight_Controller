@@ -10,12 +10,6 @@
 #include <EEPROM.h>
 #include "Flight_Controller.h"
 
-#include <WiFi.h>
-#include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
-#include <Arduino_JSON.h>
-#include "SPIFFS.h"
-
 class Flight_Controller {
 public:
 
@@ -34,10 +28,6 @@ public:
     void clearCalibrationData();
     void readGyroData();
     void write_motors(); 
-    void Handle_Server();
-    void Send_Event();
-    void initSPIFFS(); 
-    void initWiFi();
     void print_gyro_data();
 
 private:
