@@ -4,7 +4,7 @@
 - MPU6050
 - Transmittor: T8S  
 - Receiver: R8EF 8 Channels
-- Frame : [Q450 V3 450mm Quadcopter Drone Frame Integrated Power Distribution Board F450](https://www.amazon.com/usmile-Quadcopter-Frame-Integrated-Wiring/dp/B016OBSW08)
+- Frame: [Q450 V3 450mm Quadcopter Drone Frame Integrated Power Distribution Board F450](https://www.amazon.com/usmile-Quadcopter-Frame-Integrated-Wiring/dp/B016OBSW08)
 # IN PROGRESS
 - <del> Add start_stop_takeoff for motors </del>
 - <del> PID algorithm </dev>
