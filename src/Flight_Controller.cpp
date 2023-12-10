@@ -52,23 +52,23 @@ void IRAM_ATTR handleYawInterrupt() {
 }
 
 void IRAM_ATTR handleRollInterrupt() {
-    portENTER_CRITICAL_ISR(&muxPitch); 
+    portENTER_CRITICAL_ISR(&muxRoll); 
     if (digitalRead(ROLL) == HIGH) {
         lastRisingEdgeRoll = micros();
     } else {
         rollPulseWidth = micros() - lastRisingEdgeRoll;
     }
-    portEXIT_CRITICAL_ISR(&muxPitch);
+    portEXIT_CRITICAL_ISR(&muxRoll);
 }
 
 void IRAM_ATTR handlePitchInterrupt() {
-  portENTER_CRITICAL_ISR(&muxRoll); 
+  portENTER_CRITICAL_ISR(&muxPitch); 
     if (digitalRead(PITCH) == HIGH) {
         lastRisingEdgePitch = micros();
     } else {
         pitchPulseWidth = micros() - lastRisingEdgePitch;
     }
-  portEXIT_CRITICAL_ISR(&muxRoll);
+  portEXIT_CRITICAL_ISR(&muxPitch);
 }
 
   // Flight controller interface 
@@ -223,9 +223,9 @@ void Flight_Controller::level_flight() {
   angle_roll += gyro_roll * gyroAngleCoefficient;
 
   // // Place the accelgyro-6050 spirit level and note the values in the following two lines for calibration.
-  //No need since we are already subtracting our offset. 
-  // angle_pitch_acc -= 0.0; // Accelerometer calibration value for pitch.
-  // angle_roll_acc -= 0.0;  // Accelerometer calibration value for roll.
+  //No need since we are already subtracted our offset. 
+  //angle_pitch_acc -= accYOffset; // Accelerometer calibration value for pitch.
+  //angle_roll_acc -= accXOffset;  // Accelerometer calibration value for roll.
 
   // Adjust pitch and roll angles based on yaw
   angle_pitch -= angle_roll * sin(gyro_yaw * yawCoefficient);
@@ -240,7 +240,7 @@ void Flight_Controller::level_flight() {
   if (abs(ay_mps2) < acc_total_vector) { // Prevent asin() NaN
     angle_roll_acc = -asin((float)ay_mps2 / acc_total_vector) * radToDeg;
   }
-
+  Serial.println(angle_pitch_acc); 
   // Drift correction with accelerometer data
   angle_pitch = angle_pitch * levelCorrectionFactor + angle_pitch_acc * (1 - levelCorrectionFactor);
   angle_roll = angle_roll * levelCorrectionFactor + angle_roll_acc * (1 - levelCorrectionFactor);
@@ -254,7 +254,6 @@ void Flight_Controller::level_flight() {
     roll_level_adjust = 0;
   }
 }
-
 
 void Flight_Controller::motorControls() {
     int local_channel_1, local_channel_2, local_channel_3, local_channel_4;
@@ -318,7 +317,6 @@ void Flight_Controller::write_motors(){
     esc4.writeMicroseconds(esc_4); //BL 
   
 }
-
 
 void Flight_Controller::startInitializationSequence() {
     start = 2;
@@ -434,12 +432,13 @@ void Flight_Controller::processIMUData() {
   gyro_roll  -= gyroXOffset;
   gyro_pitch -= gyroYOffset;
   gyro_yaw   -= gyroZOffset;
+
   acc_x -= accXOffset;
   acc_y -= accYOffset;
   acc_z -= accZOffset;
 
   // Apply the deadzone
-  acc_x = applyDeadzone(acc_x, 100);
+  acc_x = applyDeadzone( acc_x, 100);
   acc_y = applyDeadzone(acc_y, 100);
   acc_z = applyDeadzone(acc_z, 100);
     
