@@ -28,7 +28,13 @@ public:
     void clearCalibrationData();
     void readGyroData();
     void write_motors(); 
-    void print_gyro_data();
+    void parse_data();
+
+    void startInitializationSequence();
+    float calculatePIDSetpoint(int channel, float level_adjust);
+    float calculatePIDSetpointForYaw(int channel_3, int channel_4);
+    int computeESCValue(int throttle, int pitch, int roll, int yaw);
+    float calculate_pid_component(float input, float setpoint, float &i_mem, float &last_d_error, float p_gain, float i_gain, float d_gain, float max_output);
 
 private:
     
@@ -39,12 +45,6 @@ private:
     static constexpr int MIN_PULSE_LENGTH = 1000;
     static constexpr int MAX_PULSE_LENGTH = 2000;
 
-    // Controller
-    static constexpr int THROTTLE = 36; 
-    static constexpr int YAW = 39; // rudder
-    static constexpr int PITCH = 34; // elevator
-    static constexpr int ROLL = 35; // aileron
-
     // ESC Pins
     static constexpr int esc_pin1 = 32; // FR/CCW
     static constexpr int esc_pin2 = 33; // FL/CW
@@ -52,20 +52,20 @@ private:
     static constexpr int esc_pin4 = 26; // BL/CCW
 
     // PID Parameters
-    float pid_p_gain_roll = 1.3;
-    float pid_i_gain_roll = 0.04;
-    float pid_d_gain_roll = 18.0;
-    int pid_max_roll = 400;
-
+    float pid_p_gain_roll = 1.0;  //Adjust accordingly 
+    float pid_i_gain_roll = 0.04; //Adjust accordingly  
+    float pid_d_gain_roll = 2.1;  //Adjust accordingly 
+    int pid_max_roll = 400;       //Adjust accordingly
+ 
     float pid_p_gain_pitch = pid_p_gain_roll;
     float pid_i_gain_pitch = pid_i_gain_roll;
     float pid_d_gain_pitch = pid_d_gain_roll;
     int pid_max_pitch = pid_max_roll;
 
-    float pid_p_gain_yaw = 4.0;
-    float pid_i_gain_yaw = 0.02;
-    float pid_d_gain_yaw = 0.0;
-    int pid_max_yaw = 400;
+    float pid_p_gain_yaw = 1.0;  //Adjust accordingly 
+    float pid_i_gain_yaw = 0.02; //Adjust accordingly 
+    float pid_d_gain_yaw = 0.0;  //Adjust accordingly 
+    int pid_max_yaw = 400;       
 
     // Other variables
     int esc_1, esc_2, esc_3, esc_4;
@@ -90,12 +90,6 @@ private:
     float ax_mps2 = 0.0f; 
     float ay_mps2 = 0.0f; 
     float az_mps2 = 0.0f; 
-
-    // Receiver input variables
-    volatile int16_t receiver_input_channel_3;
-    volatile int16_t receiver_input_channel_4;
-    volatile int16_t receiver_input_channel_1;
-    volatile int16_t receiver_input_channel_2;
 
     // MPU6050 instance
     MPU6050 accelgyro;
