@@ -23,6 +23,7 @@ bool Flight_Controller::loadCalibrationValues() {
   if (EEPROM.readLong(0) != 0x12345678) {
     return false; // Calibration data not found or not valid
   }
+  // If the unique ID matches, proceed to read calibration data
   accXOffset  = EEPROM.readLong(4);
   accYOffset  = EEPROM.readLong(8);
   accZOffset  = EEPROM.readLong(12);

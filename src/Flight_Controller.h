@@ -2,7 +2,6 @@
 #ifndef FLIGHT_CONTROLLER_H
 #define FLIGHT_CONTROLLER_H
 
-
 #include <Arduino.h>
 #include <ESP32Servo.h>
 #include "I2Cdev.h"
@@ -29,7 +28,6 @@ public:
     void readGyroData();
     void write_motors(); 
     void parse_data();
-
     void startInitializationSequence();
     float calculatePIDSetpoint(int channel, float level_adjust);
     float calculatePIDSetpointForYaw(int channel_3, int channel_4);
@@ -52,24 +50,23 @@ private:
     static constexpr int esc_pin4 = 26; // BL/CCW
 
     // PID Parameters
-    float pid_p_gain_roll = 1.0;  //Adjust accordingly 
-    float pid_i_gain_roll = 0.04; //Adjust accordingly  
-    float pid_d_gain_roll = 2.1;  //Adjust accordingly 
-    int pid_max_roll = 400;       //Adjust accordingly
- 
-    float pid_p_gain_pitch = pid_p_gain_roll;
-    float pid_i_gain_pitch = pid_i_gain_roll;
-    float pid_d_gain_pitch = pid_d_gain_roll;
-    int pid_max_pitch = pid_max_roll;
+float pid_p_gain_roll = 0.5;               //Gain setting for the roll P-controller
+float pid_i_gain_roll = 0.00;              //Gain setting for the roll I-controller
+float pid_d_gain_roll = 0.1;              //Gain setting for the roll D-controller
+int pid_max_roll = 400;                    //Maximum output of the PID-controller (+/-)
 
-    float pid_p_gain_yaw = 1.0;  //Adjust accordingly 
-    float pid_i_gain_yaw = 0.02; //Adjust accordingly 
-    float pid_d_gain_yaw = 0.0;  //Adjust accordingly 
-    int pid_max_yaw = 400;       
+float pid_p_gain_pitch = pid_p_gain_roll;  //Gain setting for the pitch P-controller.
+float pid_i_gain_pitch = pid_i_gain_roll;  //Gain setting for the pitch I-controller.
+float pid_d_gain_pitch = pid_d_gain_roll;  //Gain setting for the pitch D-controller.
+int pid_max_pitch = pid_max_roll;          //Maximum output of the PID-controller (+/-)
+
+float pid_p_gain_yaw = 0.0;                //Gain setting for the pitch P-controller. //4.0
+float pid_i_gain_yaw = 0.02;               //Gain setting for the pitch I-controller. //0.02
+float pid_d_gain_yaw = 0.0;                //Gain setting for the pitch D-controller.
+int pid_max_yaw = 400;                     //Maximum output of the PID-controller (+/-)  
 
     // Other variables
     int esc_1, esc_2, esc_3, esc_4;
-    int throttle;
     int start;
     float roll_level_adjust, pitch_level_adjust;
 
