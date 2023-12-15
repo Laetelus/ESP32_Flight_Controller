@@ -13,9 +13,7 @@
 - View 3D Gyro and it's axis
 # DISCLAIMER 
 - This project is currently a work in progress.
-# Future Updates
-- python script to show 3D visualization and data of IMU, motor outputs, and pid.  
-# 
+- 
 <img src=  "https://github.com/Laetelus/ESP32_Flight_Controller/assets/72906227/80ea4064-7f5c-426a-9e82-e1a9760ad846"  width=21.6% height=5%>
 <img src= "https://github.com/Laetelus/ESP32_Flight_Controller/assets/72906227/0b84ead8-596e-40bb-bb9c-a57a8f15d6fc" width=21.6% height=21%>
 
