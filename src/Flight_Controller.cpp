@@ -75,15 +75,29 @@ void IRAM_ATTR handlePitchInterrupt() {
 void Flight_Controller::initialize()
 {
 
-  Serial.begin(250000);
-  pinMode(2,OUTPUT); //LED status 
-
   // Allow allocation of all timers. Consistent and accurate PWM. 
-  ESP32PWM::allocateTimer(0);
-  ESP32PWM::allocateTimer(1);
-  ESP32PWM::allocateTimer(2);
-  ESP32PWM::allocateTimer(3);
+  Serial.begin(250000);
+  pinMode(2, OUTPUT); // LED status
 
+  allocatePWMTimers();
+  initializeI2CBus();
+  initializeGyroAndAccel();
+  performWarmUp();
+  readCurrentTemperature();
+  performCalibration();
+  setupInputPins();
+  attachInterrupts();
+  attachESCPins();
+  armESCs();
+  printStoredCalibrationValues(); 
+
+  //Be careful with commenting and uncommenting this function.
+  //Comment #define EEPROM if restoring data
+  //Once data is cleared. Ensure function is commented. 
+  //clearCalibrationData();
+}
+
+void Flight_Controller::initializeI2CBus() {
   // join I2C bus (I2Cdev library doesn't do this automatically)
   #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
       Wire.begin();
@@ -99,6 +113,13 @@ void Flight_Controller::initialize()
   uint8_t gyroRange = accelgyro.getFullScaleGyroRange();
   Serial.println(gyroRange == MPU6050_IMU::MPU6050_GYRO_FS_250 ? "Gyroscope range verified as ±250°/s" : "Gyroscope range verification failed"); 
 
+
+}
+
+
+
+void Flight_Controller::initializeGyroAndAccel() {
+  // Implementation for gyro and accelerometer initialization
   // Verify accelerometer range
   uint8_t accelRange = accelgyro.getFullScaleAccelRange();
   Serial.println(accelRange == MPU6050_IMU::MPU6050_ACCEL_FS_2 ? "Accelerometer range verified as ±2g" : "Accelerometer range verification failed");
@@ -109,13 +130,9 @@ void Flight_Controller::initialize()
     Serial.println(accelgyro.testConnection() ? "accelgyro6050 connection successful" : "accelgyro6050 connection failed");
   #endif   
 
-  delay(10);  
+}
 
-  //Be careful with commenting and uncommenting this function.
-  //Comment #define EEPROM if restoring data
-  //Once data is cleared. Ensure function is commented. 
-  //clearCalibrationData();
-
+void Flight_Controller::performWarmUp() {
   // Warm-up time for the MPU6050 (LED will stay on for 3secs to indicate warm-up time)
   Serial.println("Warming up MPU6050...");
   digitalWrite(2, HIGH);
@@ -123,12 +140,18 @@ void Flight_Controller::initialize()
   digitalWrite(2, LOW);
   Serial.println("Warm-up complete."); 
 
+}
+
+void Flight_Controller::readCurrentTemperature() {
   // Read current temperature
   temp = accelgyro.getTemperature();
   temperatureC = float(temp) / 340.00 + 36.53;
   Serial.print("Current temperature: ");
   Serial.println(temperatureC);
 
+}
+
+void Flight_Controller::performCalibration() {
   // Calibration with or without EEPROM (only store EEPROM when data is satisfactory)
   #ifdef USE_EEPROM
     EEPROM.begin(EEPROM_SIZE);
@@ -170,33 +193,48 @@ void Flight_Controller::initialize()
     }
     digitalWrite(2, LOW);
   #endif
-  
-  printStoredCalibrationValues(); 
 
-  //setup our inputs 
+}
+
+void Flight_Controller::setupInputPins() {
   pinMode(THROTTLE, INPUT);
   pinMode(YAW, INPUT);
   pinMode(PITCH, INPUT);
   pinMode(ROLL, INPUT);
+}
 
+void Flight_Controller::allocatePWMTimers() {
+  ESP32PWM::allocateTimer(0);
+  ESP32PWM::allocateTimer(1);
+  ESP32PWM::allocateTimer(2);
+  ESP32PWM::allocateTimer(3);
+}
+
+void Flight_Controller::attachInterrupts() {
   // Attach the interrupts
   attachInterrupt(digitalPinToInterrupt(THROTTLE), handleThrottleInterrupt, CHANGE);
   attachInterrupt(digitalPinToInterrupt(YAW), handleYawInterrupt, CHANGE);
   attachInterrupt(digitalPinToInterrupt(ROLL), handleRollInterrupt, CHANGE);
   attachInterrupt(digitalPinToInterrupt(PITCH), handlePitchInterrupt, CHANGE);
- 
-  // attach esc pins
+
+}
+
+void Flight_Controller::attachESCPins() {
+  // Attach ESC pins
   esc1.attach(esc_pin1, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FR (Front Right)
   esc2.attach(esc_pin2, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BR (Back Right)
   esc3.attach(esc_pin3, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FL (Front Left)
   esc4.attach(esc_pin4, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BL (Back Left)
 
-  // arm ecs
+
+}
+
+void Flight_Controller::armESCs() {
+  // Arm ESCs
   esc1.writeMicroseconds(MIN_PULSE_LENGTH);
   esc2.writeMicroseconds(MIN_PULSE_LENGTH);
   esc3.writeMicroseconds(MIN_PULSE_LENGTH);
   esc4.writeMicroseconds(MIN_PULSE_LENGTH);
-
 }
 
 void Flight_Controller::read_Controller() {
@@ -261,31 +299,31 @@ void Flight_Controller::level_flight() {
 }
 
 void Flight_Controller::motorControls() {
-    int local_channel_1, local_channel_2, local_channel_3, local_channel_4;
+  int local_channel_1, local_channel_2, local_channel_3, local_channel_4;
+  noInterrupts(); // Disable interrupts
+  local_channel_3 = receiver_input_channel_1; // Throttle
+  local_channel_4 = receiver_input_channel_4; // Yaw
+  local_channel_1 = receiver_input_channel_2; // Roll
+  local_channel_2 = receiver_input_channel_3; // Pitch
+  interrupts(); // Re-enable interrupt  
+  
+  // Serial.println();
+  // Serial.print("Throttle: "); Serial.println(receiver_input_channel_1); 
+  // Serial.print("Yaw: "); Serial.println(receiver_input_channel_4); 
+  // Serial.print("Pitch: "); Serial.println(receiver_input_channel_3); 
+  // Serial.print("Roll: "); Serial.println(receiver_input_channel_2); 
 
-    noInterrupts(); // Disable interrupts
-    local_channel_3 = receiver_input_channel_1; // Throttle
-    local_channel_4 = receiver_input_channel_4; // Yaw
-    local_channel_1 = receiver_input_channel_2; // Roll
-    local_channel_2 = receiver_input_channel_3; // Pitch
-    interrupts(); // Re-enable interrupts
+  // Start, stop, and control logic using local copies of the channels
+  if (local_channel_3 < 1065 && local_channel_4 < 1050) start = 1;
+  if (start == 1 && local_channel_3 < 1550 && local_channel_4 > 1450) {
+      startInitializationSequence();
+  }
 
-  //  Serial.println();
-  //  Serial.print("Throttle: "); Serial.println(receiver_input_channel_1); 
-  //  Serial.print("Yaw: "); Serial.println(receiver_input_channel_4); 
-  //  Serial.print("Pitch: "); Serial.println(receiver_input_channel_3); 
-  //  Serial.print("Roll: "); Serial.println(receiver_input_channel_2); 
+  if (start == 2 && local_channel_3 <= 1064 && local_channel_4 > 1976) start = 0;
 
-    // Start, stop, and control logic using local copies of the channels
-    if (local_channel_3 < 1065 && local_channel_4 < 1050) start = 1;
-    if (start == 1 && local_channel_3 < 1550 && local_channel_4 > 1450) {
-        startInitializationSequence();
-    }
-    if (start == 2 && local_channel_3 <= 1064 && local_channel_4 > 1976) start = 0;
-
-    pid_roll_setpoint = calculatePIDSetpoint(local_channel_1, roll_level_adjust);
-    pid_pitch_setpoint = calculatePIDSetpoint(local_channel_2, pitch_level_adjust);
-    pid_yaw_setpoint = calculatePIDSetpointForYaw(local_channel_3, local_channel_4);
+  pid_roll_setpoint = calculatePIDSetpoint(local_channel_1, roll_level_adjust);
+  pid_pitch_setpoint = calculatePIDSetpoint(local_channel_2, pitch_level_adjust);
+  pid_yaw_setpoint = calculatePIDSetpointForYaw(local_channel_3, local_channel_4);
 
     calculate_pid(); // Calculate PID with the new setpoints
 }

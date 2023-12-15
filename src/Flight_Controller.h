@@ -12,7 +12,20 @@
 class Flight_Controller {
 public:
 
-    void initialize(); // Initialize the quadcopter
+    //initialization Sequence 
+    void initialize(); // Initialize the quad-copter
+    void initializeI2CBus();
+    void initializeGyroAndAccel(); 
+    void performWarmUp();
+    void performCalibration(); 
+    void setupInputPins(); 
+    void readCurrentTemperature(); 
+    void attachInterrupts(); 
+    void attachESCPins(); 
+    void armESCs(); 
+    void allocatePWMTimers();
+
+    //Flight Controller 
     void read_Controller();
     void level_flight();
     void motorControls();
@@ -21,18 +34,22 @@ public:
     void calibrateMPU6050(); 
     int16_t applyDeadzone(int16_t,int16_t);
     void processIMUData();
-    void saveCalibrationValues();
-    bool loadCalibrationValues(); 
-    void printStoredCalibrationValues(); 
-    void clearCalibrationData();
     void readGyroData();
     void write_motors(); 
-    void parse_data();
     void startInitializationSequence();
     float calculatePIDSetpoint(int channel, float level_adjust);
     float calculatePIDSetpointForYaw(int channel_3, int channel_4);
     int computeESCValue(int throttle, int pitch, int roll, int yaw);
     float calculate_pid_component(float input, float setpoint, float &i_mem, float &last_d_error, float p_gain, float i_gain, float d_gain, float max_output);
+
+    //EEPROM 
+    void saveCalibrationValues();
+    bool loadCalibrationValues(); 
+    void printStoredCalibrationValues(); 
+    void clearCalibrationData();
+
+    //Data parsing. 
+    void parse_data();
 
 private:
     
@@ -50,8 +67,8 @@ private:
     static constexpr int esc_pin4 = 26; // BL/CCW
 
     // PID Parameters
-float pid_p_gain_roll = 0.5;               //Gain setting for the roll P-controller
-float pid_i_gain_roll = 0.00;              //Gain setting for the roll I-controller
+float pid_p_gain_roll = 0.5;              //Gain setting for the roll P-controller
+float pid_i_gain_roll = 0.00;             //Gain setting for the roll I-controller
 float pid_d_gain_roll = 0.1;              //Gain setting for the roll D-controller
 int pid_max_roll = 400;                    //Maximum output of the PID-controller (+/-)
 
@@ -60,8 +77,8 @@ float pid_i_gain_pitch = pid_i_gain_roll;  //Gain setting for the pitch I-contro
 float pid_d_gain_pitch = pid_d_gain_roll;  //Gain setting for the pitch D-controller.
 int pid_max_pitch = pid_max_roll;          //Maximum output of the PID-controller (+/-)
 
-float pid_p_gain_yaw = 0.0;                //Gain setting for the pitch P-controller. //4.0
-float pid_i_gain_yaw = 0.02;               //Gain setting for the pitch I-controller. //0.02
+float pid_p_gain_yaw = 0.0;                //Gain setting for the pitch P-controller. //
+float pid_i_gain_yaw = 0.02;               //Gain setting for the pitch I-controller. //
 float pid_d_gain_yaw = 0.0;                //Gain setting for the pitch D-controller.
 int pid_max_yaw = 400;                     //Maximum output of the PID-controller (+/-)  
 
