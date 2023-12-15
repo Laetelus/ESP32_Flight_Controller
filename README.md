@@ -5,10 +5,12 @@
 - Transmittor: T8S  
 - Receiver: R8EF 8 Channels
 - Frame: [Q450 V3 450mm Quadcopter Drone Frame Integrated Power Distribution Board F450](https://www.amazon.com/usmile-Quadcopter-Frame-Integrated-Wiring/dp/B016OBSW08)
-# IN PROGRESS
+# Future updates
 - <del> Add start_stop_takeoff for motors </del>
 - <del> PID algorithm </dev>
-- Failsafe algorithm (Soon to be implemented)
+- View and adjust PID values mid flight.
+- View PID Graph and values mid flight.
+- View 3D Gyro and it's axis
 # DISCLAIMER 
 - This project is currently a work in progress.
 # Future Updates
