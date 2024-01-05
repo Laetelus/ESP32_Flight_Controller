@@ -98,13 +98,13 @@ void Flight_Controller::initialize()
   allocatePWMTimers();
   initializeI2CBus();
   initializeGyroAndAccel();
-  performWarmUp();    readGyroData();
-    processIMUData();
+  performWarmUp();
+  readGyroData();
+  processIMUData();
   performCalibration();
   setupInputPins();
   attachInterrupts();
   attachESCPins();
-  armESCs();
   printStoredCalibrationValues();
 
   // Be careful with commenting and uncommenting this function.
@@ -128,13 +128,10 @@ void Flight_Controller::initializeI2CBus()
   accelgyro.initialize();
   // Verify gyroscope range
   uint8_t gyroRange = accelgyro.getFullScaleGyroRange();
-  Serial.println(gyroRange == MPU6050_IMU::MPU6050_GYRO_FS_250 ? "Gyroscope range verified as ±250°/s" : "Gyroscope range verification failed"); 
-  Serial.println(gyroRange == MPU6050_IMU::MPU6050_GYRO_FS_250 ? "Gyroscope range verified as ±250°/s" : "Gyroscope range verification failed"); 
-
-
+  Serial.println(gyroRange == MPU6050_IMU::MPU6050_GYRO_FS_250 ? "Gyroscope range verified as ±250°/s" : "Gyroscope range verification failed");
   Serial.println(gyroRange == MPU6050_IMU::MPU6050_GYRO_FS_250 ? "Gyroscope range verified as ±250°/s" : "Gyroscope range verification failed");
 
-
+  Serial.println(gyroRange == MPU6050_IMU::MPU6050_GYRO_FS_250 ? "Gyroscope range verified as ±250°/s" : "Gyroscope range verification failed");
 }
 
 void Flight_Controller::initializeGyroAndAccel()
@@ -158,11 +155,10 @@ void Flight_Controller::performWarmUp()
   digitalWrite(2, HIGH);
   delay(3000);
   digitalWrite(2, LOW);
-  Serial.println("Warm-up complete."); 
-  Serial.println("Warm-up complete."); 
-
+  Serial.println("Warm-up complete.");
   Serial.println("Warm-up complete.");
 
+  Serial.println("Warm-up complete.");
 }
 
 void Flight_Controller::readCurrentTemperature()
@@ -413,11 +409,14 @@ int Flight_Controller::computeESCValue(int throttle, int pitch, int roll, int ya
 
 void Flight_Controller::write_motors()
 {
-  //prevent ESCs from beeping before starting motors.
-  if(start != 2) {
+  // prevent ESCs from beeping before starting motors.
+  if (start != 2)
+  {
     armESCs();
-  } else {
-    esc1.writeMicroseconds(esc_1); // FR/CCW  
+  }
+  else
+  {
+    esc1.writeMicroseconds(esc_1); // FR/CCW
     esc2.writeMicroseconds(esc_2); // FL/CW
     esc3.writeMicroseconds(esc_3); // BR/CW
     esc4.writeMicroseconds(esc_4); // BL/CCW
