@@ -14,6 +14,8 @@ void setup() {
 void loop() {
     static unsigned long loop_timer = micros();
 
+    f.readGyroData(); 
+    f.processIMUData(); 
     f.read_Controller();
     f.level_flight();
     f.motorControls();

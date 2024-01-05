@@ -1,4 +1,4 @@
-//FLIGHT_CONTROLLER_h
+// FLIGHT_CONTROLLER_h
 #ifndef FLIGHT_CONTROLLER_H
 #define FLIGHT_CONTROLLER_H
 
@@ -9,52 +9,51 @@
 #include <EEPROM.h>
 #include "Flight_Controller.h"
 
-class Flight_Controller {
+class Flight_Controller
+{
 public:
-
-    //initialization Sequence 
+    // initialization Sequence
     void initialize(); // Initialize the quad-copter
     void initializeI2CBus();
-    void initializeGyroAndAccel(); 
+    void initializeGyroAndAccel();
     void performWarmUp();
-    void performCalibration(); 
-    void setupInputPins(); 
-    void readCurrentTemperature(); 
-    void attachInterrupts(); 
-    void attachESCPins(); 
-    void armESCs(); 
+    void performCalibration();
+    void setupInputPins();
+    void readCurrentTemperature();
+    void attachInterrupts();
+    void attachESCPins();
+    void armESCs();
     void allocatePWMTimers();
 
-    //Flight Controller 
+    // Flight Controller
     void read_Controller();
     void level_flight();
     void motorControls();
     void calculate_pid();
     void mix_motors();
-    void calibrateMPU6050(); 
-    int16_t applyDeadzone(int16_t,int16_t);
+    void calibrateMPU6050();
+    int16_t applyDeadzone(int16_t, int16_t);
     void processIMUData();
     void readGyroData();
-    void write_motors(); 
+    void write_motors();
     void startInitializationSequence();
     float calculatePIDSetpoint(int channel, float level_adjust);
     float calculatePIDSetpointForYaw(int channel_3, int channel_4);
     int computeESCValue(int throttle, int pitch, int roll, int yaw);
     float calculate_pid_component(float input, float setpoint, float &i_mem, float &last_d_error, float p_gain, float i_gain, float d_gain, float max_output);
 
-    //EEPROM 
+    // EEPROM
     void saveCalibrationValues();
-    bool loadCalibrationValues(); 
-    void printStoredCalibrationValues(); 
+    bool loadCalibrationValues();
+    void printStoredCalibrationValues();
     void clearCalibrationData();
 
-    //Data parsing. 
+    // Data parsing.
     void parse_data();
 
 private:
-    
-    //Allocate 32 bytes 
-    #define EEPROM_SIZE 32
+// Allocate 32 bytes
+#define EEPROM_SIZE 32
 
     // Constants
     static constexpr int MIN_PULSE_LENGTH = 1000;
@@ -67,20 +66,20 @@ private:
     static constexpr int esc_pin4 = 26; // BL/CCW
 
     // PID Parameters
-float pid_p_gain_roll = 0.5;              //Gain setting for the roll P-controller
-float pid_i_gain_roll = 0.00;             //Gain setting for the roll I-controller
-float pid_d_gain_roll = 0.1;              //Gain setting for the roll D-controller
-int pid_max_roll = 400;                    //Maximum output of the PID-controller (+/-)
+    float pid_p_gain_roll = 0.2; // Gain setting for the roll P-controller
+    float pid_i_gain_roll = 0.0; // Gain setting for the roll I-controller
+    float pid_d_gain_roll = 0.0; // Gain setting for the roll D-controller
+    int pid_max_roll = 400;      // Maximum output of the PID-controller (+/-)
 
-float pid_p_gain_pitch = pid_p_gain_roll;  //Gain setting for the pitch P-controller.
-float pid_i_gain_pitch = pid_i_gain_roll;  //Gain setting for the pitch I-controller.
-float pid_d_gain_pitch = pid_d_gain_roll;  //Gain setting for the pitch D-controller.
-int pid_max_pitch = pid_max_roll;          //Maximum output of the PID-controller (+/-)
+    float pid_p_gain_pitch = pid_p_gain_roll; // Gain setting for the pitch P-controller.
+    float pid_i_gain_pitch = pid_i_gain_roll; // Gain setting for the pitch I-controller.
+    float pid_d_gain_pitch = pid_d_gain_roll; // Gain setting for the pitch D-controller.
+    int pid_max_pitch = pid_max_roll;         // Maximum output of the PID-controller (+/-)
 
-float pid_p_gain_yaw = 0.0;                //Gain setting for the pitch P-controller. //
-float pid_i_gain_yaw = 0.02;               //Gain setting for the pitch I-controller. //
-float pid_d_gain_yaw = 0.0;                //Gain setting for the pitch D-controller.
-int pid_max_yaw = 400;                     //Maximum output of the PID-controller (+/-)  
+    float pid_p_gain_yaw = 0.2; // Gain setting for the pitch P-controller. //
+    float pid_i_gain_yaw = 0;   // Gain setting for the pitch I-controller. //
+    float pid_d_gain_yaw = 0;   // Gain setting for the pitch D-controller.
+    int pid_max_yaw = 400;      // Maximum output of the PID-controller (+/-)
 
     // Other variables
     int esc_1, esc_2, esc_3, esc_4;
@@ -95,15 +94,15 @@ int pid_max_yaw = 400;                     //Maximum output of the PID-controlle
     float pid_i_mem_yaw, pid_yaw_setpoint, gyro_yaw_input, pid_output_yaw, pid_last_yaw_d_error;
     float angle_roll_acc, angle_pitch_acc, angle_pitch, angle_roll;
     float gyroXOffset = 0.0, gyroYOffset = 0.0, gyroZOffset = 0.0, accXOffset = 0.0, accYOffset = 0.0, accZOffset = 0.0;
-    int16_t temp = 0; 
-    float temperatureC = 0.0f;   
+    int16_t temp = 0;
+    float temperatureC = 0.0f;
     boolean gyro_angles_set;
-    boolean auto_level = true; //Auto level on (true) or off (false)
-   
+    boolean auto_level = true; // Auto level on (true) or off (false)
+
     // initialize  units of g
-    float ax_mps2 = 0.0f; 
-    float ay_mps2 = 0.0f; 
-    float az_mps2 = 0.0f; 
+    float ax_mps2 = 0.0f;
+    float ay_mps2 = 0.0f;
+    float az_mps2 = 0.0f;
 
     // MPU6050 instance
     MPU6050 accelgyro;
