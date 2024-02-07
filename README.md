@@ -13,8 +13,7 @@
 - View and adjust PID values when motors are off(in progress).
 - View PID Graph and values flight.
 - View 3D IMU. gyro and accelerometer data values 
-- If controller is initially off. Do not start motors.
-- Batter voltage functionality (Will need to add extra components to PCB board). 
+- Battery voltage functionality (Will need to add extra components to PCB board). 
 <img src=  "https://github.com/Laetelus/ESP32_Flight_Controller/assets/72906227/80ea4064-7f5c-426a-9e82-e1a9760ad846"  width=21.6% height=5%>
 <img src= "https://github.com/Laetelus/ESP32_Flight_Controller/assets/72906227/0b84ead8-596e-40bb-bb9c-a57a8f15d6fc" width=21.6% height=21%>
 
