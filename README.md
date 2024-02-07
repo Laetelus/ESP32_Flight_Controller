@@ -7,6 +7,7 @@
 - Transmittor: [T8S](https://www.amazon.com/Radiolink-Channels-Transmitter-Controller-Rechargeable/dp/B07WR9Y1HG/ref=sr_1_3?crid=3F0DSH6NI9FIY&keywords=T8S&qid=1702600664&sprefix=t8s%2Caps%2C99&sr=8-3&th=1)  
 - Receiver: [R8EF 8 Channels](https://www.amazon.com/Radiolink-Channels-Transmitter-Controller-Rechargeable/dp/B07WR9Y1HG/ref=sr_1_3?crid=3F0DSH6NI9FIY&keywords=T8S&qid=1702600664&sprefix=t8s%2Caps%2C99&sr=8-3&th=1)
 - Frame: [Q450 V3 450mm Quadcopter Drone Frame Integrated Power Distribution Board F450](https://www.amazon.com/usmile-Quadcopter-Frame-Integrated-Wiring/dp/B016OBSW08)
+- Motors: [A2212 1000KV Brushless Motors](https://www.amazon.com/QWinOut-Brushless-Outrunner-Multi-Copter-Quadcopter/dp/B07CV8WH2F/ref=sr_1_9?crid=LPT1HCUYQ4YW&keywords=a2212+1000kv+brushless+motor&qid=1707280176&sprefix=A2212%2Caps%2C155&sr=8-9)
 # Future updates
 - <del> Add start_stop_takeoff for motors </del>
 - <del> PID algorithm </dev>
