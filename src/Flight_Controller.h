@@ -8,6 +8,13 @@
 #include "MPU6050.h"
 #include <EEPROM.h>
 #include "Flight_Controller.h"
+#include <WiFi.h>
+#include <ESPAsyncWebServer.h>
+
+#include <AsyncTCP.h>
+#include <ArduinoJson.h>
+#include <Wire.h>
+#include "SPIFFS.h"
 
 class Flight_Controller
 {
@@ -16,7 +23,6 @@ public:
     void initialize(); // Initialize the quad-copter
     void initializeI2CBus();
     void initializeGyroAndAccel();
-    void performWarmUp();
     void performCalibration();
     void setupInputPins();
     void readCurrentTemperature();
@@ -41,6 +47,8 @@ public:
     float calculatePIDSetpointForYaw(int channel_3, int channel_4);
     int computeESCValue(int throttle, int pitch, int roll, int yaw);
     float calculate_pid_component(float input, float setpoint, float &i_mem, float &last_d_error, float p_gain, float i_gain, float d_gain, float max_output);
+    bool areMotorsOff();
+    void print();
 
     // EEPROM
     void saveCalibrationValues();
@@ -48,14 +56,35 @@ public:
     void printStoredCalibrationValues();
     void clearCalibrationData();
 
-    // Data parsing.
-    void parse_data();
+    // Web server for PID tuning
+    void initSPIFFS();
+    void initWiFi();
+    void disconnect_wifi();
+    void Handle_Server();
+    void handleGetPID(AsyncWebServerRequest *request);
+    void handleSetPID(AsyncWebServerRequest *request);
+    void checkWiFiConnection();
+    void fillPIDJson(DynamicJsonDocument &doc);
+    String updatePIDFromRequest(AsyncWebServerRequest *request);
+    bool savePIDValues();
+    bool loadPIDValues();
 
 private:
-// Allocate 32 bytes
-#define EEPROM_SIZE 32
+// EEPROM memory layout for IMU
+#define EEPROM_CALIBRATION_SIZE 32
 
-    // Constants
+    AsyncWebServer server{80};
+    AsyncEventSource events{"/events"};
+
+    unsigned long lastDebounceTime = 0;     // Last time the input condition was met
+    const unsigned long debounceDelay = 20; // Debounce period in milliseconds
+    bool isDebounceConditionMet = false;    // Tracks if the condition was met
+
+    // Web server and WiFi credentials
+    const char *ssid = "Untrusted_Network";
+    const char *password = "rapidcream878";
+    int start;
+
     static constexpr int MIN_PULSE_LENGTH = 1000;
     static constexpr int MAX_PULSE_LENGTH = 2000;
 
@@ -65,25 +94,25 @@ private:
     static constexpr int esc_pin3 = 25; // BR/CW
     static constexpr int esc_pin4 = 26; // BL/CCW
 
-    // PID Parameters
-    float pid_p_gain_roll = 0.2; // Gain setting for the roll P-controller
-    float pid_i_gain_roll = 0.0; // Gain setting for the roll I-controller
-    float pid_d_gain_roll = 0.0; // Gain setting for the roll D-controller
-    int pid_max_roll = 400;      // Maximum output of the PID-controller (+/-)
+    // // PID Parameters
+    float pid_p_gain_roll = 0.0f; // Gain setting for the roll P-controller
+    float pid_i_gain_roll = 0.0f; // Gain setting for the roll I-controller
+    float pid_d_gain_roll = 0.0f; // Gain setting for the roll D-controller
+    int pid_max_roll = 400;       // Maximum output of the PID-controller (+/-)
 
     float pid_p_gain_pitch = pid_p_gain_roll; // Gain setting for the pitch P-controller.
     float pid_i_gain_pitch = pid_i_gain_roll; // Gain setting for the pitch I-controller.
     float pid_d_gain_pitch = pid_d_gain_roll; // Gain setting for the pitch D-controller.
     int pid_max_pitch = pid_max_roll;         // Maximum output of the PID-controller (+/-)
 
-    float pid_p_gain_yaw = 0.2; // Gain setting for the pitch P-controller. //
-    float pid_i_gain_yaw = 0;   // Gain setting for the pitch I-controller. //
-    float pid_d_gain_yaw = 0;   // Gain setting for the pitch D-controller.
-    int pid_max_yaw = 400;      // Maximum output of the PID-controller (+/-)
+    float pid_p_gain_yaw = 0.0f; // Gain setting for the pitch P-controller. //
+    float pid_i_gain_yaw = 0.0f; // Gain setting for the pitch I-controller. //
+    float pid_d_gain_yaw = 0.0f; // Gain setting for the pitch D-controller.
+    int pid_max_yaw = 400;       // Maximum output of the PID-controller (+/-)
 
     // Other variables
     int esc_1, esc_2, esc_3, esc_4;
-    int start;
+
     float roll_level_adjust, pitch_level_adjust;
 
     int16_t acc_x, acc_y, acc_z, acc_total_vector;
@@ -96,8 +125,8 @@ private:
     float gyroXOffset = 0.0, gyroYOffset = 0.0, gyroZOffset = 0.0, accXOffset = 0.0, accYOffset = 0.0, accZOffset = 0.0;
     int16_t temp = 0;
     float temperatureC = 0.0f;
-    boolean gyro_angles_set;
-    boolean auto_level = true; // Auto level on (true) or off (false)
+    bool gyro_angles_set;
+    bool auto_level = true; // Auto level on (true) or off (false)
 
     // initialize  units of g
     float ax_mps2 = 0.0f;

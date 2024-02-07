@@ -1,0 +1,253 @@
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f3f3f3;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+
+/* Main container that centers everything */
+
+.container {
+    max-width: 1259px;
+    /* Adjust this value as needed */
+    margin: auto;
+    padding: 0px;
+    background-color: #fff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+
+/* Flex container for side-by-side layout */
+
+.flex-container {
+    display: flex;
+    justify-content: space-between;
+    /* Space between columns */
+    align-items: flex-start;
+    /* Align to the top */
+    flex-wrap: wrap;
+    /* Wrap on smaller screens */
+}
+
+.left-column,
+.right-column {
+    flex: 1;
+    /* Both columns grow equally */
+    margin: 20px;
+    /* Space around columns */
+    min-width: 300px;
+    /* Minimum width before wrapping */
+}
+
+h1,
+h2 {
+    color: #333;
+}
+
+button {
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    padding: 10px 5px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    width: 50%;
+    margin-top: 5px;
+    white-space: nowrap;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+#pid-display {
+    background-color: #f7f7f7;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: px;
+}
+
+.input-bubble {
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: fit-content;
+    margin: left;
+}
+
+.input-bubble label {
+    margin-right: 10px;
+    font-weight: bold;
+    color: #555;
+    /* Prevent label from wrapping */
+    white-space: nowrap;
+    display: inline-block;
+    width: 110px;
+}
+
+.input-bubble input {
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 4px;
+    width: auto;
+    /* Reduce the margin around the input box */
+    margin: 0 5px;
+}
+
+
+/* PID Graph Section */
+
+.pid-graph-container {
+    /* Adds space to the right of the graph container */
+    margin-right: 20px;
+    /* Adjust the flex-grow value as needed */
+    flex: 1;
+}
+
+
+/* PID Controls Section */
+
+.pid-controls-container {
+    flex: 1;
+}
+
+
+/* #pid-values-display {
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    margin-top: 20px;
+} */
+
+
+/* .pid-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    margin-top: 10px;
+} */
+
+
+/* .pid-table th,
+.pid-table td {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+}
+
+.pid-table th {
+    background-color: #f3f3f3;
+}
+
+.pid-table td span {
+    font-weight: bold;
+    display: inline-block;
+    min-width: 0px;
+    text-align: center;
+} */
+
+
+/* Responsive table design */
+
+@media (max-width: 600px) {
+    .pid-table {
+        display: block;
+        overflow-x: auto;
+    }
+}
+
+
+/* Responsive design for smaller screens */
+
+@media (max-width: 700px) {
+    .flex-container {
+        flex-direction: column;
+        /* Stack vertically */
+    }
+    .left-column,
+    .right-column {
+        flex-basis: 100%;
+        /* Full width */
+        margin: 10px 0;
+        /* Vertical margin only */
+    }
+}
+
+
+/* Style for the increment and decrement buttons */
+
+.increment-btn,
+.decrement-btn {
+    height: 1em;
+    /* Set the height */
+    width: 2em;
+    /* Set the width */
+    font-size: 1.5em;
+    /* Set font size to make + and - symbols larger */
+    line-height: 1em;
+    /* Align the line height with the button size */
+    text-align: center;
+    padding: 0;
+    margin: 0 5px;
+    /* Add some space between the buttons and the input */
+    cursor: pointer;
+    border: 1px solid #ccc;
+    /* Add a border to the buttons */
+    background-color: #f7f7f7;
+    /* Set a background color */
+    border-radius: 4px;
+    /* Optional: round the corners */
+}
+
+
+/* Adjusting input to make room for new buttons */
+
+.input-bubble input[type=number] {
+    padding: 4px 20px 4px 4px;
+    width: 45px;
+    text-align: center;
+    font-size: 1em;
+}
+
+
+/* Container for the input and buttons */
+
+.input-with-buttons {
+    display: flex;
+    align-items: center;
+}
+
+
+/* Hide the default increment and decrement controls */
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type=number] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.current-value {
+    margin-left: 10px;
+    /* Spacing between the input and the current value */
+    font-weight: bold;
+    color: #666;
+}

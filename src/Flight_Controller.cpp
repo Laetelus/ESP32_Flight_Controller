@@ -98,18 +98,22 @@ void Flight_Controller::initialize()
   allocatePWMTimers();
   initializeI2CBus();
   initializeGyroAndAccel();
-  performWarmUp();
-  readGyroData();
-  processIMUData();
+  readCurrentTemperature();
   performCalibration();
   setupInputPins();
   attachInterrupts();
   attachESCPins();
+  armESCs();
   printStoredCalibrationValues();
 
-  // Be careful with commenting and uncommenting this function.
-  // Comment #define EEPROM if restoring data
-  // Once data is cleared. Ensure function is commented.
+  // Load PID values from SPIFFS (if available)
+  if (!loadPIDValues())
+  {
+    Serial.println("No PID values loaded from SPIFFS. Using default values.");
+  }
+
+  // Comment #define EEPROM if clearing previously stored data
+  // Once data is cleared. Ensure clearCalibrationData function is commented again
   // clearCalibrationData();
 }
 
@@ -124,41 +128,25 @@ void Flight_Controller::initializeI2CBus()
 #endif
 
   // initialize device. This also initialises the gyros and accelerometers
+  Serial.println();
   Serial.println("Initializing I2C devices...");
   accelgyro.initialize();
   // Verify gyroscope range
   uint8_t gyroRange = accelgyro.getFullScaleGyroRange();
-  Serial.println(gyroRange == MPU6050_IMU::MPU6050_GYRO_FS_250 ? "Gyroscope range verified as ±250°/s" : "Gyroscope range verification failed");
-  Serial.println(gyroRange == MPU6050_IMU::MPU6050_GYRO_FS_250 ? "Gyroscope range verified as ±250°/s" : "Gyroscope range verification failed");
-
-  Serial.println(gyroRange == MPU6050_IMU::MPU6050_GYRO_FS_250 ? "Gyroscope range verified as ±250°/s" : "Gyroscope range verification failed");
+  Serial.println(gyroRange == MPU6050_GYRO_FS_250 ? "Gyroscope range verified as ±250°/s" : "Gyroscope range verification failed");
 }
 
 void Flight_Controller::initializeGyroAndAccel()
 {
-  // Implementation for gyro and accelerometer initialization
   // Verify accelerometer range
   uint8_t accelRange = accelgyro.getFullScaleAccelRange();
-  Serial.println(accelRange == MPU6050_IMU::MPU6050_ACCEL_FS_2 ? "Accelerometer range verified as ±2g" : "Accelerometer range verification failed");
+  Serial.println(accelRange == MPU6050_ACCEL_FS_2 ? "Accelerometer range verified as ±2g" : "Accelerometer range verification failed");
 
 // verify connection
 #ifdef I2CDEV_IMPLEMENTATION
   Serial.println("Testing device connections...");
   Serial.println(accelgyro.testConnection() ? "accelgyro6050 connection successful" : "accelgyro6050 connection failed");
 #endif
-}
-
-void Flight_Controller::performWarmUp()
-{
-  // Warm-up time for the MPU6050 (LED will stay on for 3secs to indicate warm-up time)
-  Serial.println("Warming up MPU6050...");
-  digitalWrite(2, HIGH);
-  delay(3000);
-  digitalWrite(2, LOW);
-  Serial.println("Warm-up complete.");
-  Serial.println("Warm-up complete.");
-
-  Serial.println("Warm-up complete.");
 }
 
 void Flight_Controller::readCurrentTemperature()
@@ -174,20 +162,19 @@ void Flight_Controller::performCalibration()
 {
 // Calibration with or without EEPROM (only store EEPROM when data is satisfactory)
 #ifdef USE_EEPROM
-  EEPROM.begin(EEPROM_SIZE);
+  EEPROM.begin(EEPROM_CALIBRATION_SIZE);
   if (!loadCalibrationValues())
   {
     Serial.println("Calibration data not found in EEPROM. Calibrating...");
     // Blink LED to indicate calibration in progress
-    for (int i = 0; i < 15; ++i)
+    for (int i = 0; i < 10; ++i)
     {
       digitalWrite(2, HIGH);
       delay(200);
       digitalWrite(2, LOW);
       delay(200);
     }
-    // Read gyro data before starting calibration
-    // readGyroData();
+    readGyroData();
     processIMUData();
     calibrateMPU6050();
     // Check if the temperature is within the acceptable range
@@ -212,8 +199,7 @@ void Flight_Controller::performCalibration()
 #else
   Serial.println("Calibrating without EEPROM...");
   digitalWrite(2, HIGH);
-  // Read gyro data before starting calibration
-  // readGyroData();
+  readGyroData();
   processIMUData();
   calibrateMPU6050();
   // Check if the temperature is within the acceptable range
@@ -229,6 +215,12 @@ void Flight_Controller::performCalibration()
   }
   digitalWrite(2, LOW);
 #endif
+}
+
+bool Flight_Controller::areMotorsOff()
+{
+
+  return start != 2;
 }
 
 void Flight_Controller::setupInputPins()
@@ -268,10 +260,10 @@ void Flight_Controller::attachESCPins()
 void Flight_Controller::armESCs()
 {
   // Arm ESCs
-  esc1.writeMicroseconds(MIN_PULSE_LENGTH);
-  esc2.writeMicroseconds(MIN_PULSE_LENGTH);
-  esc3.writeMicroseconds(MIN_PULSE_LENGTH);
-  esc4.writeMicroseconds(MIN_PULSE_LENGTH);
+  esc1.write(MIN_PULSE_WIDTH);
+  esc2.write(MIN_PULSE_WIDTH);
+  esc3.write(MIN_PULSE_WIDTH);
+  esc4.write(MIN_PULSE_WIDTH);
 }
 
 void Flight_Controller::read_Controller()
@@ -286,7 +278,6 @@ void Flight_Controller::read_Controller()
 
 void Flight_Controller::level_flight()
 {
-
   const float gyroCoefficient = 0.3 / 65.5;                       // Coefficient for gyro input (deg/sec)
   const float gyroAngleCoefficient = 0.0000611;                   // Coefficient for gyro angle calculation
   const float radToDeg = 57.296;                                  // Radians to degrees conversion factor
@@ -350,22 +341,60 @@ void Flight_Controller::motorControls()
   local_channel_2 = receiver_input_channel_3; // Pitch
   interrupts();                               // Re-enable interrupt
 
-  // Serial.println();
-  // Serial.print("Throttle: "); Serial.println(receiver_input_channel_1);
-  // Serial.print("Yaw: "); Serial.println(receiver_input_channel_4);
-  // Serial.print("Pitch: "); Serial.println(receiver_input_channel_3);
-  // Serial.print("Roll: "); Serial.println(receiver_input_channel_2);
+  // start = 0 (off), start = 1 (ready to start), start = 2 (running)
+  unsigned long currentTime = millis();
 
-  // Start, stop, and control logic using local copies of the channels
+  // Start condition (start = 1)
   if (local_channel_3 < 1065 && local_channel_4 < 1050)
-    start = 1;
-  if (start == 1 && local_channel_3 < 1550 && local_channel_4 > 1450)
   {
-    startInitializationSequence();
+    if (!isDebounceConditionMet)
+    {
+      lastDebounceTime = currentTime;
+      isDebounceConditionMet = true;
+    }
+    else if ((currentTime - lastDebounceTime) > debounceDelay && start == 0)
+    {
+      start = 1;
+      isDebounceConditionMet = false; // Reset for next condition
+    }
   }
 
+  // Transition to start = 2 (running), handled inside startInitializationSequence
+  if (start == 1 && local_channel_3 < 1550 && local_channel_4 > 1450)
+  {
+    if (!isDebounceConditionMet)
+    {
+      lastDebounceTime = currentTime;
+      isDebounceConditionMet = true;
+    }
+    else if ((currentTime - lastDebounceTime) > debounceDelay)
+    {
+      startInitializationSequence();
+      // No need to set start = 2 here as it's done in startInitializationSequence
+      isDebounceConditionMet = false; // Reset for next condition
+    }
+  }
+
+  // Turn off motors (start = 0)
   if (start == 2 && local_channel_3 <= 1064 && local_channel_4 > 1976)
-    start = 0;
+  {
+    if (!isDebounceConditionMet)
+    {
+      lastDebounceTime = currentTime;
+      isDebounceConditionMet = true;
+    }
+    else if ((currentTime - lastDebounceTime) > debounceDelay)
+    {
+      start = 0;                      // Turn off
+      isDebounceConditionMet = false; // Reset for next condition
+    }
+  }
+
+  // Reset debounce condition if none of the above conditions are met
+  if (!(local_channel_3 < 1065 && local_channel_4 < 1050) && !(start == 1 && local_channel_3 < 1550 && local_channel_4 > 1450) && !(start == 2 && local_channel_3 <= 1064 && local_channel_4 > 1976))
+  {
+    isDebounceConditionMet = false;
+  }
 
   pid_roll_setpoint = calculatePIDSetpoint(local_channel_1, roll_level_adjust);
   pid_pitch_setpoint = calculatePIDSetpoint(local_channel_2, pitch_level_adjust);
@@ -511,7 +540,7 @@ void Flight_Controller::calibrateMPU6050()
        buff_gy = 0, buff_gz = 0;
 
   // collect a couple samples
-  const int num_samples = 2000;
+  const int num_samples = 3000;
   for (int i = 0; i < num_samples; i++)
   {
     readGyroData();
@@ -573,100 +602,83 @@ void Flight_Controller::processIMUData()
   acc_y = -acc_y;
 }
 
-void Flight_Controller::parse_data()
+void Flight_Controller::print()
 {
+  // We don't use this data for our calculations
+  ax_mps2 = ((float)acc_x / 16384.0) * 9.81;
+  ay_mps2 = ((float)acc_y / 16384.0) * 9.81;
+  az_mps2 = ((float)acc_z / 16384.0) * 9.81;
 
-  // // We don't use this data for our calculations
-  // ax_mps2 = ((float)acc_x / 16384.0) * 9.81;
-  // ay_mps2 = ((float)acc_y / 16384.0) * 9.81;
-  // az_mps2 = ((float)acc_z / 16384.0) * 9.81;
-
-  // Serial.print("\nRaw Gyro Pitch: ");
-  // Serial.println(gyro_pitch);
-
-  // Serial.print("Raw Gyro Roll: ");
-  // Serial.println(gyro_roll);
-
-  // Serial.print("Raw Gyro Yaw: ");
-  // Serial.println(gyro_yaw);
-
-  // Serial.print("--------------------");
-  // Serial.print("\nAngle Pitch: ");
-  // Serial.println(angle_pitch);
-
-  // Serial.print("Angle Roll: ");
-  // Serial.println(angle_roll);
-
-  // Serial.print("--------------------");
-  // Serial.print("\nangle_pitch_acc: ");
-  // Serial.println(angle_pitch_acc);
-
-  // Serial.print("angle_roll_acc: ");
-  // Serial.println(angle_roll_acc);
-
-  // Serial.print("--------------------");
-  // Serial.print("\nPitch Adjust: ");
-  // Serial.println(pitch_level_adjust);
-
-  // Serial.print("Roll Adjust: ");
-  // Serial.println(roll_level_adjust);
-
-  // Serial.print("--------------------");
-  // Serial.print("\nRaw Acc X: ");
-  // Serial.println(acc_x);
-
-  // Serial.print("Raw Acc Y: ");
-  // Serial.println(acc_y);
-
-  // Serial.print("Raw Acc Z: ");
-  // Serial.println(acc_z);
-
-  // Serial.print("--------------------");
-  // Serial.print("\nAcc X( m/s^2): ");
-  // Serial.println(ax_mps2);
-
-  // Serial.print("Acc Y (m/s^2): ");
-  // Serial.println(ay_mps2);
-
-  // Serial.print("Acc Z (m/s^2): ");
-  // Serial.println(az_mps2);
-  // Serial.print("--------------------");
-
-  Serial.print("\nGyro Roll Input: ");
-  Serial.println(gyro_roll_input);
-  Serial.print("Gyro Pitch Input: ");
-  Serial.println(gyro_pitch_input);
-  Serial.print("Gyro Yaw Input: ");
-  Serial.println(gyro_yaw_input);
-
-  // Print PID outputs
-  Serial.print("\nPID Roll Output: ");
-  Serial.println(pid_output_roll);
-  Serial.print("PID Pitch Output: ");
-  Serial.println(pid_output_pitch);
-  Serial.print("PID Yaw Output: ");
-  Serial.println(pid_output_yaw);
   Serial.print("--------------------");
+  Serial.println();
+  Serial.printf("Raw Gyro Pitch: %d \n", gyro_pitch);
+  Serial.printf("Raw Gyro Roll: %d \n", gyro_roll);
+  Serial.printf("Raw Gyro Yaw: %d \n", gyro_yaw);
 
-  Serial.print("\n PID Roll Error: ");
-  Serial.println(pid_last_roll_d_error);
-  Serial.print("PID Pitch Error: ");
-  Serial.println(pid_last_pitch_d_error);
-  Serial.print("PID Yaw Error: ");
-  Serial.println(pid_last_yaw_d_error);
   Serial.print("--------------------");
+  Serial.println();
+  Serial.printf("Raw Acc X: %d \n ", acc_x);
+  Serial.printf("Raw Acc Y: %d \n ", acc_y);
+  Serial.printf("Raw Acc Z: %d \n ", acc_z);
 
-  // Serial.print(angle_roll);
-  // Serial.print(",");
-  // Serial.print(angle_pitch);
-  // Serial.print(",");
-  // Serial.println(gyro_yaw_input);
+  Serial.print("--------------------");
+  Serial.println();
+  Serial.printf("Acc X (m/s^2): %.2f \n", ax_mps2);
+  Serial.printf("Acc Y (m/s^2): %.2f \n", ay_mps2);
+  Serial.printf("Acc Z (m/s^2): %.2f \n", az_mps2);
 
-  // Serial.print(esc_1);
-  // Serial.print(",");
-  // Serial.print(esc_2);
-  // Serial.print(",");
-  // Serial.print(esc_3);
-  // Serial.print(",");
-  // Serial.println(esc_4);
+  Serial.print("--------------------");
+  Serial.println();
+  Serial.printf("Angle Pitch: %.2f \n", angle_pitch);
+  Serial.printf("Angle Roll: %.2f \n", angle_roll);
+
+  Serial.print("--------------------");
+  Serial.println();
+  Serial.printf("angle_pitch_acc: %.2f \n", angle_pitch_acc);
+  Serial.printf("angle_roll_acc: %.2f \n", angle_roll_acc);
+
+  Serial.print("--------------------");
+  Serial.println();
+  Serial.printf("Pitch Adjust: %.2f \n", pitch_level_adjust);
+  Serial.printf("Roll Adjust: %.2f \n", roll_level_adjust);
+
+  Serial.print("--------------------");
+  Serial.println();
+  Serial.printf("gyro_roll_input: %.2f \n", gyro_roll_input);
+  Serial.printf("gyro_pitch_input: %.2f \n", gyro_pitch_input);
+  Serial.printf("gyro_yaw_input: %.2f \n", gyro_yaw_input);
+
+  Serial.print("--------------------");
+  Serial.println();
+  Serial.printf("pid_output_roll: %.2f \n", pid_output_roll);
+  Serial.printf("pid_output_pitch: %.2f \n", pid_output_pitch);
+  Serial.printf("pid_output_yaw: %.2f \n", pid_output_yaw);
+
+  Serial.print("--------------------");
+  Serial.println();
+  Serial.printf("pid_last_roll_d_error: %.2f \n", pid_last_roll_d_error);
+  Serial.printf("pid_last_pitch_d_error: %.2f \n", pid_last_pitch_d_error);
+  Serial.printf("pid_last_yaw_d_error: %.2f \n", pid_last_yaw_d_error);
+
+  // PID Values
+  Serial.print("--------------------");
+  Serial.println();
+  Serial.printf("pid_p_gain_roll: %.2f \n", pid_p_gain_roll);
+  Serial.printf("pid_i_gain_roll: %.2f \n", pid_i_gain_roll);
+  Serial.printf("pid_d_gain_roll: %.2f \n", pid_d_gain_roll);
+  Serial.println();
+  Serial.printf("pid_p_gain_pitch: %.2f \n", pid_p_gain_pitch);
+  Serial.printf("pid_i_gain_pitch: %.2f \n", pid_i_gain_pitch);
+  Serial.printf("pid_d_gain_pitch: %.2f \n", pid_d_gain_pitch);
+  Serial.println();
+  Serial.printf("pid_p_gain_yaw: %.2f \n", pid_p_gain_yaw);
+  Serial.printf("pid_i_gain_yaw: %.2f \n", pid_i_gain_yaw);
+  Serial.printf("pid_d_gain_yaw: %.2f \n", pid_d_gain_yaw);
+
+  // Serial.println();
+  // Serial.printf("Start: %d \n", start);
+  // Serial.printf("Throttle: %d \n", receiver_input_channel_1);
+  // Serial.printf("Yaw:  %d \n", receiver_input_channel_4);
+  // Serial.printf("Roll:  %d \n", receiver_input_channel_2);
+  // Serial.printf("Pitch:  %d \n", receiver_input_channel_3);
 }
