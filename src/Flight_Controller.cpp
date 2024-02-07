@@ -133,14 +133,14 @@ void Flight_Controller::initializeI2CBus()
   accelgyro.initialize();
   // Verify gyroscope range
   uint8_t gyroRange = accelgyro.getFullScaleGyroRange();
-  Serial.println(gyroRange == MPU6050_GYRO_FS_250 ? "Gyroscope range verified as ±250°/s" : "Gyroscope range verification failed");
+  Serial.println(gyroRange == MPU6050_IMU::MPU6050_GYRO_FS_250 ? "Gyroscope range verified as ±250°/s" : "Gyroscope range verification failed");
 }
 
 void Flight_Controller::initializeGyroAndAccel()
 {
   // Verify accelerometer range
   uint8_t accelRange = accelgyro.getFullScaleAccelRange();
-  Serial.println(accelRange == MPU6050_ACCEL_FS_2 ? "Accelerometer range verified as ±2g" : "Accelerometer range verification failed");
+  Serial.println(accelRange == MPU6050_IMU::MPU6050_GYRO_FS_250 ? "Accelerometer range verified as ±2g" : "Accelerometer range verification failed");
 
 // verify connection
 #ifdef I2CDEV_IMPLEMENTATION
