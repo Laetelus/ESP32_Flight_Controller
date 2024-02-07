@@ -25,20 +25,20 @@ void Flight_Controller::initWiFi()
     {
         WiFi.mode(WIFI_STA);
         WiFi.begin(ssid, password);
-        //Serial.println("\nConnecting to WiFi...");
+        // Serial.println("\nConnecting to WiFi...");
     }
 }
 
 void Flight_Controller::disconnect_wifi()
 {
-    //Serial.println("Disconnecting WiFi because motors are on.");
+    // Serial.println("Disconnecting WiFi because motors are on.");
     WiFi.disconnect(true); // Disconnect WiFi and erase credentials
     WiFi.mode(WIFI_OFF);   // Turn off WiFi
 
     while (WiFi.status() == WL_CONNECTED)
     {
         Serial.print('.');
-        delay(500);
+        vTaskDelay(500 / portTICK_PERIOD_MS);
     }
 }
 
@@ -160,25 +160,38 @@ bool Flight_Controller::loadPIDValues()
     return true;
 }
 
-void Flight_Controller::fillPIDJson(DynamicJsonDocument &doc)
-{
-    // Roll PID parameters
-    doc["pid_p_gain_roll"] = String(pid_p_gain_roll, 2); // Convert float to String with 2 decimal places
-    doc["pid_i_gain_roll"] = String(pid_i_gain_roll, 2);
-    doc["pid_d_gain_roll"] = String(pid_d_gain_roll, 2);
-    doc["pid_max_roll"] = pid_max_roll;
+String formatFloat(float value, unsigned int maxDecimals) {
+    char buffer[32]; // Make sure the buffer is large enough to hold the largest possible number
+    // Create a format string for snprintf that specifies the maximum number of decimal places
+    snprintf(buffer, sizeof(buffer), "%.*f", maxDecimals, value);
+    
+    // Trim trailing zeros and the decimal point if not needed
+    char* end = buffer + strlen(buffer) - 1;
+    while (end > buffer && *end == '0') --end;
+    if (end > buffer && *end == '.') --end;
+    *(end + 1) = '\0'; // Null-terminate the string
 
-    // Pitch PID parameters (mirroring Roll)
-    doc["pid_p_gain_pitch"] = String(pid_p_gain_pitch, 2);
-    doc["pid_i_gain_pitch"] = String(pid_i_gain_pitch, 2);
-    doc["pid_d_gain_pitch"] = String(pid_d_gain_pitch, 2);
-    doc["pid_max_pitch"] = pid_max_pitch;
+    return String(buffer);
+}
+ 
+void Flight_Controller::fillPIDJson(DynamicJsonDocument &doc) {
+    // Roll PID parameters
+    doc["pid_p_gain_roll"] = formatFloat(pid_p_gain_roll, 5);
+    doc["pid_i_gain_roll"] = formatFloat(pid_i_gain_roll, 5);
+    doc["pid_d_gain_roll"] = formatFloat(pid_d_gain_roll, 5);
+    doc["pid_max_roll"] = formatFloat(pid_max_roll, 5);
+
+    // Pitch PID parameters
+    doc["pid_p_gain_pitch"] = formatFloat(pid_p_gain_pitch, 5);
+    doc["pid_i_gain_pitch"] = formatFloat(pid_i_gain_pitch, 5);
+    doc["pid_d_gain_pitch"] = formatFloat(pid_d_gain_pitch, 5);
+    doc["pid_max_pitch"] = formatFloat(pid_max_pitch, 5);
 
     // Yaw PID parameters
-    doc["pid_p_gain_yaw"] = String(pid_p_gain_yaw, 2);
-    doc["pid_i_gain_yaw"] = String(pid_i_gain_yaw, 2);
-    doc["pid_d_gain_yaw"] = String(pid_d_gain_yaw, 2);
-    doc["pid_max_yaw"] = pid_max_yaw;
+    doc["pid_p_gain_yaw"] = formatFloat(pid_p_gain_yaw, 5);
+    doc["pid_i_gain_yaw"] = formatFloat(pid_i_gain_yaw, 5);
+    doc["pid_d_gain_yaw"] = formatFloat(pid_d_gain_yaw, 5);
+    doc["pid_max_yaw"] = formatFloat(pid_max_yaw, 5);
 }
 
 String Flight_Controller::updatePIDFromRequest(AsyncWebServerRequest *request)
@@ -265,4 +278,3 @@ void Flight_Controller::handleGetPID(AsyncWebServerRequest *request)
         request->send(503, "text/plain", "Motors are running. Cannot retrieve PID values.");
     }
 }
-

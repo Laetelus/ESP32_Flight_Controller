@@ -7,9 +7,9 @@
 #include <WiFi.h>
 
 Flight_Controller f;
-static unsigned long loop_timer = micros();
+static unsigned long loop_timer = esp_timer_get_time();
 
-// Task to manage WiFi connectivity
+
 void WiFiTask(void *parameter) {
   for(;;) { // Infinite loop
     if (f.areMotorsOff()) {
@@ -50,7 +50,7 @@ void loop() {
   //f.print();
 
   // Check the total time taken for this loop
-  unsigned long time_taken = micros() - loop_timer;
+  unsigned long time_taken = esp_timer_get_time() - loop_timer;
 
   // If the time taken is more than 4000 microseconds, blink led.
   if (time_taken > 4000) {
@@ -61,6 +61,6 @@ void loop() {
   }
 
   // Ensure loop runs at 4000us (250Hz) cycle
-  while (micros() - loop_timer < 4000);
-  loop_timer = micros();
+  while (esp_timer_get_time() - loop_timer < 4000);
+  loop_timer = esp_timer_get_time();
 }

@@ -70,8 +70,8 @@ public:
     bool loadPIDValues();
 
 private:
-// EEPROM memory layout for IMU
-#define EEPROM_CALIBRATION_SIZE 32
+    // EEPROM memory layout for IMU
+    #define EEPROM_SIZE 32
 
     AsyncWebServer server{80};
     AsyncEventSource events{"/events"};

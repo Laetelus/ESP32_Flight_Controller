@@ -2,6 +2,9 @@
 #include <EEPROM.h>
 #include "Flight_Controller.h"
 
+AsyncWebServer server{80};
+AsyncEventSource events{"/events"};
+
 void Flight_Controller::saveCalibrationValues()
 {
   if (EEPROM.readLong(0) != 0x12345678)
@@ -43,7 +46,7 @@ bool Flight_Controller::loadCalibrationValues()
 // Only used if needed to get new values or writing did not go well.
 void Flight_Controller::clearCalibrationData()
 {
-  EEPROM.begin(EEPROM_CALIBRATION_SIZE);
+  EEPROM.begin(EEPROM_SIZE);
   // Set a specific value to indicate that the data is cleared or invalid
   long invalidValue = 0x0;
 

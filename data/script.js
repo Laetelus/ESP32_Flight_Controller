@@ -34,23 +34,50 @@ function userIsUpdating() {
 }
 
 function incrementValue(inputId) {
-    userIsUpdating() // Call this when the user starts changing values
-    const input = document.getElementById(inputId)
+    userIsUpdating();
+    const input = document.getElementById(inputId);
     if (input) {
-        let value = parseFloat(input.value) || 0 + 0.01
-        input.value = value.toFixed(2) // Correctly format it to two decimal places
+        let currentStep = getStep(input.getAttribute('data-full-precision') || input.value);
+        let currentValue = parseFloat(input.getAttribute('data-full-precision') || input.value);
+        let newValue = currentValue + currentStep;
+        input.value = newValue.toFixed(countDecimals(input.getAttribute('data-full-precision')));
+        input.setAttribute('data-full-precision', newValue.toString());
     }
 }
 
 function decrementValue(inputId) {
-    userIsUpdating() // Call this when the user starts changing values
-    const input = document.getElementById(inputId)
+    userIsUpdating();
+    const input = document.getElementById(inputId);
     if (input) {
-        let value = parseFloat(input.value) || 0 - 0.01
-        value = value < 0 ? 0 : value //prevent from going below zero
-        input.value = value.toFixed(2) // Correctly format it to two decimal places
+        let currentStep = getStep(input.getAttribute('data-full-precision') || input.value);
+        let currentValue = parseFloat(input.getAttribute('data-full-precision') || input.value);
+        let newValue = currentValue - currentStep;
+        newValue = newValue < 0 ? 0 : newValue;
+        input.value = newValue.toFixed(countDecimals(input.getAttribute('data-full-precision')));
+        input.setAttribute('data-full-precision', newValue.toString());
     }
 }
+
+function getStep(value) {
+    // Get the step based on the number of decimal places in the input value
+    let decimalCount = countDecimals(value);
+    return decimalCount > 0 ? 1 / Math.pow(10, decimalCount) : 0.01;
+}
+
+
+function countDecimals(value) {
+    if (Math.floor(value) === value) return 0;
+    let decimalPart = value.toString().split(".")[1];
+    return decimalPart ? decimalPart.length : 0;
+}
+
+
+
+function trimTrailingZeros(value) {
+    // Trim unnecessary trailing zeros after decimal point
+    return value.replace(/(\.\d*?[1-9])0+$|\.0*$/, '$1');
+}
+
 
 document
     .querySelectorAll('.increment-btn, .decrement-btn')
@@ -94,8 +121,8 @@ function getPID() {
 }
 
 function updatePIDDisplay(data) {
-
-    //Roll
+    userIsUpdating()
+        //Roll
     document.getElementById('p-gain-roll').value = data.pid_p_gain_roll
     document.getElementById(
         'current-p-gain-roll'
