@@ -11,7 +11,7 @@
 # Future updates
 - <del> Add start_stop_takeoff for motors </del>
 - <del> PID algorithm </dev>
-- View and adjust PID values when motors are off(in progress).
+- View and adjust PID values when motors are off(minor bugs, but mostly working).
 - View PID Graph and values flight.
 - View 3D IMU. gyro and accelerometer data values 
 - Battery voltage functionality (Will need to add extra components to PCB board). 
