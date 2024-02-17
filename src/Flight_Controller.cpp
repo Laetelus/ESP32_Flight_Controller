@@ -8,8 +8,6 @@
 
 // #define USE_EEPROM
 
-#include "esp_timer.h"
-
 // Global variables for pulse widths
 volatile unsigned long lastRisingEdgeThrottle, throttlePulseWidth;
 volatile unsigned long lastRisingEdgeYaw, yawPulseWidth;
@@ -36,8 +34,8 @@ portMUX_TYPE muxRoll = portMUX_INITIALIZER_UNLOCKED;
 void IRAM_ATTR handleThrottleInterrupt()
 {
   portENTER_CRITICAL_ISR(&muxThrottle);
-  //GPIO port manipulation will be located in pg 49 in the esp32 tech manual 
-  if (GPIO.in1.val & (1ULL << (THROTTLE - 32))) 
+  // GPIO port manipulation will be located in pg 49 in the esp32 tech manual
+  if (GPIO.in1.val & (1ULL << (THROTTLE - 32)))
   {
     lastRisingEdgeThrottle = esp_timer_get_time();
   }
@@ -94,7 +92,6 @@ void IRAM_ATTR handlePitchInterrupt()
 void Flight_Controller::initialize()
 {
 
-  // Allow allocation of all timers. Consistent and accurate PWM.
   Serial.begin(250000);
   pinMode(2, OUTPUT); // LED status
 
@@ -163,9 +160,10 @@ void Flight_Controller::readCurrentTemperature()
 
 void Flight_Controller::performCalibration()
 {
+
 // Calibration with or without EEPROM (only store EEPROM when data is satisfactory)
 #ifdef USE_EEPROM
-  EEPROM.begin(EEPROM_CALIBRATION_SIZE);
+  EEPROM.begin(EEPROM_SIZE);
   if (!loadCalibrationValues())
   {
     Serial.println("Calibration data not found in EEPROM. Calibrating...");
@@ -236,6 +234,7 @@ void Flight_Controller::setupInputPins()
 
 void Flight_Controller::allocatePWMTimers()
 {
+  // Allow allocation of all timers. Consistent and accurate PWM.
   ESP32PWM::allocateTimer(0);
   ESP32PWM::allocateTimer(1);
   ESP32PWM::allocateTimer(2);
