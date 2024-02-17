@@ -2,9 +2,6 @@
 #include <EEPROM.h>
 #include "Flight_Controller.h"
 
-AsyncWebServer server{80};
-AsyncEventSource events{"/events"};
-
 void Flight_Controller::saveCalibrationValues()
 {
   if (EEPROM.readLong(0) != 0x12345678)

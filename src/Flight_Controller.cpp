@@ -218,9 +218,8 @@ void Flight_Controller::performCalibration()
 #endif
 }
 
-bool Flight_Controller::areMotorsOff()
+bool Flight_Controller::areMotorsOff() 
 {
-
   return start != 2;
 }
 
