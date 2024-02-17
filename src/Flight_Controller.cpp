@@ -8,6 +8,8 @@
 
 // #define USE_EEPROM
 
+#include "esp_timer.h"
+
 // Global variables for pulse widths
 volatile unsigned long lastRisingEdgeThrottle, throttlePulseWidth;
 volatile unsigned long lastRisingEdgeYaw, yawPulseWidth;
@@ -34,13 +36,14 @@ portMUX_TYPE muxRoll = portMUX_INITIALIZER_UNLOCKED;
 void IRAM_ATTR handleThrottleInterrupt()
 {
   portENTER_CRITICAL_ISR(&muxThrottle);
-  if (digitalRead(THROTTLE) == HIGH)
+  //GPIO port manipulation will be located in pg 49 in the esp32 tech manual 
+  if (GPIO.in1.val & (1ULL << (THROTTLE - 32))) 
   {
-    lastRisingEdgeThrottle = micros();
+    lastRisingEdgeThrottle = esp_timer_get_time();
   }
   else
   {
-    throttlePulseWidth = micros() - lastRisingEdgeThrottle;
+    throttlePulseWidth = esp_timer_get_time() - lastRisingEdgeThrottle;
   }
   portEXIT_CRITICAL_ISR(&muxThrottle);
 }
@@ -48,13 +51,13 @@ void IRAM_ATTR handleThrottleInterrupt()
 void IRAM_ATTR handleYawInterrupt()
 {
   portENTER_CRITICAL_ISR(&muxYaw);
-  if (digitalRead(YAW) == HIGH)
+  if (GPIO.in1.val & (1ULL << (YAW - 32)))
   {
-    lastRisingEdgeYaw = micros();
+    lastRisingEdgeYaw = esp_timer_get_time();
   }
   else
   {
-    yawPulseWidth = micros() - lastRisingEdgeYaw;
+    yawPulseWidth = esp_timer_get_time() - lastRisingEdgeYaw;
   }
   portEXIT_CRITICAL_ISR(&muxYaw);
 }
@@ -62,13 +65,13 @@ void IRAM_ATTR handleYawInterrupt()
 void IRAM_ATTR handleRollInterrupt()
 {
   portENTER_CRITICAL_ISR(&muxRoll);
-  if (digitalRead(ROLL) == HIGH)
+  if (GPIO.in1.val & (1ULL << (ROLL - 32)))
   {
-    lastRisingEdgeRoll = micros();
+    lastRisingEdgeRoll = esp_timer_get_time();
   }
   else
   {
-    rollPulseWidth = micros() - lastRisingEdgeRoll;
+    rollPulseWidth = esp_timer_get_time() - lastRisingEdgeRoll;
   }
   portEXIT_CRITICAL_ISR(&muxRoll);
 }
@@ -76,13 +79,13 @@ void IRAM_ATTR handleRollInterrupt()
 void IRAM_ATTR handlePitchInterrupt()
 {
   portENTER_CRITICAL_ISR(&muxPitch);
-  if (digitalRead(PITCH) == HIGH)
+  if (GPIO.in1.val & (1ULL << (PITCH - 32)))
   {
-    lastRisingEdgePitch = micros();
+    lastRisingEdgePitch = esp_timer_get_time();
   }
   else
   {
-    pitchPulseWidth = micros() - lastRisingEdgePitch;
+    pitchPulseWidth = esp_timer_get_time() - lastRisingEdgePitch;
   }
   portEXIT_CRITICAL_ISR(&muxPitch);
 }
@@ -526,7 +529,7 @@ float Flight_Controller::calculate_pid_component(float input, float setpoint, fl
 
 void Flight_Controller::readGyroData()
 {
-  // Read gyro and accelerometer data here
+  // parameters acc_y/x changed to match current IMU orientation
   accelgyro.getMotion6(&acc_y, &acc_x, &acc_z, &gyro_roll, &gyro_pitch, &gyro_yaw);
 }
 

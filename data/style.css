@@ -216,7 +216,7 @@ button:hover {
 
 /* Adjusting input to make room for new buttons */
 
-.input-bubble input[type=number] {
+.input-bubble input[type='number'] {
     padding: 4px 20px 4px 4px;
     width: 45px;
     text-align: center;
@@ -234,20 +234,30 @@ button:hover {
 
 /* Hide the default increment and decrement controls */
 
-input[type=number]::-webkit-inner-spin-button,
-input[type=number]::-webkit-outer-spin-button {
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
     -webkit-appearance: none;
     margin: 0;
 }
 
-input[type=number] {
+input[type='number'] {
     -moz-appearance: textfield;
     appearance: textfield;
 }
 
 .current-value {
-    margin-left: 10px;
-    /* Spacing between the input and the current value */
+    margin-left: auto;
+    /* Align the current value to the right */
     font-weight: bold;
     color: #666;
+    flex-shrink: 0;
+    /* Prevent the current value from shrinking */
+    white-space: nowrap;
+    /* Prevent wrapping */
+    max-width: calc(100% - 50px);
+    /* Limit the maximum width to prevent overflow */
+    overflow: hidden;
+    /* Hide overflow content */
+    text-overflow: ellipsis;
+    /* Display ellipsis (...) for overflow content */
 }
