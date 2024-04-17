@@ -1,6 +1,4 @@
 # ESP32_Flight_Controller
-#
-- This project is currently a work in progress.
 # Components 
 - MCU: [ESP32](https://www.amazon.com/HiLetgo-ESP-WROOM-32-Development-Microcontroller-Integrated/dp/B0718T232Z/ref=sr_1_5?crid=353SXT4O0ON6V&keywords=ESP32&qid=1702600524&sprefix=esp32%2Caps%2C169&sr=8-5)
 - IMU: [MPU6050](https://www.amazon.com/Pre-Soldered-Accelerometer-Raspberry-Compatible-Arduino/dp/B0BMY15TC4/ref=sr_1_4?crid=T2RC0EKUCS81&keywords=MPU6050&qid=1702600571&sprefix=mpu6050%2Caps%2C238&sr=8-4)
