@@ -12,7 +12,6 @@ extern struct Flight_Controller flightController;
 
 PID_Webserver w; 
 
-
 void WiFiTask(void *parameter) {
   for(;;) { // Infinite loop
     if (flightController.areMotorsOff()) {

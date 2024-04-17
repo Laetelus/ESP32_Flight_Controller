@@ -27,7 +27,7 @@ void loop() {
   fc.motorControls();
   fc.mix_motors();
   fc.write_motors();
-  fc.print();
+  //fc.print();
 
   //4000us (250Hz) cycle
   tm.timer(); 
