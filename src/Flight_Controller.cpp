@@ -5,6 +5,8 @@
 #include <Wire.h>
 #include <EEPROM.h>
 #include "Flight_Controller.h"
+#include "Calibration.h"
+#include "PID_Webserver.h"
 
 // #define USE_EEPROM
 
@@ -91,6 +93,8 @@ void IRAM_ATTR handlePitchInterrupt()
 // Flight controller interface
 void Flight_Controller::initialize()
 {
+  Calibration cal;
+  PID_Webserver serv;
 
   Serial.begin(250000);
   pinMode(2, OUTPUT); // LED status
@@ -104,10 +108,11 @@ void Flight_Controller::initialize()
   attachInterrupts();
   attachESCPins();
   armESCs();
-  printStoredCalibrationValues();
+
+  cal.printStoredCalibrationValues();
 
   // Load PID values from SPIFFS (if available)
-  if (!loadPIDValues())
+  if (!serv.loadPIDValues())
   {
     Serial.println("No PID values loaded from SPIFFS. Using default values.");
   }
@@ -133,14 +138,14 @@ void Flight_Controller::initializeI2CBus()
   accelgyro.initialize();
   // Verify gyroscope range
   uint8_t gyroRange = accelgyro.getFullScaleGyroRange();
-  Serial.println(gyroRange == MPU6050_IMU::MPU6050_GYRO_FS_250 ? "Gyroscope range verified as ±250°/s" : "Gyroscope range verification failed");
+  Serial.println(gyroRange == MPU6050_GYRO_FS_250 ? "Gyroscope range verified as ±250°/s" : "Gyroscope range verification failed");
 }
 
 void Flight_Controller::initializeGyroAndAccel()
 {
   // Verify accelerometer range
   uint8_t accelRange = accelgyro.getFullScaleAccelRange();
-  Serial.println(accelRange == MPU6050_IMU::MPU6050_GYRO_FS_250 ? "Accelerometer range verified as ±2g" : "Accelerometer range verification failed");
+  Serial.println(accelRange == MPU6050_GYRO_FS_250 ? "Accelerometer range verified as ±2g" : "Accelerometer range verification failed");
 
 // verify connection
 #ifdef I2CDEV_IMPLEMENTATION
@@ -282,7 +287,7 @@ void Flight_Controller::level_flight()
   const float gyroCoefficient = 0.3 / 65.5;                       // Coefficient for gyro input (deg/sec)
   const float gyroAngleCoefficient = 0.0000611;                   // Coefficient for gyro angle calculation
   const float radToDeg = 57.296;                                  // Radians to degrees conversion factor
-  const float yawCoefficient = gyroAngleCoefficient * (PI / 180); // Coefficient for yaw calculations
+  //const float yawCoefficient = gyroAngleCoefficient * (PI / 180); // Coefficient for yaw calculations
   const float levelCorrectionFactor = 0.9996;                     // Factor for correcting drift with accelerometer
 
   // Gyro PID inputs

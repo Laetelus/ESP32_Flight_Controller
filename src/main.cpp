@@ -4,28 +4,30 @@
 #include "MPU6050.h"
 #include <EEPROM.h>
 #include "Flight_Controller.h"
+#include "PID_Webserver.h"
 #include <WiFi.h>
 
-Flight_Controller f;
-static unsigned long loop_timer = esp_timer_get_time();
+Flight_Controller fc;
+PID_Webserver ws;
 
+static unsigned long loop_timer = esp_timer_get_time();
 
 void WiFiTask(void *parameter) {
   for(;;) { // Infinite loop
-    if (f.areMotorsOff()) {
-      f.initWiFi();
-      f.checkWiFiConnection();
+    if (fc.areMotorsOff()) {
+      ws.initWiFi();
+      ws.checkWiFiConnection();
     } else {
-      f.disconnect_wifi();
+      ws.disconnect_wifi();
     }
     vTaskDelay(10 / portTICK_PERIOD_MS); // Delay to prevent the task from using all CPU time
   }
 }
 
 void setup() {
-  f.initSPIFFS();
+  ws.initSPIFFS();
   WiFi.mode(WIFI_STA); // Set WiFi to station mode but don't connect
-  f.initialize(); // Initialize other routines
+  fc.initialize(); // Initialize other routines
 
   // Create a task for WiFi management
   xTaskCreatePinnedToCore(
@@ -40,14 +42,14 @@ void setup() {
 
 void loop() {
 
-  f.read_Controller();
-  f.readGyroData();
-  f.processIMUData();
-  f.level_flight();
-  f.motorControls();
-  f.mix_motors();
-  f.write_motors();
-  //f.print();
+  fc.read_Controller();
+  fc.readGyroData();
+  fc.processIMUData();
+  fc.level_flight();
+  fc.motorControls();
+  fc.mix_motors();
+  fc.write_motors();
+  fc.print();
 
   // Check the total time taken for this loop
   unsigned long time_taken = esp_timer_get_time() - loop_timer;

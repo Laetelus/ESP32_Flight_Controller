@@ -17,9 +17,10 @@
     "-Wpedantic",
     "-Wshadow",
     "-Wformat=2",
+    "-Wcast-align",
     "-Wconversion",
-    "-Wnull-dereference",
-    "-Wsign-conversion"
+    "-Wsign-conversion",
+    "-Wnull-dereference"
   ],
   "C_Cpp_Runner.enableWarnings": true,
   "C_Cpp_Runner.warningsAsError": false,
@@ -81,5 +82,12 @@
   },
   "[vue]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
-  }
+  },
+  "superBG.opacity": 28,
+  "superBG.disable": false,
+  "superBG.images": [
+    "/C:/Users/angel/Pictures/6f1d51123880ede4aa1ddedf320b188b.jpg"
+  ],
+  "superBG.activeImage": 0,
+  "superBG.url": ""
 }

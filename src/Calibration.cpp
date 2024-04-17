@@ -1,19 +1,22 @@
 #include <Arduino.h>
 #include <EEPROM.h>
+#include "Calibration.h"
 #include "Flight_Controller.h"
 
-void Flight_Controller::saveCalibrationValues()
+Flight_Controller flightController;
+
+void Calibration::saveCalibrationValues()
 {
   if (EEPROM.readLong(0) != 0x12345678)
   {
     EEPROM.writeLong(0, 0x12345678); // Unique identifier indicating values have been saved
-    EEPROM.writeLong(4, accXOffset);
-    EEPROM.writeLong(8, accYOffset);
-    EEPROM.writeLong(12, accZOffset);
-    EEPROM.writeLong(16, gyroXOffset);
-    EEPROM.writeLong(20, gyroYOffset);
-    EEPROM.writeLong(24, gyroZOffset);
-    EEPROM.writeFloat(28, temperatureC);
+    EEPROM.writeLong(4,  flightController.accXOffset);
+    EEPROM.writeLong(8,  flightController.accYOffset);
+    EEPROM.writeLong(12, flightController.accZOffset);
+    EEPROM.writeLong(16, flightController.gyroXOffset);
+    EEPROM.writeLong(20, flightController.gyroYOffset);
+    EEPROM.writeLong(24, flightController.gyroZOffset);
+    EEPROM.writeFloat(28, flightController.temperatureC);
     EEPROM.commit();
     Serial.println("Calibration values saved to EEPROM");
   }
@@ -23,27 +26,27 @@ void Flight_Controller::saveCalibrationValues()
   }
 }
 
-bool Flight_Controller::loadCalibrationValues()
+bool Calibration::loadCalibrationValues()
 {
   if (EEPROM.readLong(0) != 0x12345678)
   {
     return false; // Calibration data not found or not valid
   }
   // If the unique ID matches, proceed to read calibration data
-  accXOffset = EEPROM.readLong(4);
-  accYOffset = EEPROM.readLong(8);
-  accZOffset = EEPROM.readLong(12);
-  gyroXOffset = EEPROM.readLong(16);
-  gyroYOffset = EEPROM.readLong(20);
-  gyroZOffset = EEPROM.readLong(24);
-  temperatureC = EEPROM.readFloat(28);
+  flightController.accXOffset = EEPROM.readLong(4);
+  flightController.accYOffset = EEPROM.readLong(8);
+  flightController.accZOffset = EEPROM.readLong(12);
+  flightController.gyroXOffset = EEPROM.readLong(16);
+  flightController.gyroYOffset = EEPROM.readLong(20);
+  flightController.gyroZOffset = EEPROM.readLong(24);
+  flightController.temperatureC = EEPROM.readFloat(28);
   return true;
 }
 
 // Only used if needed to get new values or writing did not go well.
-void Flight_Controller::clearCalibrationData()
+void Calibration::clearCalibrationData()
 {
-  EEPROM.begin(EEPROM_SIZE);
+  EEPROM.begin(flightController.EEPROM_SIZE);
   // Set a specific value to indicate that the data is cleared or invalid
   long invalidValue = 0x0;
 
@@ -60,7 +63,7 @@ void Flight_Controller::clearCalibrationData()
   Serial.println("Calibration data cleared.");
 }
 
-void Flight_Controller::printStoredCalibrationValues()
+void Calibration::printStoredCalibrationValues()
 {
 
   // Addresses where the calibration values are stored

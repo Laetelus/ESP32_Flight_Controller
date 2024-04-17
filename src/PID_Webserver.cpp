@@ -6,8 +6,11 @@
 #include "SPIFFS.h"
 #include "FS.h"
 #include "Flight_Controller.h"
+#include "PID_Webserver.h"
 
-void Flight_Controller::initSPIFFS()
+extern struct Flight_Controller flightController;
+
+void PID_Webserver::initSPIFFS()
 {
     if (!SPIFFS.begin())
     {
@@ -19,7 +22,7 @@ void Flight_Controller::initSPIFFS()
     }
 }
 
-void Flight_Controller::initWiFi()
+void PID_Webserver::initWiFi()
 {
     if (WiFi.status() != WL_CONNECTED)
     {
@@ -29,7 +32,7 @@ void Flight_Controller::initWiFi()
     }
 }
 
-void Flight_Controller::disconnect_wifi()
+void PID_Webserver::disconnect_wifi()
 {
     // Serial.println("Disconnecting WiFi because motors are on.");
     WiFi.disconnect(true); // Disconnect WiFi and erase credentials
@@ -42,7 +45,7 @@ void Flight_Controller::disconnect_wifi()
     }
 }
 
-void Flight_Controller::checkWiFiConnection()
+void PID_Webserver::checkWiFiConnection()
 {
     if (WiFi.waitForConnectResult() == WL_CONNECTED)
     {
@@ -61,7 +64,7 @@ void Flight_Controller::checkWiFiConnection()
     }
 }
 
-void Flight_Controller::Handle_Server()
+void PID_Webserver::Handle_Server()
 {
     // Serve the main index page from SPIFFS
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
@@ -86,7 +89,7 @@ void Flight_Controller::Handle_Server()
     server.begin();
 }
 
-bool Flight_Controller::savePIDValues()
+bool PID_Webserver::savePIDValues()
 {
     File file = SPIFFS.open("/pid_values.txt", FILE_WRITE);
     if (!file)
@@ -95,23 +98,23 @@ bool Flight_Controller::savePIDValues()
         return false;
     }
 
-    if (areMotorsOff())
+    if (flightController.areMotorsOff())
     {
         // Only write roll and yaw values, since pitch will mirror roll
-        file.printf("P_GAIN_ROLL:%f\n", pid_p_gain_roll);
-        file.printf("I_GAIN_ROLL:%f\n", pid_i_gain_roll);
-        file.printf("D_GAIN_ROLL:%f\n", pid_d_gain_roll);
+        file.printf("P_GAIN_ROLL:%f\n", flightController.pid_p_gain_roll);
+        file.printf("I_GAIN_ROLL:%f\n", flightController.pid_i_gain_roll);
+        file.printf("D_GAIN_ROLL:%f\n", flightController.pid_d_gain_roll);
 
-        file.printf("P_GAIN_YAW:%f\n", pid_p_gain_yaw);
-        file.printf("I_GAIN_YAW:%f\n", pid_i_gain_yaw);
-        file.printf("D_GAIN_YAW:%f\n", pid_d_gain_yaw);
+        file.printf("P_GAIN_YAW:%f\n", flightController.pid_p_gain_yaw);
+        file.printf("I_GAIN_YAW:%f\n", flightController.pid_i_gain_yaw);
+        file.printf("D_GAIN_YAW:%f\n", flightController.pid_d_gain_yaw);
     }
 
     file.close();
     return true;
 }
 
-bool Flight_Controller::loadPIDValues()
+bool PID_Webserver::loadPIDValues()
 {
     File file = SPIFFS.open("/pid_values.txt", FILE_READ);
     if (!file)
@@ -126,33 +129,33 @@ bool Flight_Controller::loadPIDValues()
         line = file.readStringUntil('\n');
         if (line.startsWith("P_GAIN_ROLL:"))
         {
-            pid_p_gain_roll = line.substring(line.indexOf(':') + 1).toFloat();
+            flightController.pid_p_gain_roll = line.substring(line.indexOf(':') + 1).toFloat();
             // Mirror the roll values to pitch
-            pid_p_gain_pitch = pid_p_gain_roll;
+            flightController.pid_p_gain_pitch = flightController.pid_p_gain_roll;
         }
         else if (line.startsWith("I_GAIN_ROLL:"))
         {
-            pid_i_gain_roll = line.substring(line.indexOf(':') + 1).toFloat();
+            flightController.pid_i_gain_roll = line.substring(line.indexOf(':') + 1).toFloat();
             // Mirror the roll values to pitch
-            pid_i_gain_pitch = pid_i_gain_roll;
+            flightController.pid_i_gain_pitch = flightController.pid_i_gain_roll;
         }
         else if (line.startsWith("D_GAIN_ROLL:"))
         {
-            pid_d_gain_roll = line.substring(line.indexOf(':') + 1).toFloat();
+            flightController.pid_d_gain_roll = line.substring(line.indexOf(':') + 1).toFloat();
             // Mirror the roll values to pitch
-            pid_d_gain_pitch = pid_d_gain_roll;
+            flightController.pid_d_gain_pitch = flightController.pid_d_gain_roll;
         }
         else if (line.startsWith("P_GAIN_YAW:"))
         {
-            pid_p_gain_yaw = line.substring(line.indexOf(':') + 1).toFloat();
+            flightController.pid_p_gain_yaw = line.substring(line.indexOf(':') + 1).toFloat();
         }
         else if (line.startsWith("I_GAIN_YAW:"))
         {
-            pid_i_gain_yaw = line.substring(line.indexOf(':') + 1).toFloat();
+           flightController.pid_i_gain_yaw = line.substring(line.indexOf(':') + 1).toFloat();
         }
         else if (line.startsWith("D_GAIN_YAW:"))
         {
-            pid_d_gain_yaw = line.substring(line.indexOf(':') + 1).toFloat();
+            flightController.pid_d_gain_yaw = line.substring(line.indexOf(':') + 1).toFloat();
         }
     }
 
@@ -174,27 +177,27 @@ String formatFloat(float value, unsigned int maxDecimals) {
     return String(buffer);
 }
  
-void Flight_Controller::fillPIDJson(DynamicJsonDocument &doc) {
+void PID_Webserver::fillPIDJson(DynamicJsonDocument &doc) {
     // Roll PID parameters
-    doc["pid_p_gain_roll"] = formatFloat(pid_p_gain_roll, 5);
-    doc["pid_i_gain_roll"] = formatFloat(pid_i_gain_roll, 5);
-    doc["pid_d_gain_roll"] = formatFloat(pid_d_gain_roll, 5);
-    doc["pid_max_roll"] = formatFloat(pid_max_roll, 5);
+    doc["pid_p_gain_roll"] = formatFloat(flightController.pid_p_gain_roll, 5);
+    doc["pid_i_gain_roll"] = formatFloat(flightController.pid_i_gain_roll, 5);
+    doc["pid_d_gain_roll"] = formatFloat(flightController.pid_d_gain_roll, 5);
+    doc["pid_max_roll"] = formatFloat(flightController.pid_max_roll, 5);
 
     // Pitch PID parameters
-    doc["pid_p_gain_pitch"] = formatFloat(pid_p_gain_pitch, 5);
-    doc["pid_i_gain_pitch"] = formatFloat(pid_i_gain_pitch, 5);
-    doc["pid_d_gain_pitch"] = formatFloat(pid_d_gain_pitch, 5);
-    doc["pid_max_pitch"] = formatFloat(pid_max_pitch, 5);
+    doc["pid_p_gain_pitch"] = formatFloat(flightController.pid_p_gain_pitch, 5);
+    doc["pid_i_gain_pitch"] = formatFloat(flightController.pid_i_gain_pitch, 5);
+    doc["pid_d_gain_pitch"] = formatFloat(flightController.pid_d_gain_pitch, 5);
+    doc["pid_max_pitch"] = formatFloat(flightController.pid_max_pitch, 5);
 
     // Yaw PID parameters
-    doc["pid_p_gain_yaw"] = formatFloat(pid_p_gain_yaw, 5);
-    doc["pid_i_gain_yaw"] = formatFloat(pid_i_gain_yaw, 5);
-    doc["pid_d_gain_yaw"] = formatFloat(pid_d_gain_yaw, 5);
-    doc["pid_max_yaw"] = formatFloat(pid_max_yaw, 5);
+    doc["pid_p_gain_yaw"] = formatFloat(flightController.pid_p_gain_yaw, 5);
+    doc["pid_i_gain_yaw"] = formatFloat(flightController.pid_i_gain_yaw, 5);
+    doc["pid_d_gain_yaw"] = formatFloat(flightController.pid_d_gain_yaw, 5);
+    doc["pid_max_yaw"] = formatFloat(flightController.pid_max_yaw, 5);
 }
 
-String Flight_Controller::updatePIDFromRequest(AsyncWebServerRequest *request)
+String PID_Webserver::updatePIDFromRequest(AsyncWebServerRequest *request)
 {
     String response = "";
 
@@ -209,23 +212,23 @@ String Flight_Controller::updatePIDFromRequest(AsyncWebServerRequest *request)
     };
 
     // Update Roll PID parameters
-    updateParamFloat("pid_p_gain_roll", pid_p_gain_roll);
-    updateParamFloat("pid_i_gain_roll", pid_i_gain_roll);
-    updateParamFloat("pid_d_gain_roll", pid_d_gain_roll);
+    updateParamFloat("pid_p_gain_roll", flightController.pid_p_gain_roll);
+    updateParamFloat("pid_i_gain_roll", flightController.pid_i_gain_roll);
+    updateParamFloat("pid_d_gain_roll", flightController.pid_d_gain_roll);
 
     // Assign roll PID values to pitch and yaw as well
-    pid_p_gain_pitch = pid_p_gain_roll;
-    pid_i_gain_pitch = pid_i_gain_roll;
-    pid_d_gain_pitch = pid_d_gain_roll;
+    flightController.pid_p_gain_pitch = flightController.pid_p_gain_roll;
+    flightController.pid_i_gain_pitch = flightController.pid_i_gain_roll;
+    flightController.pid_d_gain_pitch = flightController.pid_d_gain_roll;
 
-    pid_p_gain_yaw = pid_p_gain_roll;
-    pid_i_gain_yaw = pid_i_gain_roll;
-    pid_d_gain_yaw = pid_d_gain_roll;
+    flightController.pid_p_gain_yaw = flightController.pid_p_gain_roll;
+    flightController.pid_i_gain_yaw = flightController.pid_i_gain_roll;
+    flightController.pid_d_gain_yaw = flightController.pid_d_gain_roll;
 
     // Update Yaw PID parameters
-    updateParamFloat("pid_p_gain_yaw", pid_p_gain_yaw);
-    updateParamFloat("pid_i_gain_yaw", pid_i_gain_yaw);
-    updateParamFloat("pid_d_gain_yaw", pid_d_gain_yaw);
+    updateParamFloat("pid_p_gain_yaw", flightController.pid_p_gain_yaw);
+    updateParamFloat("pid_i_gain_yaw", flightController.pid_i_gain_yaw);
+    updateParamFloat("pid_d_gain_yaw", flightController.pid_d_gain_yaw);
 
     if (response.isEmpty())
     {
@@ -235,9 +238,9 @@ String Flight_Controller::updatePIDFromRequest(AsyncWebServerRequest *request)
     return response;
 }
 
-void Flight_Controller::handleSetPID(AsyncWebServerRequest *request)
+void PID_Webserver::handleSetPID(AsyncWebServerRequest *request)
 {
-    if (areMotorsOff())
+    if (flightController.areMotorsOff())
     {
         String response = updatePIDFromRequest(request);
         if (!response.isEmpty())
@@ -263,9 +266,9 @@ void Flight_Controller::handleSetPID(AsyncWebServerRequest *request)
     }
 }
 
-void Flight_Controller::handleGetPID(AsyncWebServerRequest *request)
+void PID_Webserver::handleGetPID(AsyncWebServerRequest *request)
 {
-    if (areMotorsOff())
+    if (flightController.areMotorsOff())
     {
         DynamicJsonDocument doc(1024);
         fillPIDJson(doc);
