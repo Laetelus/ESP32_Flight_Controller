@@ -14,6 +14,7 @@ struct PID_Webserver
 {
   
     void initSPIFFS();
+    void Wifi_task();
     void initWiFi();
     void disconnect_wifi();
     void Handle_Server();

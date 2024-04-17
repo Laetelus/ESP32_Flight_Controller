@@ -9,6 +9,8 @@
 #include "PID_Webserver.h"
 #include <Wire.h>
 
+static unsigned long loop_timer = esp_timer_get_time();
+
 struct Flight_Controller {
 
     static constexpr int EEPROM_SIZE = 32;
@@ -78,6 +80,28 @@ struct Flight_Controller {
     float calculate_pid_component(float input, float setpoint, float &i_mem, float &last_d_error, float p_gain, float i_gain, float d_gain, float max_output);
     bool areMotorsOff();
     void print();
+
+};
+
+struct delay_time{
+
+void timer()
+{
+    // Check the total time taken for this loop
+  unsigned long time_taken = esp_timer_get_time() - loop_timer;
+
+  // If the time taken is more than 4000 microseconds, blink led.
+  if (time_taken > 4000) {
+    digitalWrite(2, HIGH);
+    delay(100);
+    digitalWrite(2, LOW);
+    delay(100);
+  }
+
+  // Ensure loop runs at 4000us (250Hz) cycle
+  while (esp_timer_get_time() - loop_timer < 4000);
+  loop_timer = esp_timer_get_time();
+}
 
 };
 

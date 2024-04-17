@@ -4,11 +4,10 @@
 #include <EEPROM.h> 
 #include "Flight_Controller.h"
 #include <EEPROM.h>
-// struct Flight_Controller;
 
 struct Calibration 
 {
-  
+
     void saveCalibrationValues();
     bool loadCalibrationValues();
     void printStoredCalibrationValues();

@@ -10,6 +10,35 @@
 
 extern struct Flight_Controller flightController;
 
+PID_Webserver w; 
+
+
+void WiFiTask(void *parameter) {
+  for(;;) { // Infinite loop
+    if (flightController.areMotorsOff()) {
+      w.initWiFi();
+      w.checkWiFiConnection();
+    } else {
+      w.disconnect_wifi();
+    }
+    vTaskDelay(10 / portTICK_PERIOD_MS); // Delay to prevent the task from using all CPU time
+  }
+}
+
+void PID_Webserver::Wifi_task(){
+    
+      // Create a task for WiFi management
+  xTaskCreatePinnedToCore(
+    WiFiTask, /* Task function */
+    "WiFiTask", /* Name of task */
+    10000, /* Stack size of task */
+    NULL, /* Parameter of the task */
+    1, /* Priority of the task */
+    NULL, /* Task handle to keep track of created task */
+    0); /* Core where the task should run */
+}
+
+
 void PID_Webserver::initSPIFFS()
 {
     if (!SPIFFS.begin())
