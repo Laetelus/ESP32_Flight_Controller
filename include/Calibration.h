@@ -13,6 +13,6 @@ struct Calibration
     void clearCalibrationData();
 }; 
 
-
+extern Calibration cal;
 
 #endif 

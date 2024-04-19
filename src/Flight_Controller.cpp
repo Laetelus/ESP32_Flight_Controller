@@ -7,7 +7,9 @@
 #include "Flight_Controller.h"
 #include "Calibration.h"
 #include "PID_Webserver.h"
+
 Flight_Controller flightController; 
+
 // #define USE_EEPROM
 
 // Global variables for pulse widths
@@ -93,8 +95,6 @@ void IRAM_ATTR handlePitchInterrupt()
 // Flight controller interface
 void Flight_Controller::initialize()
 {
-  Calibration cal;
-  PID_Webserver serv;
 
   Serial.begin(115200);
   pinMode(2, OUTPUT); // LED status
@@ -112,7 +112,7 @@ void Flight_Controller::initialize()
   cal.printStoredCalibrationValues();
 
   // Load PID values from SPIFFS (if available)
-  if (!serv.loadPIDValues())
+  if (!ws.loadPIDValues())
   {
     Serial.println("No PID values loaded from SPIFFS. Using default values.");
   }

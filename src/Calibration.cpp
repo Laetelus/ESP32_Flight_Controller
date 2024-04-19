@@ -3,6 +3,8 @@
 #include "Calibration.h"
 #include "Flight_Controller.h"
 
+Calibration cal;
+
 void Calibration::saveCalibrationValues()
 {
   if (EEPROM.readLong(0) != 0x12345678)
