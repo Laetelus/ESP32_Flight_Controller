@@ -8,35 +8,38 @@
 #include "Flight_Controller.h"
 #include "PID_Webserver.h"
 
-extern struct Flight_Controller flightController;
+PID_Webserver ws;
 
-PID_Webserver w; 
-
-void WiFiTask(void *parameter) {
-  for(;;) { // Infinite loop
-    if (flightController.areMotorsOff()) {
-      w.initWiFi();
-      w.checkWiFiConnection();
-    } else {
-      w.disconnect_wifi();
+void WiFiTask(void *parameter)
+{
+    for (;;)
+    { // Infinite loop
+        if (flightController.areMotorsOff())
+        {
+            ws.initWiFi();
+            ws.checkWiFiConnection();
+        }
+        else
+        {
+            ws.disconnect_wifi();
+        }
+        vTaskDelay(10 / portTICK_PERIOD_MS); // Delay to prevent the task from using all CPU time
     }
-    vTaskDelay(10 / portTICK_PERIOD_MS); // Delay to prevent the task from using all CPU time
-  }
 }
 
-void PID_Webserver::Wifi_task(){
-    
-      // Create a task for WiFi management
-  xTaskCreatePinnedToCore(
-    WiFiTask, /* Task function */
-    "WiFiTask", /* Name of task */
-    10000, /* Stack size of task */
-    NULL, /* Parameter of the task */
-    1, /* Priority of the task */
-    NULL, /* Task handle to keep track of created task */
-    0); /* Core where the task should run */
-}
+void PID_Webserver::Wifi_task()
+{
 
+    // Create a task for WiFi management
+    xTaskCreatePinnedToCore(
+        WiFiTask,   /* Task function */
+        "WiFiTask", /* Name of task */
+        10000,      /* Stack size of task */
+        NULL,       /* Parameter of the task */
+        1,          /* Priority of the task */
+        NULL,       /* Task handle to keep track of created task */
+        0);         /* Core where the task should run */
+}
 
 void PID_Webserver::initSPIFFS()
 {
@@ -62,7 +65,7 @@ void PID_Webserver::initWiFi()
 
 void PID_Webserver::disconnect_wifi()
 {
-    // Serial.println("Disconnecting WiFi because motors are on.");
+    //Serial.println("Disconnecting WiFi because motors are on.");
     WiFi.disconnect(true); // Disconnect WiFi and erase credentials
     WiFi.mode(WIFI_OFF);   // Turn off WiFi
 
@@ -80,8 +83,8 @@ void PID_Webserver::checkWiFiConnection()
         static bool isConnected = false;
         if (!isConnected)
         {
-            Serial.println("Connected to WiFi");
-            Serial.println(WiFi.localIP());
+            Serial.print("Connected to WiFi: ");
+            Serial.print(WiFi.localIP());
             isConnected = true;
             Handle_Server();
         }
@@ -179,7 +182,7 @@ bool PID_Webserver::loadPIDValues()
         }
         else if (line.startsWith("I_GAIN_YAW:"))
         {
-           flightController.pid_i_gain_yaw = line.substring(line.indexOf(':') + 1).toFloat();
+            flightController.pid_i_gain_yaw = line.substring(line.indexOf(':') + 1).toFloat();
         }
         else if (line.startsWith("D_GAIN_YAW:"))
         {
@@ -191,21 +194,25 @@ bool PID_Webserver::loadPIDValues()
     return true;
 }
 
-String formatFloat(float value, unsigned int maxDecimals) {
+String formatFloat(float value, unsigned int maxDecimals)
+{
     char buffer[32]; // Make sure the buffer is large enough to hold the largest possible number
     // Create a format string for snprintf that specifies the maximum number of decimal places
     snprintf(buffer, sizeof(buffer), "%.*f", maxDecimals, value);
-    
+
     // Trim trailing zeros and the decimal point if not needed
-    char* end = buffer + strlen(buffer) - 1;
-    while (end > buffer && *end == '0') --end;
-    if (end > buffer && *end == '.') --end;
+    char *end = buffer + strlen(buffer) - 1;
+    while (end > buffer && *end == '0')
+        --end;
+    if (end > buffer && *end == '.')
+        --end;
     *(end + 1) = '\0'; // Null-terminate the string
 
     return String(buffer);
 }
- 
-void PID_Webserver::fillPIDJson(DynamicJsonDocument &doc) {
+
+void PID_Webserver::fillPIDJson(DynamicJsonDocument &doc)
+{
     // Roll PID parameters
     doc["pid_p_gain_roll"] = formatFloat(flightController.pid_p_gain_roll, 5);
     doc["pid_i_gain_roll"] = formatFloat(flightController.pid_i_gain_roll, 5);

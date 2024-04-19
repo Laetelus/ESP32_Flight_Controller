@@ -3,15 +3,13 @@
 #include "Calibration.h"
 #include "Flight_Controller.h"
 
-Flight_Controller flightController;
-
 void Calibration::saveCalibrationValues()
 {
   if (EEPROM.readLong(0) != 0x12345678)
   {
     EEPROM.writeLong(0, 0x12345678); // Unique identifier indicating values have been saved
-    EEPROM.writeLong(4,  flightController.accXOffset);
-    EEPROM.writeLong(8,  flightController.accYOffset);
+    EEPROM.writeLong(4, flightController.accXOffset);
+    EEPROM.writeLong(8, flightController.accYOffset);
     EEPROM.writeLong(12, flightController.accZOffset);
     EEPROM.writeLong(16, flightController.gyroXOffset);
     EEPROM.writeLong(20, flightController.gyroYOffset);

@@ -7,7 +7,7 @@
 #include "Flight_Controller.h"
 #include "Calibration.h"
 #include "PID_Webserver.h"
-
+Flight_Controller flightController; 
 // #define USE_EEPROM
 
 // Global variables for pulse widths
@@ -36,7 +36,7 @@ portMUX_TYPE muxRoll = portMUX_INITIALIZER_UNLOCKED;
 void IRAM_ATTR handleThrottleInterrupt()
 {
   portENTER_CRITICAL_ISR(&muxThrottle);
-  // GPIO port manipulation will be located in pg 49 in the esp32 tech manual
+  // GPIO port manipulation starting pg 49 in the esp32 tech manual
   if (GPIO.in1.val & (1ULL << (THROTTLE - 32)))
   {
     lastRisingEdgeThrottle = esp_timer_get_time();
@@ -96,7 +96,7 @@ void Flight_Controller::initialize()
   Calibration cal;
   PID_Webserver serv;
 
-  Serial.begin(250000);
+  Serial.begin(115200);
   pinMode(2, OUTPUT); // LED status
 
   allocatePWMTimers();
