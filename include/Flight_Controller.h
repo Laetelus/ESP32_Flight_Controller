@@ -29,15 +29,17 @@ struct Flight_Controller
   const unsigned long debounceDelay = 20;
 
   // PID Parameters
-  float pid_p_gain_roll = 0.0f;             // Gain setting for the roll P-controller
-  float pid_i_gain_roll = 0.0f;             // Gain setting for the roll I-controller
-  float pid_d_gain_roll = 0.0f;             // Gain setting for the roll D-controller
+  float pid_p_gain_roll = 0.0f; // Gain setting for the roll P-controller
+  float pid_i_gain_roll = 0.0f; // Gain setting for the roll I-controller
+  float pid_d_gain_roll = 0.0f; // Gain setting for the roll D-controller
+
   float pid_p_gain_pitch = pid_p_gain_roll; // Gain setting for the pitch P-controller.
   float pid_i_gain_pitch = pid_i_gain_roll; // Gain setting for the pitch I-controller.
   float pid_d_gain_pitch = pid_d_gain_roll; // Gain setting for the pitch D-controller.
-  float pid_p_gain_yaw = 0.0f;              // Gain setting for the pitch P-controller. //
-  float pid_i_gain_yaw = 0.0f;              // Gain setting for the pitch I-controller. //
-  float pid_d_gain_yaw = 0.0f;              // Gain setting for the pitch D-controller.
+
+  float pid_p_gain_yaw = 0.0f; // Gain setting for the yawn P-controller.
+  float pid_i_gain_yaw = 0.0f; // Gain setting for the yawn I-controller.
+  float pid_d_gain_yaw = 0.0f; // Gain setting for the yawn D-controller.
 
   float roll_level_adjust, pitch_level_adjust;
   float pid_error_temp;
@@ -57,9 +59,8 @@ struct Flight_Controller
   int esc_1, esc_2, esc_3, esc_4;
   int start;
 
-  int16_t acc_x, acc_y, acc_z, acc_total_vector;
+  float acc_x, acc_y, acc_z, acc_total_vector;
   int16_t gyro_pitch, gyro_roll, gyro_yaw;
-  int16_t temp;
 
   bool isDebounceConditionMet;
   bool gyro_angles_set;
@@ -68,10 +69,8 @@ struct Flight_Controller
   // Member functions
   void initialize();
   void initializeI2CBus();
-  void initializeGyroAndAccel();
   void performCalibration();
   void setupInputPins();
-  void readCurrentTemperature();
   void attachInterrupts();
   void attachESCPins();
   void armESCs();
@@ -82,18 +81,16 @@ struct Flight_Controller
   void calculate_pid();
   void mix_motors();
   void calibrateMPU6050();
-  int16_t applyDeadzone(int16_t, int16_t);
   void processIMUData();
-  void readGyroData();
   void write_motors();
   void startInitializationSequence();
   float calculatePIDSetpoint(int channel, float level_adjust);
   float calculatePIDSetpointForYaw(int channel_3, int channel_4);
   int computeESCValue(int throttle, int pitch, int roll, int yaw);
-  float calculate_pid_component(float input, float setpoint, float &i_mem, float &last_d_error, float p_gain, float i_gain, float d_gain, float max_output);
+  float calculate_pid_component(float input, float setpoint, float &i_mem, float &last_d_error, float p_gain, float i_gain, float d_gain, float max_output, float dt);
   bool areMotorsOff();
   void print();
-  
+
   void timer()
   {
     // Check the total time taken for this loop
@@ -113,10 +110,8 @@ struct Flight_Controller
       ;
     loop_timer = esp_timer_get_time();
   }
-  
 };
 
 extern Flight_Controller flightController;
-
 
 #endif // FLIGHT_CONTROLLER_h

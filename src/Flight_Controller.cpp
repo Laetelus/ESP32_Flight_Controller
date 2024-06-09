@@ -1,14 +1,15 @@
 #include <Arduino.h>
 #include <ESP32Servo.h>
+#include <Arduino.h>
+#include <ESP32Servo.h>
 #include "I2Cdev.h"
-#include "MPU6050.h"
 #include <Wire.h>
 #include <EEPROM.h>
 #include "Flight_Controller.h"
 #include "Calibration.h"
 #include "PID_Webserver.h"
 
-Flight_Controller flightController; 
+Flight_Controller flightController;
 
 // #define USE_EEPROM
 
@@ -101,8 +102,6 @@ void Flight_Controller::initialize()
 
   allocatePWMTimers();
   initializeI2CBus();
-  initializeGyroAndAccel();
-  readCurrentTemperature();
   performCalibration();
   setupInputPins();
   attachInterrupts();
@@ -119,48 +118,77 @@ void Flight_Controller::initialize()
 
   // Comment #define EEPROM if clearing previously stored data
   // Once data is cleared. Ensure clearCalibrationData function is commented again
-  // clearCalibrationData();
+  // cal.clearCalibrationData();
 }
 
 void Flight_Controller::initializeI2CBus()
 {
-// join I2C bus (I2Cdev library doesn't do this automatically)
-#if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
-  Wire.begin();
-  Wire.setClock(400000); // 400kHz I2C clock (200kHz if CPU is 8MHz). Comment this line if having compilation difficulties
-#elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
-  Fastwire::setup(400, true);
-#endif
 
-  // initialize device. This also initialises the gyros and accelerometers
-  Serial.println();
-  Serial.println("Initializing I2C devices...");
-  accelgyro.initialize();
-  // Verify gyroscope range
-  uint8_t gyroRange = accelgyro.getFullScaleGyroRange();
-  Serial.println(gyroRange == MPU6050_GYRO_FS_250 ? "Gyroscope range verified as ±250°/s" : "Gyroscope range verification failed");
-}
+  Wire.begin();          // Initialize I2C communication
+  Wire.setClock(400000); // Set I2C clock to 400kHz
 
-void Flight_Controller::initializeGyroAndAccel()
-{
-  // Verify accelerometer range
-  uint8_t accelRange = accelgyro.getFullScaleAccelRange();
-  Serial.println(accelRange == MPU6050_GYRO_FS_250 ? "Accelerometer range verified as ±2g" : "Accelerometer range verification failed");
+  // Wake up MPU6050 and set clock source
+  Wire.beginTransmission(0x68);
+  Wire.write(0x6B); // Power management register
+  Wire.write(0x00); // Set clock source to internal 8 MHz oscillator
+  Wire.endTransmission();
 
-// verify connection
-#ifdef I2CDEV_IMPLEMENTATION
-  Serial.println("Testing device connections...");
-  Serial.println(accelgyro.testConnection() ? "accelgyro6050 connection successful" : "accelgyro6050 connection failed");
-#endif
-}
+  auto readRegister = [](uint8_t reg) -> uint8_t
+  {
+    Wire.beginTransmission(0x68);
+    Wire.write(reg);
+    Wire.endTransmission(false);
+    Wire.requestFrom(0x68, 1);
+    return Wire.available() ? Wire.read() : 0xFF; // Return 0xFF if no data available
+  };
 
-void Flight_Controller::readCurrentTemperature()
-{
-  // Read current temperature
-  temp = accelgyro.getTemperature();
-  temperatureC = float(temp) / 340.00 + 36.53;
-  Serial.print("Current temperature: ");
-  Serial.println(temperatureC);
+  // Check if power management was set correctly
+  if (readRegister(0x6B) != 0x00)
+  {
+    Serial.println("Failed to initialize clock source.");
+  }
+
+  // Set DLPF to reduce high-frequency noise
+  Wire.beginTransmission(0x68);
+  Wire.write(0x1A);
+  Wire.write(0x05);
+  Wire.endTransmission();
+
+  // Check if DLPF was set correctly
+  if (readRegister(0x1A) != 0x05)
+  {
+    Serial.println("Failed to set DLPF.");
+  }
+
+  // Set accelerometer sensitivity to ±8g
+  Wire.beginTransmission(0x68);
+  Wire.write(0x1C);
+  Wire.write(0x10);
+  Wire.endTransmission();
+
+  // Check if accelerometer sensitivity was set correctly
+  if (readRegister(0x1C) != 0x10)
+  {
+    Serial.println("Failed to set accelerometer sensitivity to ±8g.");
+  }
+  else
+    Serial.println("Accelerometer sensitivity range set to ±8g. deg/s.");
+
+  // Set gyroscope sensitivity to ±500 deg/s
+  Wire.beginTransmission(0x68);
+  Wire.write(0x1B);
+  Wire.write(0x08);
+  Wire.endTransmission();
+
+  // Check if gyroscope sensitivity was set correctly
+  if (readRegister(0x1B) != 0x08)
+  {
+    Serial.println("Failed to set gyroscope sensitivity to ±500 deg/s.");
+  }
+  else
+    Serial.println("Gyroscope sensitivity range set to ±500 deg/s.");
+
+  Serial.println("Initialization and Configuration Complete. All systems go!");
 }
 
 void Flight_Controller::performCalibration()
@@ -169,7 +197,7 @@ void Flight_Controller::performCalibration()
 // Calibration with or without EEPROM (only store EEPROM when data is satisfactory)
 #ifdef USE_EEPROM
   EEPROM.begin(EEPROM_SIZE);
-  if (!loadCalibrationValues())
+  if (!cal.loadCalibrationValues())
   {
     Serial.println("Calibration data not found in EEPROM. Calibrating...");
     // Blink LED to indicate calibration in progress
@@ -180,21 +208,8 @@ void Flight_Controller::performCalibration()
       digitalWrite(2, LOW);
       delay(200);
     }
-    readGyroData();
     processIMUData();
     calibrateMPU6050();
-    // Check if the temperature is within the acceptable range
-    int minTemp = -40; // Replace with your minimum temperature value (according to datasheet)
-    int maxTemp = 85;  // Replace with your maximum temperature value (accelerated to datasheet)
-    if (temperatureC >= minTemp && temperatureC <= maxTemp)
-    {
-      saveCalibrationValues();
-      Serial.println("Calibration complete and saved to EEPROM.");
-    }
-    else
-    {
-      Serial.println("Calibration complete but temperature out of range. Calibration not saved.");
-    }
     // Turn off LED
     digitalWrite(2, LOW);
   }
@@ -205,25 +220,13 @@ void Flight_Controller::performCalibration()
 #else
   Serial.println("Calibrating without EEPROM...");
   digitalWrite(2, HIGH);
-  readGyroData();
   processIMUData();
   calibrateMPU6050();
-  // Check if the temperature is within the acceptable range
-  int minTemp = -40; // Replace with your minimum temperature value
-  int maxTemp = 85;  // Replace with your maximum temperature value
-  if (temperatureC >= minTemp && temperatureC <= maxTemp)
-  {
-    Serial.println("Temperature data stored without EEPROM.");
-  }
-  else
-  {
-    Serial.println("Calibration complete but temperature out of range.");
-  }
   digitalWrite(2, LOW);
 #endif
 }
 
-bool Flight_Controller::areMotorsOff() 
+bool Flight_Controller::areMotorsOff()
 {
   return start != 2;
 }
@@ -284,72 +287,59 @@ void Flight_Controller::read_Controller()
 
 void Flight_Controller::level_flight()
 {
-  const float gyroCoefficient = 0.3 / 65.5;                       // Coefficient for gyro input (deg/sec)
-  const float gyroAngleCoefficient = 0.0000611;                   // Coefficient for gyro angle calculation
-  const float radToDeg = 57.296;                                  // Radians to degrees conversion factor
-  //const float yawCoefficient = gyroAngleCoefficient * (PI / 180); // Coefficient for yaw calculations
-  const float levelCorrectionFactor = 0.9996;                     // Factor for correcting drift with accelerometer
 
-  // Gyro PID inputs
-  gyro_roll_input = (gyro_roll_input * 0.7) + (gyro_roll * gyroCoefficient);
-  gyro_pitch_input = (gyro_pitch_input * 0.7) + (gyro_pitch * gyroCoefficient);
-  gyro_yaw_input = (gyro_yaw_input * 0.7) + (gyro_yaw * gyroCoefficient);
+  gyro_roll_input = (gyro_roll_input * 0.7) + (gyro_roll * 0.3);
+  gyro_pitch_input = (gyro_pitch_input * 0.7) + (gyro_pitch * 0.3);
+  gyro_yaw_input = (gyro_yaw_input * 0.7) + (gyro_yaw * 0.3);
 
   // Gyro angle calculations
-  angle_pitch += gyro_pitch * gyroAngleCoefficient;
-  angle_roll += gyro_roll * gyroAngleCoefficient;
+  // 0.0000611 = 1 / (250Hz / 65.5)
+  angle_pitch += gyro_pitch * 0.0000611; // Calculate the traveled pitch angle and add this to the angle_pitch variable.
+  angle_roll += gyro_roll * 0.0000611;   // Calculate the traveled roll angle and add this to the angle_roll variable.
 
-  // // Place the accelgyro-6050 spirit level and note the values in the following two lines for calibration.
-  // No need since we are already subtracted our offset.
-  // angle_pitch_acc -= accYOffset; // Accelerometer calibration value for pitch.
-  // angle_roll_acc -= accXOffset;  // Accelerometer calibration value for roll.
-
-  // // Adjust pitch and roll angles based on yaw
-  // //0.000001066 = 0.0000611 * (3.142(PI) / 180degr) The Arduino sin function is in radians
-  angle_pitch -= angle_roll * sin(gyro_yaw * gyroAngleCoefficient); // If the IMU has yawed transfer the roll angle to the pitch angel.
-  angle_roll += angle_pitch * sin(gyro_yaw * gyroAngleCoefficient); // If the IMU has yawed transfer the pitch angle to the roll angel.
+  // 0.000001066 = 0.0000611 * (3.142(PI) / 180degr) The Arduino sin function is in radians
+  angle_pitch -= angle_roll * sin(gyro_yaw * 0.000001066); // If the IMU has yawed transfer the roll angle to the pitch angel.
+  angle_roll += angle_pitch * sin(gyro_yaw * 0.000001066); // If the IMU has yawed transfer the pitch angle to the roll angel.
 
   // Accelerometer angle calculations
-  acc_total_vector = sqrt((acc_x * acc_x) + (acc_y * acc_y) + (acc_z * acc_z));
+  acc_total_vector = sqrt((acc_x * acc_x) + (acc_y * acc_y) + (acc_z * acc_z)); // Calculate the total accelerometer vector.
+
+  // Accelerometer angle calculations
 
   if (abs(acc_y) < acc_total_vector)
-  {                                                                     // Prevent the asin function to produce a NaN
-    angle_pitch_acc = asin((float)acc_y / acc_total_vector) * radToDeg; // Use acc_x for pitch
+  {
+    angle_pitch_acc = asin((float)acc_y / acc_total_vector) * 57.296;
   }
   if (abs(acc_x) < acc_total_vector)
-  {                                                                    // Prevent the asin function to produce a NaN
-    angle_roll_acc = asin((float)acc_x / acc_total_vector) * radToDeg; // Use acc_y for roll
+  {
+    angle_roll_acc = asin((float)acc_x / acc_total_vector) * 57.296;
   }
 
-  // Drift correction with accelerometer data
-  angle_pitch = angle_pitch * levelCorrectionFactor + angle_pitch_acc * (1 - levelCorrectionFactor);
-  angle_roll = angle_roll * levelCorrectionFactor + angle_roll_acc * (1 - levelCorrectionFactor);
+  angle_pitch = angle_pitch * 0.9996 + angle_pitch_acc * 0.0004; // Correct the drift of the gyro pitch angle with the accelerometer pitch angle.
+  angle_roll = angle_roll * 0.9996 + angle_roll_acc * 0.0004;    // Correct the drift of the gyro roll angle with the accelerometer roll angle.
 
-  // Angle corrections for pitch and roll
-  pitch_level_adjust = angle_pitch * 15;
-  roll_level_adjust = angle_roll * 15;
+  pitch_level_adjust = angle_pitch * 15; // Calculate the pitch angle correction
+  roll_level_adjust = angle_roll * 15;   // Calculate the roll angle correction
 
   if (!auto_level)
-  { // Disable level adjustments if auto-level is off
-    pitch_level_adjust = 0;
-    roll_level_adjust = 0;
+  {                         // If the quadcopter is not in auto-level mode
+    pitch_level_adjust = 0; // Set the pitch angle correction to zero.
+    roll_level_adjust = 0;  // Set the roll angle correcion to zero.
   }
 }
 
 void Flight_Controller::motorControls()
 {
   int local_channel_1, local_channel_2, local_channel_3, local_channel_4;
-  noInterrupts();                             // Disable interrupts
-  local_channel_3 = receiver_input_channel_1; // Throttle
-  local_channel_4 = receiver_input_channel_4; // Yaw
-  local_channel_1 = receiver_input_channel_2; // Roll
-  local_channel_2 = receiver_input_channel_3; // Pitch
-  interrupts();                               // Re-enable interrupt
+  noInterrupts();
+  local_channel_3 = receiver_input_channel_1;
+  local_channel_4 = receiver_input_channel_4;
+  local_channel_1 = receiver_input_channel_2;
+  local_channel_2 = receiver_input_channel_3;
+  interrupts();
 
-  // start = 0 (off), start = 1 (ready to start), start = 2 (running)
   unsigned long currentTime = millis();
 
-  // Start condition (start = 1)
   if (local_channel_3 < 1065 && local_channel_4 < 1050)
   {
     if (!isDebounceConditionMet)
@@ -360,11 +350,10 @@ void Flight_Controller::motorControls()
     else if ((currentTime - lastDebounceTime) > debounceDelay && start == 0)
     {
       start = 1;
-      isDebounceConditionMet = false; // Reset for next condition
+      isDebounceConditionMet = false;
     }
   }
 
-  // Transition to start = 2 (running), handled inside startInitializationSequence
   if (start == 1 && local_channel_3 < 1550 && local_channel_4 > 1450)
   {
     if (!isDebounceConditionMet)
@@ -375,11 +364,10 @@ void Flight_Controller::motorControls()
     else if ((currentTime - lastDebounceTime) > debounceDelay)
     {
       startInitializationSequence();
-      isDebounceConditionMet = false; // Reset for next condition
+      isDebounceConditionMet = false;
     }
   }
 
-  // Turn off motors (start = 0)
   if (start == 2 && local_channel_3 <= 1064 && local_channel_4 > 1976)
   {
     if (!isDebounceConditionMet)
@@ -389,24 +377,118 @@ void Flight_Controller::motorControls()
     }
     else if ((currentTime - lastDebounceTime) > debounceDelay)
     {
-      start = 0;                      // Turn off
-      isDebounceConditionMet = false; // Reset for next condition
+      start = 0;
+      isDebounceConditionMet = false;
     }
   }
 
-  // Reset debounce condition if none of the above conditions are met
   if (!(local_channel_3 < 1065 && local_channel_4 < 1050) && !(start == 1 && local_channel_3 < 1550 && local_channel_4 > 1450) && !(start == 2 && local_channel_3 <= 1064 && local_channel_4 > 1976))
   {
     isDebounceConditionMet = false;
   }
 
-  pid_roll_setpoint = calculatePIDSetpoint(local_channel_1, roll_level_adjust);
-  pid_pitch_setpoint = calculatePIDSetpoint(local_channel_2, pitch_level_adjust);
-  pid_yaw_setpoint = calculatePIDSetpointForYaw(local_channel_3, local_channel_4);
+  // The PID set point in degrees per second is determined by the roll receiver input.
+  // In the case of dividing by 3 the max roll rate is aprox 164 degrees per second ( (500-8)/3 = 164d/s )
+  pid_roll_setpoint = 0;
+  if (local_channel_1 > 1508)
+    pid_roll_setpoint = local_channel_1 - 1508;
+  else if (local_channel_1 < 1492)
+    pid_roll_setpoint = local_channel_1 - 1492;
 
-  calculate_pid(); // Calculate PID with the new setpoints
+  pid_roll_setpoint -= roll_level_adjust;
+  pid_roll_setpoint /= 3.0;
+
+  // The PID set point in degrees per second is determined by the pitch receiver input.
+  // In the case of dividing by 3 the max pitch rate is aprox 164 degrees per second ( (500-8)/3 = 164d/s ).
+  pid_pitch_setpoint = 0;
+  if (local_channel_2 > 1508)
+    pid_pitch_setpoint = local_channel_2 - 1508;
+  else if (local_channel_2 < 1492)
+    pid_pitch_setpoint = local_channel_2 - 1492;
+
+  pid_pitch_setpoint -= pitch_level_adjust;
+  pid_pitch_setpoint /= 3.0;
+
+  // The PID set point in degrees per second is determined by the yaw receiver input.
+  // In the case of dividing by 3 the max pitch rate is aprox 164 degrees per second ( (500-8)/3 = 164d/s ).
+  pid_yaw_setpoint = 0;
+  if (local_channel_3 > 1050)
+  {
+    if (local_channel_4 > 1508)
+      pid_yaw_setpoint = (local_channel_4 - 1508) / 3.0;
+    else if (local_channel_4 < 1492)
+      pid_yaw_setpoint = (local_channel_4 - 1492) / 3.0;
+  }
+
+  // Serial.print("pid_roll_setpoint: ");
+  // Serial.print(pid_roll_setpoint);
+  // Serial.print(" pid_pitch_setpoint: ");
+  // Serial.print(pid_pitch_setpoint);
+  // Serial.print(" pid_yaw_setpoint: ");
+  // Serial.println(pid_yaw_setpoint);
+
+  calculate_pid();
 }
 
+// void Flight_Controller::calculate_pid()
+// {
+//   const float dt = 0.004; // Fixed loop time (250Hz)
+
+//   pid_output_roll = calculate_pid_component(gyro_roll_input, pid_roll_setpoint, pid_i_mem_roll, pid_last_roll_d_error, pid_p_gain_roll, pid_i_gain_roll, pid_d_gain_roll, pid_max_roll, dt);
+//   pid_output_pitch = calculate_pid_component(gyro_pitch_input, pid_pitch_setpoint, pid_i_mem_pitch, pid_last_pitch_d_error, pid_p_gain_pitch, pid_i_gain_pitch, pid_d_gain_pitch, pid_max_pitch, dt);
+//   pid_output_yaw = calculate_pid_component(gyro_yaw_input, pid_yaw_setpoint, pid_i_mem_yaw, pid_last_yaw_d_error, pid_p_gain_yaw, pid_i_gain_yaw, pid_d_gain_yaw, pid_max_yaw, dt);
+// }
+
+void Flight_Controller::calculate_pid()
+{
+  // Roll calculations
+  pid_error_temp = gyro_roll_input - pid_roll_setpoint;
+  pid_i_mem_roll += pid_i_gain_roll * pid_error_temp;
+  if (pid_i_mem_roll > pid_max_roll)
+    pid_i_mem_roll = pid_max_roll;
+  else if (pid_i_mem_roll < pid_max_roll * -1)
+    pid_i_mem_roll = pid_max_roll * -1;
+
+  pid_output_roll = pid_p_gain_roll * pid_error_temp + pid_i_mem_roll + pid_d_gain_roll * (pid_error_temp - pid_last_roll_d_error);
+  if (pid_output_roll > pid_max_roll)
+    pid_output_roll = pid_max_roll;
+  else if (pid_output_roll < pid_max_roll * -1)
+    pid_output_roll = pid_max_roll * -1;
+
+  pid_last_roll_d_error = pid_error_temp;
+
+  // Pitch calculations
+  pid_error_temp = gyro_pitch_input - pid_pitch_setpoint;
+  pid_i_mem_pitch += pid_i_gain_pitch * pid_error_temp;
+  if (pid_i_mem_pitch > pid_max_pitch)
+    pid_i_mem_pitch = pid_max_pitch;
+  else if (pid_i_mem_pitch < pid_max_pitch * -1)
+    pid_i_mem_pitch = pid_max_pitch * -1;
+
+  pid_output_pitch = pid_p_gain_pitch * pid_error_temp + pid_i_mem_pitch + pid_d_gain_pitch * (pid_error_temp - pid_last_pitch_d_error);
+  if (pid_output_pitch > pid_max_pitch)
+    pid_output_pitch = pid_max_pitch;
+  else if (pid_output_pitch < pid_max_pitch * -1)
+    pid_output_pitch = pid_max_pitch * -1;
+
+  pid_last_pitch_d_error = pid_error_temp;
+
+  // Yaw calculations
+  pid_error_temp = gyro_yaw_input - pid_yaw_setpoint;
+  pid_i_mem_yaw += pid_i_gain_yaw * pid_error_temp;
+  if (pid_i_mem_yaw > pid_max_yaw)
+    pid_i_mem_yaw = pid_max_yaw;
+  else if (pid_i_mem_yaw < pid_max_yaw * -1)
+    pid_i_mem_yaw = pid_max_yaw * -1;
+
+  pid_output_yaw = pid_p_gain_yaw * pid_error_temp + pid_i_mem_yaw + pid_d_gain_yaw * (pid_error_temp - pid_last_yaw_d_error);
+  if (pid_output_yaw > pid_max_yaw)
+    pid_output_yaw = pid_max_yaw;
+  else if (pid_output_yaw < pid_max_yaw * -1)
+    pid_output_yaw = pid_max_yaw * -1;
+
+  pid_last_yaw_d_error = pid_error_temp;
+}
 void Flight_Controller::mix_motors()
 {
   int local_throttle;
@@ -462,79 +544,38 @@ void Flight_Controller::startInitializationSequence()
   angle_pitch = angle_pitch_acc;
   angle_roll = angle_roll_acc;
   gyro_angles_set = true;
-  pid_i_mem_roll = pid_last_roll_d_error = 0;
-  pid_i_mem_pitch = pid_last_pitch_d_error = 0;
-  pid_i_mem_yaw = pid_last_yaw_d_error = 0;
+
+  // Reset the PID controllers for a bumpless start.
+  pid_i_mem_roll = 0;
+  pid_last_roll_d_error = 0;
+  pid_i_mem_pitch = 0;
+  pid_last_pitch_d_error = 0;
+  pid_i_mem_yaw = 0;
+  pid_last_yaw_d_error = 0;
 }
 
-float Flight_Controller::calculatePIDSetpoint(int channel, float level_adjust)
-{
-  float setpoint = 0;
-  if (channel > 1508)
-    setpoint = (channel - 1508) / 3.0;
-  else if (channel < 1492)
-    setpoint = (channel - 1492) / 3.0;
-  setpoint -= level_adjust;
-  return setpoint;
-}
+// float Flight_Controller::calculatePIDSetpoint(int channel, float level_adjust)
+// {
+//   float setpoint = 0;
+//   if (channel > 1508)
+//     setpoint = (channel - 1508) / 3.0;
+//   else if (channel < 1492)
+//     setpoint = (channel - 1492) / 3.0;
+//   setpoint -= level_adjust;
 
-float Flight_Controller::calculatePIDSetpointForYaw(int channel_3, int channel_4)
-{
-  if (channel_3 <= 1050)
-    return 0; // Do not yaw when turning off the motors
-  if (channel_4 > 1508)
-    return (channel_4 - 1508) / 3.0;
-  if (channel_4 < 1492)
-    return (channel_4 - 1492) / 3.0;
-  return 0;
-}
+//   return setpoint;
+// }
 
-/**
- * @brief Calculates the PID outputs for roll, pitch, and yaw stabilization.
- *
- * This function computes the Proportional-Integral-Derivative (PID) controller outputs for each axis of the drone (roll, pitch, and yaw).
- * It takes the difference between the desired set-points and the actual gyro inputs to calculate the error. This error is then used to
- * calculate the PID output, which will be used to adjust the motors and move the drone towards the desired orientation.
- *
- * The function executes the following steps for each axis:
- * - Calculate the current error by subtracting the PID setpoint from the gyro input.
- * - Integrate the error over time, scaling by the integral gain, and limit this value to prevent integral windup.
- * - Calculate the derivative of the error, scaling by the derivative gain.
- * - Combine the proportional, integral, and derivative terms to get the total PID output, limiting this output to prevent overshooting.
- *
- * The PID outputs are constrained to a maximum value to ensure that the motor speeds remain within controllable limits.
- *
- * @note The constants for PID gains (pid_p_gain_roll, pid_i_gain_roll, pid_d_gain_roll, etc.) and maximums (pid_max_roll, pid_max_pitch, pid_max_yaw)
- *       need to be tuned to match the characteristics of the drone for stable flight.
- *
- * @param None
- * @return None
- */
-
-void Flight_Controller::calculate_pid()
-{
-  pid_output_roll = calculate_pid_component(gyro_roll_input, pid_roll_setpoint, pid_i_mem_roll, pid_last_roll_d_error, pid_p_gain_roll, pid_i_gain_roll, pid_d_gain_roll, pid_max_roll);
-  pid_output_pitch = calculate_pid_component(gyro_pitch_input, pid_pitch_setpoint, pid_i_mem_pitch, pid_last_pitch_d_error, pid_p_gain_pitch, pid_i_gain_pitch, pid_d_gain_pitch, pid_max_pitch);
-  pid_output_yaw = calculate_pid_component(gyro_yaw_input, pid_yaw_setpoint, pid_i_mem_yaw, pid_last_yaw_d_error, pid_p_gain_yaw, pid_i_gain_yaw, pid_d_gain_yaw, pid_max_yaw);
-}
-
-float Flight_Controller::calculate_pid_component(float input, float setpoint, float &i_mem, float &last_d_error, float p_gain, float i_gain, float d_gain, float max_output)
-{
-  float error = input - setpoint;
-  i_mem += i_gain * error;
-  i_mem = constrain(i_mem, -max_output, max_output);
-
-  float output = p_gain * error + i_mem + d_gain * (error - last_d_error);
-  last_d_error = error;
-
-  return constrain(output, -max_output, max_output); // make sure we don't go past our max.
-}
-
-void Flight_Controller::readGyroData()
-{
-  // parameters acc_y/x changed to match current IMU orientation
-  accelgyro.getMotion6(&acc_y, &acc_x, &acc_z, &gyro_roll, &gyro_pitch, &gyro_yaw);
-}
+// float Flight_Controller::calculatePIDSetpointForYaw(int channel_3, int channel_4)
+// {
+//   if (channel_3 <= 1050)
+//     return 0; // Do not yaw when turning off the motors
+//   if (channel_4 > 1508)
+//     return (channel_4 - 1508) / 3.0;
+//   if (channel_4 < 1492)
+//     return (channel_4 - 1492) / 3.0;
+//   return 0;
+// }
 
 void Flight_Controller::calibrateMPU6050()
 {
@@ -544,10 +585,10 @@ void Flight_Controller::calibrateMPU6050()
        buff_gy = 0, buff_gz = 0;
 
   // collect a couple samples
-  const int num_samples = 3000;
+  const int num_samples = 2000;
   for (int i = 0; i < num_samples; i++)
   {
-    readGyroData();
+    processIMUData();
     buff_ax += acc_x;
     buff_ay += acc_y;
     buff_az += acc_z;
@@ -560,48 +601,62 @@ void Flight_Controller::calibrateMPU6050()
   // Average the values
   accXOffset = buff_ax / num_samples;
   accYOffset = buff_ay / num_samples;
-  accZOffset = (buff_az / num_samples) - 16384; // considering 1g offset
+  accZOffset = (buff_az / num_samples) - 4096; // considering 1g offset
   gyroXOffset = buff_gx / num_samples;
   gyroYOffset = buff_gy / num_samples;
   gyroZOffset = buff_gz / num_samples;
 }
 
-int16_t Flight_Controller::applyDeadzone(int16_t value, int16_t deadzone)
-{
-  if (abs(value) < deadzone)
-  {
-    return 0;
-  }
-  return value > 0 ? value - deadzone : value + deadzone;
-}
-
 void Flight_Controller::processIMUData()
 {
-  /*
-    whenever we retrieve gyro and accelerometer data,
-    we'll want to subtract these offsets from the raw values.
-  */
-  gyro_roll -= gyroXOffset;
-  gyro_pitch -= gyroYOffset;
-  gyro_yaw -= gyroZOffset;
+  int16_t raw_ax, raw_ay, raw_az, raw_gx, raw_gy, raw_gz;
 
-  acc_x -= accXOffset;
-  acc_y -= accYOffset;
-  acc_z -= accZOffset;
+  // Request 14 bytes starting from accelerometer's first register (0x3B)
+  Wire.beginTransmission(0x68);
+  Wire.write(0x3B);            // Starting register for accelerometer data
+  Wire.endTransmission(false); // End transmission but keep the connection active
+  Wire.requestFrom(0x68, 14);  // Request a total of 14 bytes: 6 acc, 2 temp, 6 gyro
 
-  // Apply the deadzone
-  acc_x = applyDeadzone(acc_x, 100);
-  acc_y = applyDeadzone(acc_y, 100);
-  acc_z = applyDeadzone(acc_z, 100);
+  // Read accelerometer data
+  raw_ay = Wire.read() << 8 | Wire.read();
+  raw_ax = Wire.read() << 8 | Wire.read();
+  raw_az = Wire.read() << 8 | Wire.read();
 
-  gyro_roll = applyDeadzone(gyro_roll, 1);
-  gyro_pitch = applyDeadzone(gyro_pitch, 1);
-  gyro_yaw = applyDeadzone(gyro_yaw, 1);
+  // Skip temperature bytes (unneeded)
+  Wire.read();
+  Wire.read();
 
-  gyro_roll = -gyro_roll; // Invert roll
-  gyro_yaw = -gyro_yaw;   // Invert yaw
+  // Read gyroscope data
+  raw_gx = Wire.read() << 8 | Wire.read();
+  raw_gy = Wire.read() << 8 | Wire.read();
+  raw_gz = Wire.read() << 8 | Wire.read();
 
-  // Invert accel x and y
-  acc_x = -acc_x;
-  acc_y = -acc_y;
+  // Convert the accelerometer data to g's and gyroscope data to degrees per second
+  acc_x = ((float)raw_ax / 4096) - accXOffset;
+  acc_y = ((float)raw_ay / 4096) - accYOffset;
+  acc_z = ((float)raw_az / 4096) - accZOffset;
+
+  gyro_roll = ((float)raw_gx / 65.5) - gyroXOffset; // Convert to deg/s (assuming ±500°/s range and 65.5 LSB/deg/s sensitivity)
+  gyro_pitch = ((float)raw_gy / 65.5) - gyroYOffset;
+  gyro_yaw = ((float)raw_gz / 65.5) - gyroZOffset;
+
+  // Optional: Invert signals if necessary
+  bool invertAccX = true;
+  bool invertAccY = true;
+  bool invertGyroRoll = true;
+  bool invertGyroYaw = true;
+
+  if (invertAccX)
+    acc_x = -acc_x;
+  if (invertAccY)
+    acc_y = -acc_y;
+  if (invertGyroRoll)
+    gyro_roll = -gyro_roll;
+  if (invertGyroYaw)
+    gyro_yaw = -gyro_yaw;
+
+  // Assign to gyro inputs for PID calculation
+  gyro_roll_input = gyro_roll;
+  gyro_pitch_input = gyro_pitch;
+  gyro_yaw_input = gyro_yaw;
 }

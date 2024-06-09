@@ -20,7 +20,6 @@ void loop()
 {
 
   flightController.read_Controller();
-  flightController.readGyroData();
   flightController.processIMUData();
   flightController.level_flight();
   flightController.motorControls();
