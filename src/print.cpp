@@ -2,99 +2,100 @@
 
 void Flight_Controller::print()
 {
-    // // We don't use mps2 for our calculations
-    // ax_mps2 = ((float)acc_x / 4096.0) * 9.81;
-    // ay_mps2 = ((float)acc_y / 4096.0) * 9.81;
-    // az_mps2 = ((float)acc_z / 4096.0) * 9.81;
 
-    // Serial.print("--------------------");
-    // Serial.println();
-    // Serial.printf("Raw Gyro Pitch: %d \n", gyro_pitch);
-    // Serial.printf("Raw Gyro Roll: %d \n", gyro_roll);
-    // Serial.printf("Raw Gyro Yaw: %d \n", gyro_yaw);
+  // Serial.print("--------------------");
+  // Serial.println();
+  // Serial.print("Raw Gyro Pitch: ");
+  // Serial.println(raw_gy);
+  // Serial.print("Raw Gyro Roll: ");
+  // Serial.println(raw_gx);
+  // Serial.print("Raw Gyro Yaw: ");
+  // Serial.println(raw_gz);
 
-    // Serial.print("--------------------");
-    // Serial.println();
-    // Serial.printf("Acc X: %.2f \n ", acc_x); // Changed %d to %.2f for floating-point output
-    // Serial.printf("Acc Y: %.2f \n ", acc_y);
-    // Serial.printf("Acc Z: %.2f \n ", acc_z);
+  // Serial.print("--------------------");
+  // Serial.println();
+  // Serial.print("Raw Acc X: ");
+  // Serial.println(raw_ax);
+  // Serial.print("Raw Acc Y: ");
+  // Serial.println(raw_ay);
+  // Serial.print("Raw Acc Z:");
+  // Serial.println(raw_az);
 
-    // Serial.print("--------------------");
-    // Serial.println();
-    // Serial.printf("Acc X (m/s^2): %.2f \n", ax_mps2);
-    // Serial.printf("Acc Y (m/s^2): %.2f \n", ay_mps2);
-    // Serial.printf("Acc Z (m/s^2): %.2f \n", az_mps2);
+  // Serial.print("--------------------");
+  // Serial.println();
+  // Serial.printf("Acc X (g): %.2f \n", ax_g);
+  // Serial.printf("Acc Y (g): %.2f \n", ay_g);
+  // Serial.printf("Acc Z (g): %.2f \n", az_g);
 
-    Serial.print("--------------------");
-    Serial.println();
-    Serial.printf("Angle Pitch: %.2f \n", angle_pitch);
-    Serial.printf("Angle Roll: %.2f \n", angle_roll);
+  // Serial.print("--------------------");
+  // Serial.println();
+  // Serial.print("Acc roll in degrees: ");
+  // Serial.println(accRoll);
+  // Serial.print("Acc pitch in degrees: ");
+  // Serial.println(accPitch);
 
-    Serial.print("--------------------");
-    Serial.println();
-    Serial.printf("angle_pitch_acc: %.2f \n", angle_pitch_acc);
-    Serial.printf("angle_roll_acc: %.2f \n", angle_roll_acc);
+  // Serial.print("--------------------");
+  // Serial.println();
+  // Serial.printf("Angle Pitch: %.2f \n", angle_pitch);
+  // Serial.printf("Angle Roll: %.2f \n", angle_roll);
 
-    Serial.print("--------------------");
-    Serial.println();
-    Serial.printf("Pitch Adjust: %.2f \n", pitch_level_adjust);
-    Serial.printf("Roll Adjust: %.2f \n", roll_level_adjust);
+  // Serial.print("--------------------");
+  // Serial.println();
+  // Serial.printf("pid_roll_setpoint: %.2f \n", pid_roll_setpoint);
+  // Serial.printf("pid_pitch_setpoint: %.2f \n", pid_pitch_setpoint);
+  // Serial.printf("pid_yaw_setpoint: %.2f \n", pid_yaw_setpoint);
 
-    Serial.print("--------------------");
-    Serial.println();
-    Serial.printf("gyro_roll_input: %.2f \n", gyro_roll_input);
-    Serial.printf("gyro_pitch_input: %.2f \n", gyro_pitch_input);
-    Serial.printf("gyro_yaw_input: %.2f \n", gyro_yaw_input);
+  // Serial.print("--------------------");
+  // Serial.println();
+  // Serial.printf("Pitch Adjust: %.2f \n", pitch_level_adjust);
+  // Serial.printf("Roll Adjust: %.2f \n", roll_level_adjust);
 
-    Serial.print("--------------------");
-    Serial.println();
-    Serial.printf("pid_output_roll: %.2f \n", pid_output_roll);
-    Serial.printf("pid_output_pitch: %.2f \n", pid_output_pitch);
-    Serial.printf("pid_output_yaw: %.2f \n", pid_output_yaw);
+  Serial.print("--------------------");
+  Serial.println();
+  Serial.printf("gyro_roll_input°: %.2f \n", gyro_roll_input);
+  Serial.printf("gyro_pitch_input°: %.2f \n", gyro_pitch_input);
+  Serial.printf("gyro_yaw_input°: %.2f \n", gyro_yaw_input);
 
-    Serial.print("--------------------");
-    Serial.println();
-    Serial.printf("pid_last_roll_d_error: %.2f \n", pid_last_roll_d_error);
-    Serial.printf("pid_last_pitch_d_error: %.2f \n", pid_last_pitch_d_error);
-    Serial.printf("pid_last_yaw_d_error: %.2f \n", pid_last_yaw_d_error);
+  Serial.print("--------------------");
+  Serial.println();
+  Serial.printf("pid_output_roll: %.2f \n", pid_output_roll);
+  Serial.printf("pid_output_pitch: %.2f \n", pid_output_pitch);
+  Serial.printf("pid_output_yaw: %.2f \n", pid_output_yaw);
 
-    // // KP Values to ensure data is parsed in from webserver
-    // Serial.print("--------------------");
-    // Serial.println();
-    // Serial.printf("pid_p_gain_roll: %.2f \n", pid_p_gain_roll);
-    // Serial.printf("pid_i_gain_roll: %.2f \n", pid_i_gain_roll);
-    // Serial.printf("pid_d_gain_roll: %.2f \n", pid_d_gain_roll);
-    // Serial.println();
-    // Serial.printf("pid_p_gain_pitch: %.2f \n", pid_p_gain_pitch);
-    // Serial.printf("pid_i_gain_pitch: %.2f \n", pid_i_gain_pitch);
-    // Serial.printf("pid_d_gain_pitch: %.2f \n", pid_d_gain_pitch);
-    // Serial.println();
-    // Serial.printf("pid_p_gain_yaw: %.2f \n", pid_p_gain_yaw);
-    // Serial.printf("pid_i_gain_yaw: %.2f \n", pid_i_gain_yaw);
-    // Serial.printf("pid_d_gain_yaw: %.2f \n", pid_d_gain_yaw);
-    // Serial.println();
+  Serial.print("--------------------");
+  Serial.println();
+  Serial.printf("pid_last_roll_d_error: %.2f \n", pid_last_roll_d_error);
+  Serial.printf("pid_last_pitch_d_error: %.2f \n", pid_last_pitch_d_error);
+  Serial.printf("pid_last_yaw_d_error: %.2f \n", pid_last_yaw_d_error);
 
-    // // Serial.println();
-    // // Serial.printf("Start: %d \n", start);
-    // Serial.printf("Throttle: %d \n", receiver_input_channel_1);
-    // Serial.printf("Yaw:  %d \n", receiver_input_channel_4);
-    // Serial.printf("Roll:  %d \n", receiver_input_channel_2);
-    // Serial.printf("Pitch:  %d \n", receiver_input_channel_3);
+  // // KP input Values from webserver
+  // Serial.print("--------------------");
+  // Serial.println();
+  // Serial.printf("pid_p_gain_roll: %.2f \n", pid_p_gain_roll);
+  // Serial.printf("pid_i_gain_roll: %.2f \n", pid_i_gain_roll);
+  // Serial.printf("pid_d_gain_roll: %.2f \n", pid_d_gain_roll);
+  // Serial.println();
+  // Serial.printf("pid_p_gain_pitch: %.2f \n", pid_p_gain_pitch);
+  // Serial.printf("pid_i_gain_pitch: %.2f \n", pid_i_gain_pitch);
+  // Serial.printf("pid_d_gain_pitch: %.2f \n", pid_d_gain_pitch);
+  // Serial.println();
+  // Serial.printf("pid_p_gain_yaw: %.2f \n", pid_p_gain_yaw);
+  // Serial.printf("pid_i_gain_yaw: %.2f \n", pid_i_gain_yaw);
+  // Serial.printf("pid_d_gain_yaw: %.2f \n", pid_d_gain_yaw);
+  // Serial.println();
 
-    // Serial.printf("ESC_1:  %d \n", esc_1);
-    // Serial.printf("ESC_2: %d \n ", esc_2);
-    // Serial.printf("ESC_3: %d \n ", esc_3);
-    // Serial.printf("ESC_4: %d \n ", esc_4);
+  // Serial.println();
+  // // Serial.printf("Start: %d \n", start);
+  // Serial.printf("Throttle: %d \n", receiver_input_channel_1);
+  // Serial.printf("Yaw:  %d \n", receiver_input_channel_4);
+  // Serial.printf("Roll:  %d \n", receiver_input_channel_2);
+  // Serial.printf("Pitch:  %d \n", receiver_input_channel_3);
 
-    // Serial.print(gyro_roll); // Corresponds to gyro_x in Python
-    // Serial.print(",");
-    // Serial.print(gyro_pitch); // Corresponds to gyro_y in Python
-    // Serial.print(",");
-    // Serial.print(gyro_yaw); // Corresponds to gyro_z in Python
-    // Serial.print(",");
-    // Serial.print(acc_x); // Corresponds to acc_x in Python
-    // Serial.print(",");
-    // Serial.print(acc_y); // Corresponds to acc_y in Python
-    // Serial.print(",");
-    // Serial.println(acc_z); // Corresponds to acc_z in Python
+  // used for checking if mixing algorithm matches and outputs correspond correctly
+  // Serial.print("--------------------");
+  // Serial.println();
+  // Serial.printf("ESC_1: %d \n", esc_1);
+  // Serial.printf("ESC_2: %d \n ", esc_2);
+  // Serial.printf("ESC_3: %d \n ", esc_3);
+  // Serial.printf("ESC_4: %d \n ", esc_4);
 }

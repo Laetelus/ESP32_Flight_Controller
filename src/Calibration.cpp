@@ -19,10 +19,12 @@ void Calibration::saveCalibrationValues()
     EEPROM.writeFloat(28, flightController.temperatureC);
     EEPROM.commit();
     Serial.println("Calibration values saved to EEPROM");
+    printStoredCalibrationValues(); 
   }
   else
   {
     Serial.println("EEPROM already contains calibration values. Skipping save.");
+    printStoredCalibrationValues(); 
   }
 }
 
@@ -73,7 +75,7 @@ void Calibration::printStoredCalibrationValues()
   const int accXOffsetAddr = 16;
   const int accYOffsetAddr = 20;
   const int accZOffsetAddr = 24;
-  const int tempOffsetAddr = 28;
+  //const int tempOffsetAddr = 28;
 
   // Check for unique ID
   if (EEPROM.readLong(0) == 0x12345678)
@@ -85,7 +87,7 @@ void Calibration::printStoredCalibrationValues()
     int32_t storedAccXOffset = EEPROM.readLong(accXOffsetAddr);
     int32_t storedAccYOffset = EEPROM.readLong(accYOffsetAddr);
     int32_t storedAccZOffset = EEPROM.readLong(accZOffsetAddr);
-    float storedTempOffset = EEPROM.readFloat(tempOffsetAddr);
+   // float storedTempOffset = EEPROM.readFloat(tempOffsetAddr);
 
     // Print formatted output
     Serial.println("\n====== Stored Calibration Values ======");
@@ -95,7 +97,7 @@ void Calibration::printStoredCalibrationValues()
     Serial.printf("Acc X Offset: %ld\n", storedAccXOffset);
     Serial.printf("Acc Y Offset: %ld\n", storedAccYOffset);
     Serial.printf("Acc Z Offset: %ld\n", storedAccZOffset);
-    Serial.printf("Temperature Offset: %.2f°C\n", storedTempOffset);
+    //Serial.printf("Temperature Offset: %.2f°C\n", storedTempOffset);
     Serial.println("=======================================\n");
   }
   else
