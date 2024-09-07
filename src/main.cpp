@@ -40,7 +40,7 @@ void loop()
   flightController.mix_motors();
   flightController.write_motors();
 
-  // flightController.print();
+  //flightController.print();
 
   current_time = micros(); // Capture the current time after executing tasks
 

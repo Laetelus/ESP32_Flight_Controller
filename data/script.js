@@ -5,13 +5,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Attach event listeners to increment and decrement buttons
     document.querySelectorAll('.decrement-btn').forEach((button) => {
         button.addEventListener('click', function() {
-            // Assuming each button has a data-input-id attribute
             decrementValue(this.getAttribute('data-input-id'))
         })
     })
+
     document.querySelectorAll('.increment-btn').forEach((button) => {
         button.addEventListener('click', function() {
-            // Assuming each button has a data-input-id attribute
             incrementValue(this.getAttribute('data-input-id'))
         })
     })
@@ -22,6 +21,23 @@ document.addEventListener('DOMContentLoaded', function() {
         .addEventListener('click', function() {
             updatePID()
         })
+
+    // Attach event listeners to input fields to capture "Enter" (Return) key and "blur" events
+    document.querySelectorAll('input').forEach((input) => {
+        // Detect "Enter" (Return) key press on both desktop and mobile (iOS/Android) virtual keyboards
+        input.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault() // Prevent default form submission
+                updatePID() // Trigger PID update when "Return" is pressed
+                input.blur() // Close virtual keyboard on mobile
+            }
+        })
+
+        // Trigger PID update when the input loses focus (i.e., user leaves the input field)
+        input.addEventListener('blur', function() {
+            updatePID() // Trigger PID update when user finishes input and clicks elsewhere
+        })
+    })
 
     // Initial fetch of PID values and start the automatic update loop
     getPID()
@@ -34,50 +50,58 @@ function userIsUpdating() {
 }
 
 function incrementValue(inputId) {
-    userIsUpdating();
-    const input = document.getElementById(inputId);
+    userIsUpdating()
+    const input = document.getElementById(inputId)
     if (input) {
-        let currentStep = getStep(input.getAttribute('data-full-precision') || input.value);
-        let currentValue = parseFloat(input.getAttribute('data-full-precision') || input.value);
-        let newValue = currentValue + currentStep;
-        input.value = newValue.toFixed(countDecimals(input.getAttribute('data-full-precision')));
-        input.setAttribute('data-full-precision', newValue.toString());
+        let currentStep = getStep(
+            input.getAttribute('data-full-precision') || input.value
+        )
+        let currentValue = parseFloat(
+            input.getAttribute('data-full-precision') || input.value
+        )
+        let newValue = currentValue + currentStep
+        input.value = newValue.toFixed(
+            countDecimals(input.getAttribute('data-full-precision'))
+        )
+        input.setAttribute('data-full-precision', newValue.toString())
     }
 }
 
 function decrementValue(inputId) {
-    userIsUpdating();
-    const input = document.getElementById(inputId);
+    userIsUpdating()
+    const input = document.getElementById(inputId)
     if (input) {
-        let currentStep = getStep(input.getAttribute('data-full-precision') || input.value);
-        let currentValue = parseFloat(input.getAttribute('data-full-precision') || input.value);
-        let newValue = currentValue - currentStep;
-        newValue = newValue < 0 ? 0 : newValue;
-        input.value = newValue.toFixed(countDecimals(input.getAttribute('data-full-precision')));
-        input.setAttribute('data-full-precision', newValue.toString());
+        let currentStep = getStep(
+            input.getAttribute('data-full-precision') || input.value
+        )
+        let currentValue = parseFloat(
+            input.getAttribute('data-full-precision') || input.value
+        )
+        let newValue = currentValue - currentStep
+        newValue = newValue < 0 ? 0 : newValue
+        input.value = newValue.toFixed(
+            countDecimals(input.getAttribute('data-full-precision'))
+        )
+        input.setAttribute('data-full-precision', newValue.toString())
     }
 }
 
 function getStep(value) {
     // Get the step based on the number of decimal places in the input value
-    let decimalCount = countDecimals(value);
-    return decimalCount > 0 ? 1 / Math.pow(10, decimalCount) : 0.01;
+    let decimalCount = countDecimals(value)
+    return decimalCount > 0 ? 1 / Math.pow(10, decimalCount) : 0.01
 }
-
 
 function countDecimals(value) {
-    if (Math.floor(value) === value) return 0;
-    let decimalPart = value.toString().split(".")[1];
-    return decimalPart ? decimalPart.length : 0;
+    if (Math.floor(value) === value) return 0
+    let decimalPart = value.toString().split('.')[1]
+    return decimalPart ? decimalPart.length : 0
 }
-
-
 
 function trimTrailingZeros(value) {
     // Trim unnecessary trailing zeros after decimal point
-    return value.replace(/(\.\d*?[1-9])0+$|\.0*$/, '$1');
+    return value.replace(/(\.\d*?[1-9])0+$|\.0*$/, '$1')
 }
-
 
 document
     .querySelectorAll('.increment-btn, .decrement-btn')

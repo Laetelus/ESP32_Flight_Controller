@@ -351,7 +351,7 @@ void Flight_Controller::read_Controller()
   interrupts();                                  // Re-enable interrupts
 }
 
-void Flight_Controller::level_flight(int *local_channel_1, int *local_channel_2, int *local_channel_3, int *local_channel_4)
+void Flight_Controller::level_flight(int& local_channel_1, int& local_channel_2, int& local_channel_3, int& local_channel_4)
 {
   const float level_adjust_factor = 0.15;
 
@@ -371,23 +371,23 @@ void Flight_Controller::level_flight(int *local_channel_1, int *local_channel_2,
   float desired_rate_pitch = 0;
 
   // Calculate desired rates based on user inputs for roll
-  if (*local_channel_1 > 1508)
+  if (local_channel_1 > 1508)
   {
-    desired_rate_roll = *local_channel_1 - 1508;
+    desired_rate_roll = local_channel_1 - 1508;
   }
-  else if (*local_channel_1 < 1492)
+  else if (local_channel_1 < 1492)
   {
-    desired_rate_roll = *local_channel_1 - 1492;
+    desired_rate_roll = local_channel_1 - 1492;
   }
 
   // Calculate desired rates based on user inputs for pitch
-  if (*local_channel_2 > 1508)
+  if (local_channel_2 > 1508)
   {
-    desired_rate_pitch = *local_channel_2 - 1508;
+    desired_rate_pitch = local_channel_2 - 1508;
   }
-  else if (*local_channel_2 < 1492)
+  else if (local_channel_2 < 1492)
   {
-    desired_rate_pitch = *local_channel_2 - 1492;
+    desired_rate_pitch = local_channel_2 - 1492;
   }
 
   // Adjust rates for level flight if auto-level is enabled
@@ -406,15 +406,15 @@ void Flight_Controller::level_flight(int *local_channel_1, int *local_channel_2,
 
   // Set the PID set point for yaw based on user inputs
   pid_yaw_setpoint = 0;
-  if (*local_channel_3 > 998)
+  if (local_channel_3 > 998)
   {
-    if (*local_channel_4 > 1606)
+    if (local_channel_4 > 1606)
     {
-      pid_yaw_setpoint = (*local_channel_4 - 1606) / factor;
+      pid_yaw_setpoint = (local_channel_4 - 1606) / factor;
     }
-    else if (*local_channel_4 < 1492)
+    else if (local_channel_4 < 1492)
     {
-      pid_yaw_setpoint = (*local_channel_4 - 1492) / factor;
+      pid_yaw_setpoint = (local_channel_4 - 1492) / factor;
     }
   }
 }
@@ -551,6 +551,7 @@ void Flight_Controller::calculate_pid()
 
   // Constrain PID output
   if (pid_output_yaw > pid_max_yaw)
+  
     pid_output_yaw = pid_max_yaw;
   else if (pid_output_yaw < -pid_max_yaw)
     pid_output_yaw = -pid_max_yaw;
@@ -627,7 +628,7 @@ void Flight_Controller::motorControls()
   // Perform level flight and PID calculations only if the motors are started
   if (start == 2)
   {
-    level_flight(&local_channel_1, &local_channel_2, &local_channel_3, &local_channel_4);
+    level_flight(local_channel_1, local_channel_2, local_channel_3, local_channel_4);
     calculate_pid();
   }
 }

@@ -3,47 +3,47 @@
 void Flight_Controller::print()
 {
 
-  // Serial.print("--------------------");
-  // Serial.println();
-  // Serial.print("Raw Gyro Pitch: ");
-  // Serial.println(raw_gy);
-  // Serial.print("Raw Gyro Roll: ");
-  // Serial.println(raw_gx);
-  // Serial.print("Raw Gyro Yaw: ");
-  // Serial.println(raw_gz);
+  Serial.print("--------------------");
+  Serial.println();
+  Serial.print("Raw Gyro Pitch: ");
+  Serial.println(raw_gy);
+  Serial.print("Raw Gyro Roll: ");
+  Serial.println(raw_gx);
+  Serial.print("Raw Gyro Yaw: ");
+  Serial.println(raw_gz);
 
-  // Serial.print("--------------------");
-  // Serial.println();
-  // Serial.print("Raw Acc X: ");
-  // Serial.println(raw_ax);
-  // Serial.print("Raw Acc Y: ");
-  // Serial.println(raw_ay);
-  // Serial.print("Raw Acc Z:");
-  // Serial.println(raw_az);
+  Serial.print("--------------------");
+  Serial.println();
+  Serial.print("Raw Acc X: ");
+  Serial.println(raw_ax);
+  Serial.print("Raw Acc Y: ");
+  Serial.println(raw_ay);
+  Serial.print("Raw Acc Z:");
+  Serial.println(raw_az);
 
-  // Serial.print("--------------------");
-  // Serial.println();
-  // Serial.printf("Acc X (g): %.2f \n", ax_g);
-  // Serial.printf("Acc Y (g): %.2f \n", ay_g);
-  // Serial.printf("Acc Z (g): %.2f \n", az_g);
+  Serial.print("--------------------");
+  Serial.println();
+  Serial.printf("Acc X (g): %.2f \n", ax_g);
+  Serial.printf("Acc Y (g): %.2f \n", ay_g);
+  Serial.printf("Acc Z (g): %.2f \n", az_g);
 
-  // Serial.print("--------------------");
-  // Serial.println();
-  // Serial.print("Acc roll in degrees: ");
-  // Serial.println(accRoll);
-  // Serial.print("Acc pitch in degrees: ");
-  // Serial.println(accPitch);
+  Serial.print("--------------------");
+  Serial.println();
+  Serial.print("Acc roll in degrees: ");
+  Serial.println(accRoll);
+  Serial.print("Acc pitch in degrees: ");
+  Serial.println(accPitch);
 
-  // Serial.print("--------------------");
-  // Serial.println();
-  // Serial.printf("Angle Pitch: %.2f \n", angle_pitch);
-  // Serial.printf("Angle Roll: %.2f \n", angle_roll);
+  Serial.print("--------------------");
+  Serial.println();
+  Serial.printf("Angle Pitch: %.2f \n", angle_pitch);
+  Serial.printf("Angle Roll: %.2f \n", angle_roll);
 
-  // Serial.print("--------------------");
-  // Serial.println();
-  // Serial.printf("pid_roll_setpoint: %.2f \n", pid_roll_setpoint);
-  // Serial.printf("pid_pitch_setpoint: %.2f \n", pid_pitch_setpoint);
-  // Serial.printf("pid_yaw_setpoint: %.2f \n", pid_yaw_setpoint);
+  Serial.print("--------------------");
+  Serial.println();
+  Serial.printf("pid_roll_setpoint: %.2f \n", pid_roll_setpoint);
+  Serial.printf("pid_pitch_setpoint: %.2f \n", pid_pitch_setpoint);
+  Serial.printf("pid_yaw_setpoint: %.2f \n", pid_yaw_setpoint);
 
   // Serial.print("--------------------");
   // Serial.println();

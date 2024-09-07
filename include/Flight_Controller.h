@@ -69,7 +69,7 @@ struct Flight_Controller
   float ay_g;
   float az_g;
 
-  // Maximum output of the PID-controller Anti windup (+/-) 
+  // Maximum output of the PID-controller Anti windup (+/-)
   // These values should be based on the practical maximum rates observed for stable control.
   // If the observed maximum rate during a maneuver (like a flip) is around 80 degrees per second, use that value.
   // The gyroscope maximum rate is typically higher (e.g., ±500 degrees per second), but we set a practical limit here.
@@ -102,7 +102,7 @@ struct Flight_Controller
   void armESCs();
   void allocatePWMTimers();
   void read_Controller();
-  void level_flight(int *, int *, int *, int *);
+  void level_flight(int &, int &, int &, int &);
   void motorControls();
   void calculate_pid();
   void mix_motors();
@@ -111,7 +111,7 @@ struct Flight_Controller
   void startInitializationSequence();
   // float calculatePIDSetpoint(int channel, float level_adjust);
   // float calculatePIDSetpointForYaw(int channel_3, int channel_4);
-  int computeESCValue(int throttle, int pitch, int roll, int yaw);
+  int computeESCValue(int, int, int, int);
   // float calculate_pid_component(float input, float setpoint, float &i_mem, float &last_d_error, float p_gain, float i_gain, float d_gain, float max_output, float dt);
   bool areMotorsOff();
   void print();

@@ -36,7 +36,7 @@ void setup()
 void loop()
 {
   // Process IMU data
-  processIMUData(false);
+  processIMUData(true);
 
   // Apply complementary filter for level flight
   level_flight();
