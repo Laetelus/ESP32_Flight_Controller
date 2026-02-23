@@ -8,13 +8,12 @@
 #include "PID_Webserver.h"
 #include <WiFi.h>
 
+// FC fc; 
+
 static unsigned long loop_timer;
 void setup()
 {
-  flightController.initialize(); // Initialize other routines
-  ws.initSPIFFS();
-  WiFi.mode(WIFI_STA); // Set WiFi to station mode but don't connect
-  ws.Wifi_task();
+  fc.initialize(); // Initialize other routines
 
   // Load PID values from SPIFFS (if available)
   if (!ws.loadPIDValues())
@@ -31,16 +30,13 @@ void loop()
   // static unsigned long loop_timer = micros(); // Initialize loop timer
   unsigned long current_time;
 
-  // Ensure processIMUData is called to update angle_pitch and angle_roll
-  flightController.processIMUData(true, true);
-
+  fc.processIMUData(); 
+  fc.scale_IMU(); 
   // Execute the main tasks
-  flightController.read_Controller();
-  flightController.motorControls(); // motorControls calls level_flight and calculate_pid internally
-  flightController.mix_motors();
-  flightController.write_motors();
+  fc.motorControls(); // motorControls calls level_flight and calculate_pid internally
+  fc.mix_motors();
 
-  //flightController.print();
+  // flightController.print();
 
   current_time = micros(); // Capture the current time after executing tasks
 

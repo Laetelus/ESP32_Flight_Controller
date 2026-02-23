@@ -14,7 +14,7 @@ void WiFiTask(void *parameter)
 {
     for (;;)
     { // Infinite loop
-        if (flightController.areMotorsOff())
+        if (fc.areMotorsOff())
         {
             ws.initWiFi();
             ws.checkWiFiConnection();
@@ -61,6 +61,7 @@ void PID_Webserver::initWiFi()
         WiFi.begin(ssid, password);
         // Serial.println("\nConnecting to WiFi...");
     }
+    
 }
 
 void PID_Webserver::disconnect_wifi()
@@ -129,16 +130,16 @@ bool PID_Webserver::savePIDValues()
         return false;
     }
 
-    if (flightController.areMotorsOff())
+    if (fc.areMotorsOff())
     {
         // Only write roll and yaw values, since pitch will mirror roll
-        file.printf("P_GAIN_ROLL:%f\n", flightController.pid_p_gain_roll);
-        file.printf("I_GAIN_ROLL:%f\n", flightController.pid_i_gain_roll);
-        file.printf("D_GAIN_ROLL:%f\n", flightController.pid_d_gain_roll);
+        file.printf("P_GAIN_ROLL:%f\n", fc.pid_p_gain_roll);
+        file.printf("I_GAIN_ROLL:%f\n", fc.pid_i_gain_roll);
+        file.printf("D_GAIN_ROLL:%f\n", fc.pid_d_gain_roll);
 
-        file.printf("P_GAIN_YAW:%f\n", flightController.pid_p_gain_yaw);
-        file.printf("I_GAIN_YAW:%f\n", flightController.pid_i_gain_yaw);
-        file.printf("D_GAIN_YAW:%f\n", flightController.pid_d_gain_yaw);
+        file.printf("P_GAIN_YAW:%f\n", fc.pid_p_gain_yaw);
+        file.printf("I_GAIN_YAW:%f\n", fc.pid_i_gain_yaw);
+        file.printf("D_GAIN_YAW:%f\n", fc.pid_d_gain_yaw);
     }
 
     file.close();
@@ -160,33 +161,33 @@ bool PID_Webserver::loadPIDValues()
         line = file.readStringUntil('\n');
         if (line.startsWith("P_GAIN_ROLL:"))
         {
-            flightController.pid_p_gain_roll = line.substring(line.indexOf(':') + 1).toFloat();
+            fc.pid_p_gain_roll = line.substring(line.indexOf(':') + 1).toFloat();
             // Mirror the roll values to pitch
-            flightController.pid_p_gain_pitch = flightController.pid_p_gain_roll;
+            fc.pid_p_gain_pitch = fc.pid_p_gain_roll;
         }
         else if (line.startsWith("I_GAIN_ROLL:"))
         {
-            flightController.pid_i_gain_roll = line.substring(line.indexOf(':') + 1).toFloat();
+            fc.pid_i_gain_roll = line.substring(line.indexOf(':') + 1).toFloat();
             // Mirror the roll values to pitch
-            flightController.pid_i_gain_pitch = flightController.pid_i_gain_roll;
+            fc.pid_i_gain_pitch = fc.pid_i_gain_roll;
         }
         else if (line.startsWith("D_GAIN_ROLL:"))
         {
-            flightController.pid_d_gain_roll = line.substring(line.indexOf(':') + 1).toFloat();
+            fc.pid_d_gain_roll = line.substring(line.indexOf(':') + 1).toFloat();
             // Mirror the roll values to pitch
-            flightController.pid_d_gain_pitch = flightController.pid_d_gain_roll;
+            fc.pid_d_gain_pitch = fc.pid_d_gain_roll;
         }
         else if (line.startsWith("P_GAIN_YAW:"))
         {
-            flightController.pid_p_gain_yaw = line.substring(line.indexOf(':') + 1).toFloat();
+            fc.pid_p_gain_yaw = line.substring(line.indexOf(':') + 1).toFloat();
         }
         else if (line.startsWith("I_GAIN_YAW:"))
         {
-            flightController.pid_i_gain_yaw = line.substring(line.indexOf(':') + 1).toFloat();
+            fc.pid_i_gain_yaw = line.substring(line.indexOf(':') + 1).toFloat();
         }
         else if (line.startsWith("D_GAIN_YAW:"))
         {
-            flightController.pid_d_gain_yaw = line.substring(line.indexOf(':') + 1).toFloat();
+            fc.pid_d_gain_yaw = line.substring(line.indexOf(':') + 1).toFloat();
         }
     }
 
@@ -214,22 +215,22 @@ String formatFloat(float value, unsigned int maxDecimals)
 void PID_Webserver::fillPIDJson(DynamicJsonDocument &doc)
 {
     // Roll PID parameters
-    doc["pid_p_gain_roll"] = formatFloat(flightController.pid_p_gain_roll, 5);
-    doc["pid_i_gain_roll"] = formatFloat(flightController.pid_i_gain_roll, 5);
-    doc["pid_d_gain_roll"] = formatFloat(flightController.pid_d_gain_roll, 5);
-    doc["pid_max_roll"] = formatFloat(flightController.pid_max_roll, 5);
+    doc["pid_p_gain_roll"] = formatFloat(fc.pid_p_gain_roll, 5);
+    doc["pid_i_gain_roll"] = formatFloat(fc.pid_i_gain_roll, 5);
+    doc["pid_d_gain_roll"] = formatFloat(fc.pid_d_gain_roll, 5);
+    doc["pid_max_roll"] = formatFloat(fc.pid_max_roll, 5);
 
     // Pitch PID parameters
-    doc["pid_p_gain_pitch"] = formatFloat(flightController.pid_p_gain_pitch, 5);
-    doc["pid_i_gain_pitch"] = formatFloat(flightController.pid_i_gain_pitch, 5);
-    doc["pid_d_gain_pitch"] = formatFloat(flightController.pid_d_gain_pitch, 5);
-    doc["pid_max_pitch"] = formatFloat(flightController.pid_max_pitch, 5);
+    doc["pid_p_gain_pitch"] = formatFloat(fc.pid_p_gain_pitch, 5);
+    doc["pid_i_gain_pitch"] = formatFloat(fc.pid_i_gain_pitch, 5);
+    doc["pid_d_gain_pitch"] = formatFloat(fc.pid_d_gain_pitch, 5);
+    doc["pid_max_pitch"] = formatFloat(fc.pid_max_pitch, 5);
 
     // Yaw PID parameters
-    doc["pid_p_gain_yaw"] = formatFloat(flightController.pid_p_gain_yaw, 5);
-    doc["pid_i_gain_yaw"] = formatFloat(flightController.pid_i_gain_yaw, 5);
-    doc["pid_d_gain_yaw"] = formatFloat(flightController.pid_d_gain_yaw, 5);
-    doc["pid_max_yaw"] = formatFloat(flightController.pid_max_yaw, 5);
+    doc["pid_p_gain_yaw"] = formatFloat(fc.pid_p_gain_yaw, 5);
+    doc["pid_i_gain_yaw"] = formatFloat(fc.pid_i_gain_yaw, 5);
+    doc["pid_d_gain_yaw"] = formatFloat(fc.pid_d_gain_yaw, 5);
+    doc["pid_max_yaw"] = formatFloat(fc.pid_max_yaw, 5);
 }
 
 String PID_Webserver::updatePIDFromRequest(AsyncWebServerRequest *request)
@@ -247,23 +248,24 @@ String PID_Webserver::updatePIDFromRequest(AsyncWebServerRequest *request)
     };
 
     // Update Roll PID parameters
-    updateParamFloat("pid_p_gain_roll", flightController.pid_p_gain_roll);
-    updateParamFloat("pid_i_gain_roll", flightController.pid_i_gain_roll);
-    updateParamFloat("pid_d_gain_roll", flightController.pid_d_gain_roll);
+    updateParamFloat("pid_p_gain_roll", fc.pid_p_gain_roll);
+    updateParamFloat("pid_i_gain_roll", fc.pid_i_gain_roll);
+    updateParamFloat("pid_d_gain_roll", fc.pid_d_gain_roll);
 
     // Assign roll PID values to pitch and yaw as well
-    flightController.pid_p_gain_pitch = flightController.pid_p_gain_roll;
-    flightController.pid_i_gain_pitch = flightController.pid_i_gain_roll;
-    flightController.pid_d_gain_pitch = flightController.pid_d_gain_roll;
+    fc.pid_p_gain_pitch = fc.pid_p_gain_roll;
+    fc.pid_i_gain_pitch = fc.pid_i_gain_roll;
+    fc.pid_d_gain_pitch = fc.pid_d_gain_roll;
 
-    flightController.pid_p_gain_yaw = flightController.pid_p_gain_roll;
-    flightController.pid_i_gain_yaw = flightController.pid_i_gain_roll;
-    flightController.pid_d_gain_yaw = flightController.pid_d_gain_roll;
+    // The following yaw was assigned to roll instead of yaw, 
+    fc.pid_p_gain_yaw = fc.pid_p_gain_yaw; 
+    fc.pid_i_gain_yaw = fc.pid_i_gain_yaw;
+    fc.pid_d_gain_yaw = fc.pid_d_gain_yaw;
 
     // Update Yaw PID parameters
-    updateParamFloat("pid_p_gain_yaw", flightController.pid_p_gain_yaw);
-    updateParamFloat("pid_i_gain_yaw", flightController.pid_i_gain_yaw);
-    updateParamFloat("pid_d_gain_yaw", flightController.pid_d_gain_yaw);
+    updateParamFloat("pid_p_gain_yaw", fc.pid_p_gain_yaw);
+    updateParamFloat("pid_i_gain_yaw", fc.pid_i_gain_yaw);
+    updateParamFloat("pid_d_gain_yaw", fc.pid_d_gain_yaw);
 
     if (response.isEmpty())
     {
@@ -275,7 +277,7 @@ String PID_Webserver::updatePIDFromRequest(AsyncWebServerRequest *request)
 
 void PID_Webserver::handleSetPID(AsyncWebServerRequest *request)
 {
-    if (flightController.areMotorsOff())
+    if (fc.areMotorsOff())
     {
         String response = updatePIDFromRequest(request);
         if (!response.isEmpty())
@@ -303,7 +305,7 @@ void PID_Webserver::handleSetPID(AsyncWebServerRequest *request)
 
 void PID_Webserver::handleGetPID(AsyncWebServerRequest *request)
 {
-    if (flightController.areMotorsOff())
+    if (fc.areMotorsOff())
     {
         DynamicJsonDocument doc(1024);
         fillPIDJson(doc);

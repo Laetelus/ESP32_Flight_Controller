@@ -10,6 +10,8 @@ struct Calibration
     bool loadCalibrationValues();
     void printStoredCalibrationValues();
     void clearCalibrationData();
+    void performCalibration();
+
 };
 
 extern Calibration cal;

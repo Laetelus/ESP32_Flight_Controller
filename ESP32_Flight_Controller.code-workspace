@@ -1,0 +1,18 @@
+{
+  "folders": [
+    {
+      "path": "FC"
+    },
+    {
+      "path": "Testing"
+    }
+  ],
+  "settings": {
+    "workbench.colorCustomizations": {
+      "activityBar.background": "#600618",
+      "titleBar.activeBackground": "#860821",
+      "titleBar.activeForeground": "#FFFBFC"
+    },
+    "powershell.cwd": "FC"
+  }
+}

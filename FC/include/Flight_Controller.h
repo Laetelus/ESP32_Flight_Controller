@@ -10,21 +10,19 @@
 #include "Kalman.h"
 #include <Wire.h>
 
-struct Flight_Controller
-{
+//Controller PINS
 #define THROTTLE 36
 #define YAW 39
 #define ROLL 35
 #define PITCH 34
 
+struct FC
+{
+
   static constexpr int EEPROM_SIZE = 32;
   static constexpr int MIN_PULSE_LENGTH = 1000;
   static constexpr int MAX_PULSE_LENGTH = 2000;
 
-  // static constexpr int esc_pin1 = 32; // FR/CCW
-  // static constexpr int esc_pin2 = 33; // FL/CW
-  // static constexpr int esc_pin3 = 25; // BR/CW
-  // static constexpr int esc_pin4 = 26; // BL/CCW
 
   // new oriant
   static constexpr int esc_pin1 = 25; // FR/CCW
@@ -32,10 +30,18 @@ struct Flight_Controller
   static constexpr int esc_pin3 = 26; // BR/CW
   static constexpr int esc_pin4 = 33; // BL/CCW
 
-  Kalman kalmanRoll;
-  Kalman kalmanPitch;
 
-  Servo esc1, esc2, esc3, esc4;
+  unsigned long filter_last_time;
+
+  Servo 
+  // FR/CCW
+  esc1, 
+ // FL/CW
+  esc2,
+  // BR/CW 
+  esc3, 
+  // BL/CCW
+  esc4;
 
   // Member variables
   unsigned long lastDebounceTime;
@@ -62,17 +68,24 @@ struct Flight_Controller
   float temperatureC;
   float ax_mps2, ay_mps2, az_mps2;
 
-  float gyroRateX;
-  float gyroRateY;
-  float gyroRateZ;
-  float ax_g;
-  float ay_g;
-  float az_g;
+  //GYRO and ACcell data scaled 
+  float gx_d = 0;
+  float gy_d = 0;
+  float gz_d = 0;
+  float ax_g = 0;
+  float ay_g = 0;
+  float az_g = 0;
+  
+  //Should be used for the angles in deg
+  float accRoll;
+  float accPitch;
+
 
   // Maximum output of the PID-controller Anti windup (+/-)
   // These values should be based on the practical maximum rates observed for stable control.
   // If the observed maximum rate during a maneuver (like a flip) is around 80 degrees per second, use that value.
   // The gyroscope maximum rate is typically higher (e.g., ±500 degrees per second), but we set a practical limit here.
+  
   int pid_max_roll = 90;            // Practical maximum rate for roll in degrees per second
   int pid_max_pitch = pid_max_roll; // Practical maximum rate for pitch in degrees per second
   int pid_max_yaw = 90;             // Practical maximum rate for yaw in degrees per second
@@ -84,29 +97,32 @@ struct Flight_Controller
   int16_t gyroXOffset, gyroYOffset, gyroZOffset, accXOffset, accYOffset, accZOffset;
 
   float acc_x, acc_y, acc_z, acc_total_vector;
+  
   double gyro_pitch, gyro_roll, gyro_yaw;
   double pid_i_mem_roll, pid_roll_setpoint, gyro_roll_input, pid_output_roll, pid_last_roll_d_error;
-  float accRoll;
-  float accPitch;
+ 
+
+
   bool isDebounceConditionMet;
   bool gyro_angles_set;
   bool auto_level = true; // Auto level on (true) or off (false)
 
   // Member functions
   void initialize();
+  void scale_IMU(); 
   void initializeI2CBus();
-  void performCalibration();
   void setupInputPins();
   void attachInterrupts();
   void attachESCPins();
-  void armESCs();
+  void Initialize_ESCs();
   void allocatePWMTimers();
   void read_Controller();
   void level_flight(int &, int &, int &, int &);
   void motorControls();
   void calculate_pid();
   void mix_motors();
-  void processIMUData(bool, bool);
+  // void processIMUData(bool, bool);
+  void processIMUData();
   void write_motors();
   void startInitializationSequence();
   // float calculatePIDSetpoint(int channel, float level_adjust);
@@ -115,8 +131,9 @@ struct Flight_Controller
   // float calculate_pid_component(float input, float setpoint, float &i_mem, float &last_d_error, float p_gain, float i_gain, float d_gain, float max_output, float dt);
   bool areMotorsOff();
   void print();
+  void calc_accel_angle();
 };
 
-extern Flight_Controller flightController;
+extern FC fc;
 
 #endif // FLIGHT_CONTROLLER_h
