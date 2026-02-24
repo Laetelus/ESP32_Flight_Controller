@@ -10,11 +10,16 @@
 
 PID_Webserver ws;
 
+bool FC::MotorsOff()
+{
+  return start != 2;
+}
+
 void WiFiTask(void *parameter)
 {
     for (;;)
     { // Infinite loop
-        if (fc.areMotorsOff())
+        if (fc.MotorsOff())
         {
             ws.initWiFi();
             ws.checkWiFiConnection();
@@ -130,7 +135,7 @@ bool PID_Webserver::savePIDValues()
         return false;
     }
 
-    if (fc.areMotorsOff())
+    if (fc.MotorsOff())
     {
         // Only write roll and yaw values, since pitch will mirror roll
         file.printf("P_GAIN_ROLL:%f\n", fc.pid_p_gain_roll);
@@ -277,7 +282,7 @@ String PID_Webserver::updatePIDFromRequest(AsyncWebServerRequest *request)
 
 void PID_Webserver::handleSetPID(AsyncWebServerRequest *request)
 {
-    if (fc.areMotorsOff())
+    if (fc.MotorsOff())
     {
         String response = updatePIDFromRequest(request);
         if (!response.isEmpty())
@@ -305,7 +310,7 @@ void PID_Webserver::handleSetPID(AsyncWebServerRequest *request)
 
 void PID_Webserver::handleGetPID(AsyncWebServerRequest *request)
 {
-    if (fc.areMotorsOff())
+    if (fc.MotorsOff())
     {
         DynamicJsonDocument doc(1024);
         fillPIDJson(doc);

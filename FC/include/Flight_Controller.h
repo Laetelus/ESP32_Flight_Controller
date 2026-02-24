@@ -65,7 +65,7 @@ struct FC
   float pid_i_mem_pitch, pid_pitch_setpoint, gyro_pitch_input, pid_output_pitch, pid_last_pitch_d_error;
   float pid_i_mem_yaw, pid_yaw_setpoint, gyro_yaw_input, pid_output_yaw, pid_last_yaw_d_error;
   float angle_roll_acc, angle_pitch_acc, angle_pitch, angle_roll;
-  float temperatureC;
+  float temperatureF;
   float ax_mps2, ay_mps2, az_mps2;
 
   //GYRO and ACcell data scaled 
@@ -129,7 +129,7 @@ struct FC
   // float calculatePIDSetpointForYaw(int channel_3, int channel_4);
   int computeESCValue(int, int, int, int);
   // float calculate_pid_component(float input, float setpoint, float &i_mem, float &last_d_error, float p_gain, float i_gain, float d_gain, float max_output, float dt);
-  bool areMotorsOff();
+  bool MotorsOff();
   void print();
   void calc_accel_angle();
 };

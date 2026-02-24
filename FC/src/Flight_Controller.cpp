@@ -15,7 +15,6 @@
 Calibration cal; 
 
 
-// #define USE_EEPROM
 
 // Flight controller interface
 void FC::initialize()
@@ -33,25 +32,14 @@ void FC::initialize()
   initializeI2CBus();
   setupInputPins();
 
-  // we can just move this to setupInputPins 
-  // attachInterrupts();
-
   //Perform MPU calibration. 
   cal.performCalibration();
-  allocatePWMTimers();
   // finally Initialize and arm ESCs 
   Initialize_ESCs();
-
-  // Why are we printing offsets here..? this should be used after knowing offset values for eeprom 
-  // cal.printStoredCalibrationValues();
 
   // Comment #define EEPROM if clearing previously stored data
   // Once data is cleared. Ensure clearCalibrationData function is commented again
   // cal.clearCalibrationData();
-
-
-  // we need to use this somewhere if we need to keep track of the loop time for dt 
-  FC::filter_last_time = micros();
 
 }
 
@@ -83,15 +71,26 @@ void FC::initializeI2CBus()
   Wire.beginTransmission(0x68);                                     
   Wire.write(0x1A);                                                  
   Wire.write(0x03);                                                 
-  Wire.endTransmission();      
+  Wire.endTransmission();   
+  
+  //----pointing temp sensor-----------------
+  Wire.beginTransmission(0x68);                        //Start communication with the MPU-6050.
+  Wire.write(0x41);      //pointing Temp_Out_High Reg                                           //Set the register bits as 00000000 to activate the gyro.
+  Wire.endTransmission();
+
+  Wire.requestFrom(0x68, 2, true); // Request 2 bytes from TEMP_OUT_H and TEMP_OUT_L
+  byte tempH = Wire.read();
+  byte tempL = Wire.read();
+  int16_t tempRaw = (tempH << 8) | tempL;  
+
+  //Convert raw value to temperature in °F (my preference)
+  float temperatureC = (tempRaw / 340.0) + 36.53;
+  temperatureF = (temperatureC * 9.0 / 5.0) + 32.0;   
 
 }
 
 
-bool FC::areMotorsOff()
-{
-  return start != 2;
-}
+
 
 void FC::setupInputPins()
 {
@@ -106,17 +105,15 @@ void FC::setupInputPins()
   attachInterrupt(digitalPinToInterrupt(PITCH), handlePitchInterrupt, CHANGE);
 }
 
-void FC::allocatePWMTimers()
+void FC::Initialize_ESCs()
 {
-  // Allow allocation of all timers. Consistent and accurate PWM.
+
+    // Allow allocation of all timers. Consistent and accurate PWM.
   ESP32PWM::allocateTimer(0);
   ESP32PWM::allocateTimer(1);
   ESP32PWM::allocateTimer(2);
   ESP32PWM::allocateTimer(3);
-}
 
-void FC::Initialize_ESCs()
-{
   // Attach ESC pins
   esc1.attach(esc_pin1, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // FR (Front Right)
   esc2.attach(esc_pin2, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BR (Back Right)
@@ -322,6 +319,8 @@ void FC::processIMUData() {
 
 void FC::scale_IMU()
 {
+
+  // We should probably want to use offsets from EEPROM.. 
   // --- subtract OFFSETS IN RAW UNITS ---
   int16_t gx = raw_gx - gyroXOffset;
   int16_t gy = raw_gy - gyroYOffset;
@@ -341,8 +340,13 @@ void FC::scale_IMU()
   ay_g = ay * (8.0f / 32768.0f);
   az_g = az * (8.0f / 32768.0f);
 
-  // Serial.println();
-  // Serial.print("data_scaled.gyrox: "); Serial.print(data_scaled.gyroX);
+  // Serial.println(gyroXOffset); 
+  // Serial.println(gyroYOffset);
+  // Serial.println(gyroZOffset);
+
+  // Serial.println(accXOffset);
+  // Serial.println(accYOffset);
+  // Serial.println(accZOffset);
 
 }
 
@@ -364,10 +368,6 @@ void FC::motorControls()
   local_channel_1 = rollPulseWidth;       // Roll
   local_channel_2 = pitchPulseWidth;      // Pitch
   interrupts();
-
-
-  // Serial.print(rollPulseWidth); 
-  // Serial.println(); 
 
 
   unsigned long currentTime = millis();
@@ -487,7 +487,6 @@ void FC::startInitializationSequence()
 {
 
   start = 2;
-
   // processIMUData(); // triggers a Kalman filter update with the latest sensor data
 
   // Should set this as zero initially 
@@ -505,116 +504,3 @@ void FC::startInitializationSequence()
   pid_i_mem_yaw         = pid_last_yaw_d_error   = 0;
 
 }
-
-// void FC::processIMUData(bool applyOffsets, bool applyFiltering)
-// {
-
-//   Wire.beginTransmission(0x68);
-//   Wire.write(0x1A);
-//   Wire.write(0x05);
-//   Wire.endTransmission();
-
-//   Wire.beginTransmission(0x68);
-//   Wire.write(0x1C);
-//   Wire.write(0x10);
-//   Wire.endTransmission();
-
-//   // Communicate with MPU6050
-//   Wire.beginTransmission(0x68);
-//   Wire.write(0x3B); // Start at the accelerometer data register
-//   Wire.endTransmission();
-//   Wire.requestFrom(0x68, 6); // Request 14 bytes: 6 acc, 2 temp, 6 gyro
-
-//   // Read accelerometer data
-//   raw_ax = Wire.read() << 8 | Wire.read();
-//   raw_ay = Wire.read() << 8 | Wire.read();
-//   raw_az = Wire.read() << 8 | Wire.read();
-
-//   // Start communication with MPU6050
-//   Wire.beginTransmission(0x68);
-//   Wire.write(0x43); // Start at the gyroscope data register
-//   Wire.endTransmission();
-//   Wire.requestFrom(0x68, 6); // Request 6 bytes for gyroscope data
-
-//   // invert gyro x here and z here instead
-//   //  Read gyroscope data
-//   raw_gx = Wire.read() << 8 | Wire.read();
-//   raw_gy = Wire.read() << 8 | Wire.read();
-//   raw_gz = Wire.read() << 8 | Wire.read();
-
-//   // Apply offsets if flag is set and convert raw data to physical units
-//   if (applyOffsets)
-//   {
-//     raw_ax -= accXOffset;
-//     raw_ay -= accYOffset;
-//     raw_az -= accZOffset;
-//     raw_gx -= gyroXOffset;
-//     raw_gy -= gyroYOffset;
-//     raw_gz -= gyroZOffset;
-//     // print the offset to see if it works
-//   }
-
-//   // Convert gyroscope readings from raw to degrees per second
-//   gyroRateX = (float)raw_gx / 65.5; // Gyro sensitivity for ±500 dps
-//   gyroRateY = (float)raw_gy / 65.5;
-//   gyroRateZ = (float)raw_gz / 65.5;
-
-//   // Convert measurements to physical values
-//   // Accel sensitivity for ±8g
-//   ax_g = (float)raw_ax / 4096.0 + 0.01; // Do not forget to Modify each value
-//   ay_g = (float)raw_ay / 4096.0 + 0.01;
-//   az_g = (float)raw_az / 4096.0 + 0.001;
-
-//   // conversion to degrees
-//   accRoll = atan(ay_g / sqrt(ax_g * ax_g + az_g * az_g)) * RAD_TO_DEG;
-//   accPitch = atan2(-ax_g, az_g) * RAD_TO_DEG;
-
-//   // took from pratik
-//   //  accRoll = atan(ay_g / sqrt(ax_g * ax_g + az_g * az_g)) * 1 / (3.142 / 180);
-//   //  accPitch = -atan(ax_g / sqrt(ay_g * ay_g + az_g * az_g)) * 1 / (3.142 / 180);
-
-//   // accRoll = atan2(ay_g, sqrt(ay_g * ay_g + az_g * az_g)) * 180 / PI; // Roll calculation
-//   // accPitch = -atan2(ax_g, az_g) * 180 / PI;                           // Pitch calculation
-
-//   // Apply filtering if needed
-//   if (applyFiltering)
-//   {
-
-//     // kalmanRoll.setQangle(0.0001);   // More smoothing, less responsiveness
-//     // kalmanRoll.setQbias(0.001);     // Slower bias correction
-//     // kalmanRoll.setRmeasure(0.05);   // Trust accelerometer less, smoother data
-
-//     // kalmanPitch.setQangle(0.0001);
-//     // kalmanPitch.setQbias(0.001);
-//     // kalmanPitch.setRmeasure(0.05);
-
-//     // Calculate delta time for the Kalman filter
-//     unsigned long now = micros();
-//     float dt = (now - filter_last_time) * 1e-6f;
-//     filter_last_time = now;
-
-//     // Update Kalman filter with new accelerometer and gyroscope data
-//     angle_roll = kalmanRoll.getAngle(accRoll, gyroRateX, dt);
-//     angle_pitch = kalmanPitch.getAngle(accPitch, gyroRateY, dt);
-
-//     // // Complementary filter
-//     // // 98% from integrated gyro angles, 2% from accelerometer
-//     // angle_roll = 0.98 * (angle_roll + gyroRateX * dt) + 0.02 * accRoll;
-//     // angle_pitch = 0.98 * (angle_pitch + gyroRateY * dt) + 0.02 * accPitch;
-
-//     // angle_pitch = angle_pitch * 0.9996 + accPitch * 0.0004; // Correct the drift of the gyro pitch angle with the accelerometer pitch angle.
-//     // angle_roll = angle_roll * 0.9996 + accRoll * 0.0004;    // Correct the drift of the gyro roll angle with the accelerometer roll angle.
-//   }
-
-//   // // Set gyro angles equal to accelerometer angles when starting
-//   // if (applyOffsets && applyFiltering)
-//   // {
-//   //   angle_roll = accRoll;
-//   //   angle_pitch = accPitch;
-//   // }
-
-//   // Update gyro in deg for PID calculations
-//   gyro_roll_input = gyroRateX;
-//   gyro_pitch_input = gyroRateY;
-//   gyro_yaw_input = gyroRateZ;
-// }
