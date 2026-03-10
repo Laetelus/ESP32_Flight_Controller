@@ -2,6 +2,11 @@
 #define RECEIVER_INPUT_H
 
 #include <Arduino.h>
+//Controller PINS
+#define THROTTLE 36
+#define YAW 39
+#define ROLL 35
+#define PITCH 34
 
 // ─── Global variables for pulse widths ───────────────────────────
 extern volatile unsigned long lastRisingEdgeThrottle;
@@ -30,5 +35,8 @@ void IRAM_ATTR handleThrottleInterrupt();
 void IRAM_ATTR handleYawInterrupt();
 void IRAM_ATTR handleRollInterrupt();
 void IRAM_ATTR handlePitchInterrupt();
+
+
+void setupInputPins();
 
 #endif // RECEIVER_INPUT_H

@@ -8,25 +8,26 @@
 #include "Flight_Controller.h"
 #include "PID_Webserver.h"
 
-PID_Webserver ws;
-
-bool FC::MotorsOff()
+bool PID_Webserver::motorsOff()
 {
-  return start != 2;
+    return fc.MotorsOff();
 }
 
 void WiFiTask(void *parameter)
 {
+    
+    PID_Webserver* ws = static_cast<PID_Webserver*>(parameter);
+
     for (;;)
     { // Infinite loop
-        if (fc.MotorsOff())
+        if (ws->motorsOff())
         {
-            ws.initWiFi();
-            ws.checkWiFiConnection();
+            ws->initWiFi();
+            ws->checkWiFiConnection();
         }
         else
         {
-            ws.disconnect_wifi();
+            ws->disconnect_wifi();
         }
         vTaskDelay(10 / portTICK_PERIOD_MS); // Delay to prevent the task from using all CPU time
     }
@@ -34,13 +35,11 @@ void WiFiTask(void *parameter)
 
 void PID_Webserver::Wifi_task()
 {
-
-    // Create a task for WiFi management
     xTaskCreatePinnedToCore(
         WiFiTask,   /* Task function */
         "WiFiTask", /* Name of task */
         10000,      /* Stack size of task */
-        NULL,       /* Parameter of the task */
+        this,       /* Parameter of the task */
         1,          /* Priority of the task */
         NULL,       /* Task handle to keep track of created task */
         0);         /* Core where the task should run */
@@ -135,7 +134,7 @@ bool PID_Webserver::savePIDValues()
         return false;
     }
 
-    if (fc.MotorsOff())
+    if (motorsOff())
     {
         // Only write roll and yaw values, since pitch will mirror roll
         file.printf("P_GAIN_ROLL:%f\n", fc.pid_p_gain_roll);
@@ -282,7 +281,7 @@ String PID_Webserver::updatePIDFromRequest(AsyncWebServerRequest *request)
 
 void PID_Webserver::handleSetPID(AsyncWebServerRequest *request)
 {
-    if (fc.MotorsOff())
+    if (motorsOff())
     {
         String response = updatePIDFromRequest(request);
         if (!response.isEmpty())
@@ -310,7 +309,7 @@ void PID_Webserver::handleSetPID(AsyncWebServerRequest *request)
 
 void PID_Webserver::handleGetPID(AsyncWebServerRequest *request)
 {
-    if (fc.MotorsOff())
+    if (motorsOff())
     {
         DynamicJsonDocument doc(1024);
         fillPIDJson(doc);

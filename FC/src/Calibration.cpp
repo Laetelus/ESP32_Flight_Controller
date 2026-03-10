@@ -2,13 +2,16 @@
 #include <EEPROM.h>
 #include "Calibration.h"
 #include "Flight_Controller.h"
-
-FC fc; 
-
-// #define USE_EEPROM
+#include "IMU.h"
 
 void Calibration::performCalibration()
 {
+
+  const RawImuData& raw = imu.getRawData();
+  const AccelAngleData& ang = imu.getAccelAngles();
+  const ScaledImuData& scale = imu.getScaledData();
+  ImuOffsets ofst;
+
   // Run for 2 seconds, store as the sample count 
   unsigned long cal_time = 2000; 
   long buff_ax = 0, buff_ay = 0,
@@ -19,9 +22,9 @@ void Calibration::performCalibration()
 
 #ifdef USE_EEPROM
 
-  EEPROM.begin(fc.EEPROM_SIZE);
+  EEPROM.begin(EEPROM_SIZE);
 
-  if (!cal.loadCalibrationValues())
+  if (!loadCalibrationValues())
   {
 
     Serial.println("Calibration data not found in EEPROM. Calibrating...");
@@ -31,67 +34,71 @@ void Calibration::performCalibration()
     unsigned long startTime = millis();
     while (millis() - startTime < cal_time)
     {
-      fc.processIMUData(); // Collect raw data for calibration period
-      buff_ax += fc.raw_ax;
-      buff_ax += fc.raw_ay;
-      buff_ax += fc.raw_az;
+      imu.processIMUData(); // Collect raw data for calibration period
+      buff_ax += raw.ax;
+      buff_ax += raw.ay;
+      buff_ax += raw.az;
 
-      buff_gx += fc.raw_gx;
-      buff_gy += fc.raw_gy;
-      buff_gz += fc.raw_gz;
+      buff_gx += raw.gx;
+      buff_gy += raw.gy;
+      buff_gz += raw.gz;
 
       sampleCount++; // Increment sample count
       delay(2);      // Delay to maintain sampling rate
     }
 
     // Use the actual counted samples for offset calculation
-    fc.accXOffset = buff_ax / sampleCount;
-    fc.accYOffset = buff_ax / sampleCount;
-    fc.accZOffset = buff_ax / sampleCount - 16384;
+    ofst.accX = buff_ax / sampleCount;
+    ofst.accY = buff_ax / sampleCount;
+    ofst.accZ = buff_ax / sampleCount - 16384;
 
-    fc.gyroXOffset = buff_gx / sampleCount;
-    fc.gyroYOffset = buff_gy / sampleCount;
-    fc.gyroZOffset = buff_gz / sampleCount;
+    ofst.gyroX = buff_gx / sampleCount;
+    ofst.gyroY = buff_gy / sampleCount;
+    ofst.gyroZ = buff_gz / sampleCount;
 
-    cal.saveCalibrationValues();
+    imu.setOffsets(ofst); 
+    saveCalibrationValues();
 
     digitalWrite(2, LOW); // Turn off LED after calibration.
   }
   else
   {
     // Only print this once offsets are found and need to be in EEPROM
-    cal.printStoredCalibrationValues();
+    printStoredCalibrationValues();
 
   }
 #else
 
+ 
   Serial.println("Calibrating without EEPROM...");
   digitalWrite(2, HIGH); 
 
   unsigned long startTime = millis();
   while (millis() - startTime < cal_time)
   {
-    fc.processIMUData(); // Collect raw data for calibration period
-    buff_ax += fc.raw_ax;
-    buff_ax += fc.raw_ay;
-    buff_ax += fc.raw_az;
+    imu.processIMUData(); // Collect raw data for calibration period
+    buff_ax += raw.ax;
+    buff_ax += raw.ay;
+    buff_ax += raw.az;
 
-    buff_gx += fc.raw_gx;
-    buff_gy += fc.raw_gy;
-    buff_gz += fc.raw_gz;
+    buff_gx += raw.gx;
+    buff_gy += raw.gy;
+    buff_gz += raw.gz;
 
     sampleCount++; // Increment sample count
     delay(2);      // Delay to maintain sampling rate
   }
 
   // Use the actual counted samples for offset calculation
-  fc.accXOffset = buff_ax / sampleCount;
-  fc.accYOffset = buff_ax / sampleCount;
-  fc.accZOffset = buff_ax / sampleCount - 16384;
+  ofst.accX = buff_ax / sampleCount;
+  ofst.accY = buff_ax / sampleCount;
+  ofst.accZ = buff_ax / sampleCount - 16384;
 
-  fc.gyroXOffset = buff_gx / sampleCount;
-  fc.gyroYOffset = buff_gy / sampleCount;
-  fc.gyroZOffset = buff_gz / sampleCount;
+  ofst.gyroX = buff_gx / sampleCount;
+  ofst.gyroY = buff_gy / sampleCount;
+  ofst.gyroZ = buff_gz / sampleCount;
+
+  imu.setOffsets(ofst); 
 
   digitalWrite(2, LOW); // Turn off LED after calibration.
 
@@ -99,34 +106,36 @@ void Calibration::performCalibration()
   Serial.println("\nCalibration Complete.");
   Serial.println("Calculated Offsets:");
   Serial.print("Gyro X Offset: ");
-  Serial.println(fc.gyroXOffset);
+  Serial.println(ofst.gyroX);
   Serial.print("Gyro Y Offset: ");
-  Serial.println(fc.gyroYOffset);
+  Serial.println(ofst.gyroY);
   Serial.print("Gyro Z Offset: ");
-  Serial.println(fc.gyroZOffset);
+  Serial.println(ofst.gyroZ);
   Serial.print("Acc X Offset: ");
-  Serial.println(fc.accXOffset);
+  Serial.println(ofst.accX);
   Serial.print("Acc Y Offset: ");
-  Serial.println(fc.accYOffset);
+  Serial.println(ofst.accY);
   Serial.print("Acc Z Offset: ");
-  Serial.println(fc.accZOffset);
+  Serial.println(ofst.accZ);
 
 #endif
 }
 
 void Calibration::saveCalibrationValues()
 {
+  const ImuOffsets& ofst = imu.getOffsets();
+
   EEPROM.writeLong(0, 0x12345678);
-  EEPROM.writeLong(4, fc.accXOffset);
-  EEPROM.writeLong(8, fc.accYOffset);
-  EEPROM.writeLong(12, fc.accZOffset);
-  EEPROM.writeLong(16, fc.gyroXOffset);
-  EEPROM.writeLong(20, fc.gyroYOffset);
-  EEPROM.writeLong(24, fc.gyroZOffset);
-  // Remove: EEPROM.writeFloat(28, fc.temperatureC);
+  EEPROM.writeLong(4,  ofst.accX);
+  EEPROM.writeLong(8,  ofst.accY);
+  EEPROM.writeLong(12, ofst.accZ);
+  EEPROM.writeLong(16, ofst.gyroX);
+  EEPROM.writeLong(20, ofst.gyroY);
+  EEPROM.writeLong(24, ofst.gyroZ);
+  // Remove: EEPROM.writeFloat(28, imu.temperatureC);
   
-  uint32_t checksum = fc.accXOffset + fc.accYOffset + fc.accZOffset + 
-                      fc.gyroXOffset + fc.gyroYOffset + fc.gyroZOffset;
+  uint32_t checksum = ofst.accX + ofst.accY + ofst.accZ + 
+                      ofst.gyroX + ofst.gyroY + ofst.gyroZ;
   EEPROM.writeLong(28, checksum);  // Moved to address 28
   
   EEPROM.commit();
@@ -136,22 +145,25 @@ void Calibration::saveCalibrationValues()
 
 bool Calibration::loadCalibrationValues()
 {
+  ImuOffsets ofst;
   //First instance to indicate a calibration 
   if (EEPROM.readLong(0) != 0x12345678)
     return false;
   
   // Load values
-  fc.accXOffset = EEPROM.readLong(4);
-  fc.accYOffset = EEPROM.readLong(8);
-  fc.accZOffset = EEPROM.readLong(12);
-  fc.gyroXOffset = EEPROM.readLong(16);
-  fc.gyroYOffset = EEPROM.readLong(20);
-  fc.gyroZOffset = EEPROM.readLong(24);
+  ofst.accX = EEPROM.readLong(4);
+  ofst.accY = EEPROM.readLong(8);
+  ofst.accZ = EEPROM.readLong(12);
+  ofst.gyroX = EEPROM.readLong(16);
+  ofst.gyroY = EEPROM.readLong(20);
+  ofst.gyroZ = EEPROM.readLong(24);
+
+  imu.setOffsets(ofst); 
   
   // Verify checksum
   uint32_t storedChecksum = EEPROM.readLong(28);
-  uint32_t calculatedChecksum = fc.accXOffset + fc.accYOffset + fc.accZOffset + 
-                                fc.gyroXOffset + fc.gyroYOffset + fc.gyroZOffset;
+  uint32_t calculatedChecksum = ofst.accX + ofst.accY + ofst.accZ + 
+                                ofst.gyroX + ofst.gyroY + ofst.gyroZ;
   
   if (storedChecksum != calculatedChecksum)
   {
@@ -167,23 +179,24 @@ bool Calibration::loadCalibrationValues()
 void Calibration::clearCalibrationData()
 {
 
-  EEPROM.begin(fc.EEPROM_SIZE);
+  EEPROM.begin(EEPROM_SIZE);
 
   // Set a specific value to indicate that the data is cleared or invalid
   int addr = 0; 
 
-  for (int i = 1; i <= 6; i++ )
-  {
-    EEPROM.writeLong(addr, 0x0); 
-    addr += 4;  
+  if (addr != 0) {
+      for (int i = 1; i <= 6; i++ )
+      {
+        EEPROM.writeLong(addr, 0x0); 
+        addr += 4;  
+      }
+
+      EEPROM.writeFloat(28, 0x0);
+      EEPROM.commit(); // Make sure to commit the changes to EEPROM
+      Serial.println("Calibration data cleared.");
+      printStoredCalibrationValues();
   }
-
-  EEPROM.writeFloat(28, 0x0);
-
-  EEPROM.commit(); // Make sure to commit the changes to EEPROM
-  Serial.println("Calibration data cleared.");
-  printStoredCalibrationValues();
-
+  
 }
 
 void Calibration::printStoredCalibrationValues()

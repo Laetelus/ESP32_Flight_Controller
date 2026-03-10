@@ -73,3 +73,16 @@ void IRAM_ATTR handlePitchInterrupt()
   }
   portEXIT_CRITICAL_ISR(&muxPitch);
 }
+
+void setupInputPins()
+{
+  pinMode(THROTTLE, INPUT);
+  pinMode(YAW, INPUT);
+  pinMode(PITCH, INPUT);
+  pinMode(ROLL, INPUT);
+
+  attachInterrupt(digitalPinToInterrupt(THROTTLE), handleThrottleInterrupt, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(YAW), handleYawInterrupt, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(ROLL), handleRollInterrupt, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(PITCH), handlePitchInterrupt, CHANGE);
+}

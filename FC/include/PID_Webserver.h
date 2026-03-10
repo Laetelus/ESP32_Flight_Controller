@@ -1,15 +1,17 @@
-#ifndef PID_WEBSERVER
-#define PID_WEBSERVER
-
+#pragma once
 #include "SPIFFS.h"
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <AsyncTCP.h>
 #include <ArduinoJson.h>
 #include "Flight_Controller.h"
+#include "PID_Webserver.h"
 
-struct PID_Webserver
+class FC;
+class PID_Webserver
 {
+public:    
+    PID_Webserver(FC& fcRef) : fc(fcRef) {}
     void initSPIFFS();
     void Wifi_task();
     void initWiFi();
@@ -22,7 +24,11 @@ struct PID_Webserver
     String updatePIDFromRequest(AsyncWebServerRequest *request);
     bool savePIDValues();
     bool loadPIDValues();
+    bool motorsOff();
 
+private: 
+    FC& fc;
+    
     AsyncWebServer server{80};
     AsyncEventSource events{"/events"};
 
@@ -30,6 +36,3 @@ struct PID_Webserver
     const char *password = "rapidcream878";
 };
 
-extern PID_Webserver ws; // Extern declaration
-
-#endif

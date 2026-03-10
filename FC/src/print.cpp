@@ -117,14 +117,14 @@
   // Serial.print("angle_pitch:");
   // Serial.println(angle_pitch);
 
-  Serial.print("pid_output_roll:");
-  Serial.print(pid_output_roll);
-  Serial.print(",");
-  Serial.print("pid_output_pitch:");
-  Serial.println(pid_output_pitch);
-  Serial.print(",");
-  Serial.print("pid_output_yaw:");
-  Serial.println(pid_output_yaw);
+  // Serial.print("pid_output_roll:");
+  // Serial.print(pid_output_roll);
+  // Serial.print(",");
+  // Serial.print("pid_output_pitch:");
+  // Serial.println(pid_output_pitch);
+  // Serial.print(",");
+  // Serial.print("pid_output_yaw:");
+  // Serial.println(pid_output_yaw);
 
     // Serial.print(",");                    // Separator (comma)
     // Serial.print(pid_roll_setpoint);   // PID Roll Setpoint with 2 decimal places

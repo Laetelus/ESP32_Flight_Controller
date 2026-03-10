@@ -7,21 +7,31 @@
 #include "Calibration.h"
 #include "PID_Webserver.h"
 #include <WiFi.h>
+#include "IMU.h"
 
-// FC fc; 
+IMU imu;
+FC fc(imu);
+Calibration cal(imu);
+PID_Webserver ws(fc);
 
 static unsigned long loop_timer;
+
 void setup()
 {
-  fc.initialize(); // Initialize other routines
+  Serial.begin(115200);
+  pinMode(2, OUTPUT);
 
-  // Load PID values from SPIFFS (if available)
+  fc.initialize();
+  ws.initSPIFFS();
+
   if (!ws.loadPIDValues())
   {
     Serial.println("No PID values loaded from SPIFFS. Using default values.");
   }
 
-  // Let's start our timer
+  WiFi.mode(WIFI_STA);
+  ws.Wifi_task();
+
   loop_timer = micros();
 }
 
@@ -30,12 +40,7 @@ void loop()
   // static unsigned long loop_timer = micros(); // Initialize loop timer
   unsigned long current_time;
 
-  fc.processIMUData(); 
-  fc.scale_IMU(); 
-  // Execute the main tasks
-  fc.motorControls(); // motorControls calls level_flight and calculate_pid internally
-  fc.mix_motors();
-
+  fc.run(); 
   // flightController.print();
 
   current_time = micros(); // Capture the current time after executing tasks
