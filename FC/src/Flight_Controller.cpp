@@ -9,7 +9,6 @@
 #include "Calibration.h"
 #include "IMU.h"
 
-
 void FC::initialize()
 {
 
@@ -17,11 +16,10 @@ void FC::initialize()
   imu.initializeI2CBus();
   setupInputPins();
   //Perform MPU calibration. 
-  Calibration cal(imu); cal.performCalibration();
+  Calibration cal(imu); cal.CalibrateIMU();
   //Initialize and arm ESCs 
   motors.Initialize_ESCs();
   
-  //Clears calibration values 
   #ifndef USE_EEPROM
    cal.clearCalibrationData();
   #endif
@@ -31,43 +29,39 @@ void FC::initialize()
 void FC::run(){
   imu.readRawIMUData(); 
   imu.scaleIMU(); 
+
   //TOOD: we'll need to add the comp filter in the future. 
-  const ControlInput input = updateState();
+  const ReceiverPulseSnapshot input = ReadInput();
+  updateState(input.throttle, input.yaw);
 
   if (state == RUNNING)
   {
-    int roll = input.roll;
-    int pitch = input.pitch;
-    int throttle = input.throttle;
-    int yaw = input.yaw;
-    // computeControlSetpoints(roll, pitch, throttle, yaw);
-    // pid.calculate_pid();
+      // computeControlSetpoints(input.roll, input.pitch, input.throttle, input.yaw);
+      // pid.calculate_pid();
+      motors.mix_motors(input.throttle, pid.getOutput());
+      //write motors the values from the mixer.
+      motors.write_motors();
+  }
+  else {
+      // keep motors off and reset PID
+      motors.idle();
+      if (state == OFF) pid.reset();
   }
 
-  // test PID gains data parased from webserver in a readable format 
-  // const PIDgains gains = pid.getGains();
-  // Serial.println("Current PID Gains:");
-  // Serial.print("P Gain Roll: "); Serial.println(gains.p_gain_roll, 3); 
-  // Serial.print("I Gain Roll: "); Serial.println(gains.i_gain_roll, 3);
-  // Serial.print("D Gain Roll: "); Serial.println(gains.d_gain_roll, 3);
-  // Serial.println();
-  // Serial.print("P Gain Pitch: "); Serial.println(gains.p_gain_pitch, 3);
-  // Serial.print("I Gain Pitch: "); Serial.println(gains.i_gain_pitch, 3);
-  // Serial.print("D Gain Pitch: "); Serial.println(gains.d_gain_pitch, 3);
-  // Serial.print("P Gain Yaw: "); Serial.println(gains.p_gain_yaw, 3);
-  // Serial.print("I Gain Yaw: "); Serial.println(gains.i_gain_yaw, 3);
-  // Serial.print("D Gain Yaw: "); Serial.println(gains.d_gain_yaw, 3);
-  // Serial.println();
-  
-
-  const PIDOut pid_Output = pid.getOutput();
-  motors.mix_motors(input.throttle, pid_Output, state);
-  motors.write_motors(); 
 }
 
 // //wtf are you doing here??? reread brooks FC and redo this again please 
+// //TODO: seed pid setpoints to current accel angles on first call for bumpless start (see PID::reset for context)
 // void FC::computeControlSetpoints(int &Roll, int &Pitch, int &Throttle, int &Yaw)
 // {
+//   // TODO: bumpless start - on first entry after arming, seed setpoints to current angles
+//   // so initial PID error is ~zero instead of jumping from 0 to actual angle.
+//   // if (firstRun) {
+//   //     pid_roll_setpoint  = ang.Roll;
+//   //     pid_pitch_setpoint = ang.Pitch;
+//   //     pid_yaw_setpoint   = gyro_yaw_input;
+//   //     firstRun = false;   // set back to true in reset() so next arm cycle seeds again
+//   // }
 
 //   const AccelAngleData& ang = imu.getAccelAngles();
 
@@ -141,15 +135,9 @@ void FC::run(){
 //   }
 // }
 
-ControlInput FC::updateState()
+void FC::updateState(int throttle, int yaw)
 {
   
-  const ReceiverPulseSnapshot input = getReceiverPulseSnapshot();
-  int roll = static_cast<int>(input.roll);
-  int pitch = static_cast<int>(input.pitch);
-  int throttle = static_cast<int>(input.throttle);
-  int yaw = static_cast<int>(input.yaw);
-
   unsigned long currentTime = millis();
 
   // Start condition (state = START)
@@ -177,7 +165,6 @@ ControlInput FC::updateState()
     }
     else if ((currentTime - lastDebounceTime) > debounceDelay)
     {
-      // Reset_PID();
       state = RUNNING;
       isDebounceConditionMet = false; // Reset for next condition
     }
@@ -205,16 +192,4 @@ ControlInput FC::updateState()
   {
     isDebounceConditionMet = false;
   }
-
-  // Serial.print("state: "); Serial.print(state);
-  // Serial.print(" | roll: "); Serial.print(roll);    
-  // Serial.print(" | pitch: "); Serial.print(pitch);
-  // Serial.print(" | throttle: "); Serial.print(throttle);
-  // Serial.print(" | yaw: "); Serial.println(yaw);
-
-  return ControlInput{roll, pitch, throttle, yaw};
 }
-
-
-
-

@@ -10,14 +10,13 @@
 #define PITCH 34
 
 struct ReceiverPulseSnapshot {
-	unsigned long throttle;
-	unsigned long yaw;
-	unsigned long roll;
-	unsigned long pitch;
+	int throttle;
+	int yaw;
+	int roll;
+	int pitch;
 };
 
 void setupInputPins();
-unsigned long getThrottlePulseWidth();
-ReceiverPulseSnapshot getReceiverPulseSnapshot();
+ReceiverPulseSnapshot ReadInput();
 
 #endif // RECEIVER_INPUT_H

@@ -19,7 +19,7 @@ static unsigned long loop_timer;
 const float alpha = 0.98; 
 
 void initializeIMU();
-void calibrateIMU();
+void CalibrateIMU();
 void processIMUData(bool applyOffsets, bool applyFiltering);
 void timer(); 
 
@@ -33,7 +33,7 @@ void setup() {
   initializeIMU();
 
   // Calibrate IMU
-  calibrateIMU();
+  CalibrateIMU();
 
   Serial.println("MPU6050 initialized and calibrated.");
   loop_timer = millis();
@@ -123,7 +123,7 @@ void initializeIMU() {
   Serial.println("Initialization and Configuration Complete.");
 }
 
-void calibrateIMU() {
+void CalibrateIMU() {
   const int calibrationSamples = 5000;
   long ax_sum = 0, ay_sum = 0, az_sum = 0;
   long gx_sum = 0, gy_sum = 0, gz_sum = 0;

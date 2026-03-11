@@ -27,13 +27,10 @@ void Motors::Initialize_ESCs()
   write_motors();
 }
 
-void Motors::mix_motors(int throttleInput, const PIDOut& pidOutput, int state)
+void Motors::mix_motors(int throttleInput, const PIDOut& pidOutput)
 {
-  int throttle = throttleInput;
-  
-  if (state == RUNNING)
-  {
-                                                             // The motors are started.
+    int throttle = throttleInput;
+                                                         // The motors are started.
     throttle = constrain(throttle, 1000, 1800); // Constrain and allow room for control at full throttle
 
     esc_1 = computeESCValue(throttle, -pidOutput.pitch, -pidOutput.roll, pidOutput.yaw); // FR/CCW
@@ -49,19 +46,13 @@ void Motors::mix_motors(int throttleInput, const PIDOut& pidOutput, int state)
     // esc_3 = computeESCValue(local_throttle, pid_output_pitch, -pid_output_roll, pid_output_yaw);  // BR/CW
     // esc_4 = computeESCValue(local_throttle, pid_output_pitch, pid_output_roll, -pid_output_yaw);  // BL/CCW
 
-  }
-  else
-  {
-    // If state is not RUNNING, keep a 1000us pulse for all ESCs
-    esc_1 = esc_2 = esc_3 = esc_4 = 1000;
-  }
 }
-
 
 int Motors::computeESCValue(int throttle, int pitch, int roll, int yaw) {
   int v = throttle + pitch + roll + yaw;
   return constrain(v, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH);
 }
+
 
 void Motors::write_motors()
 {
@@ -69,4 +60,12 @@ void Motors::write_motors()
   esc2.writeMicroseconds(esc_2); // FL/CW
   esc3.writeMicroseconds(esc_3); // BR/CW
   esc4.writeMicroseconds(esc_4); // BL/CCW
+
+  // // For debugging: print the ESC values
+  // Serial.print("ESC Values - FR: "); Serial.print(esc_1);
+  // Serial.print(" | FL: "); Serial.print(esc_2);
+  // Serial.print(" | BR: "); Serial.print(esc_3);
+  // Serial.print(" | BL: "); Serial.println(esc_4);
 }
+
+

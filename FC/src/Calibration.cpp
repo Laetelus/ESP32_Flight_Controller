@@ -4,7 +4,7 @@
 #include "Flight_Controller.h"
 #include "IMU.h"
 
-void Calibration::performCalibration()
+void Calibration::CalibrateIMU()
 {
 
   const RawImuData& raw = imu.getRawData();
@@ -175,7 +175,7 @@ bool Calibration::loadCalibrationValues()
   return true;
 }
 
-// Only used if needed to get new values or writing did not go well.
+// Only use if needed to get new values or writing did not go well.
 void Calibration::clearCalibrationData()
 {
 
