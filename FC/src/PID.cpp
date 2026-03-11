@@ -77,20 +77,15 @@
 
 // }
 
-// void FC::Reset_PID()
-// {
-//   const AccelAngleData& ang = imu.getAccelAngles();
-
-//   start = 2;
-//   // Should set this as zero initially 
-//   // its good when we start on the ground to have a bumpless start. 
-//   pid_roll_setpoint  = ang.Roll; 
-//   pid_pitch_setpoint = ang.Pitch;
-//   pid_yaw_setpoint   = gyro_yaw_input; 
-  
-//   // reset PID state
-//   pid_i_mem_roll        = pid_last_roll_d_error  = 0;
-//   pid_i_mem_pitch       = pid_last_pitch_d_error = 0;
-//   pid_i_mem_yaw         = pid_last_yaw_d_error   = 0;
-
-// }
+/* 
+Purpose: Reset PID integral and derivative memory to 
+        prevent windup and ensure smooth control when starting or stopping the motors. 
+        This is especially important to avoid sudden jumps in motor output when arming the drone after it has been idle, 
+        as the PID controller will start with zero error and no accumulated integral, providing a more stable takeoff.
+*/
+void PID::reset()
+{
+  pid_i_mem_roll   = pid_last_roll_d_error  = 0;
+  pid_i_mem_pitch  = pid_last_pitch_d_error = 0;
+  pid_i_mem_yaw    = pid_last_yaw_d_error   = 0;
+}

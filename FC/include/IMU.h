@@ -43,13 +43,6 @@ struct ImuOffsets {
 };
 
 class IMU {
-private:
-    RawImuData raw_;
-    ScaledImuData scaled_;
-    AccelAngleData accA_;
-    FilteredAttitude attitude_;
-    ImuOffsets ofst_;
-    float temperatureF_ = 0.0f;
 public:
     IMU() {}
     void initializeI2CBus();
@@ -63,5 +56,13 @@ public:
     const FilteredAttitude& getAttitude() const {return attitude_;}
     const ImuOffsets getOffsets() const { return ofst_; }
     void setOffsets(const ImuOffsets& offsets) { ofst_ = offsets; }
+    
+private:
+    RawImuData raw_;
+    ScaledImuData scaled_;
+    AccelAngleData accA_;
+    FilteredAttitude attitude_;
+    ImuOffsets ofst_;
+    float temperatureF_ = 0.0f;    
 };
 

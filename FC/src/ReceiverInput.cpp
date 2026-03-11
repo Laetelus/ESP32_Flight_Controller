@@ -77,22 +77,14 @@ void IRAM_ATTR handlePitchInterrupt()
 }
 } // namespace
 
-unsigned long getThrottlePulseWidth()
-{
-  noInterrupts();
-  const unsigned long throttle = throttlePulseWidth;
-  interrupts();
-  return throttle;
-}
-
-ReceiverPulseSnapshot getReceiverPulseSnapshot()
+ReceiverPulseSnapshot ReadInput()
 {
   noInterrupts();
   ReceiverPulseSnapshot snapshot{
-      throttlePulseWidth,
-      yawPulseWidth,
-      rollPulseWidth,
-      pitchPulseWidth};
+      static_cast<int>(throttlePulseWidth),
+      static_cast<int>(yawPulseWidth),
+      static_cast<int>(rollPulseWidth),
+      static_cast<int>(pitchPulseWidth)};
   interrupts();
   return snapshot;
 }

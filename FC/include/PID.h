@@ -37,8 +37,8 @@ class PID {
 public:
     PID() {}
     void calculate_pid();
-    void Reset_PID(const AccelAngleData& ang);
-    // void Reset_PID();
+    void reset();
+    // void reset();
     PIDgains getGains() const {return pid;}
     void setGains(const PIDgains& newGains) {pid = newGains;}
     PIDOut getOutput() const {return pid_output;}   

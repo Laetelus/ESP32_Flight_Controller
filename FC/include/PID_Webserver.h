@@ -11,9 +11,6 @@ class FC;
 class PID_Webserver
 {
 public:    
-/* 
-    Update to take pass in PID only since that's important and most used data. 
-*/
     PID_Webserver(FC& fcRef, PID& pidRef) : fc(fcRef), pid(pidRef) {}
     void initSPIFFS();
     void Wifi_task();

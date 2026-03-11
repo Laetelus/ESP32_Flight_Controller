@@ -17,43 +17,29 @@ enum MotorState {
     RUNNING
 };
 
-struct ControlInput {
-  int roll;
-  int pitch;
-  int throttle;
-  int yaw;
-};
-
 class FC {
 public:
-  FC(IMU& imuRef, PID& pidRef, Motors& motorsRef) 
-        : imu(imuRef), pid(pidRef), motors(motorsRef) {}
-  // Member functions
-  void initialize();
-  void computeControlSetpoints(int &Roll, int &Pitch, int &Throttle, int &Yaw);
-  ControlInput updateState();
-  void run(); 
-  MotorState Motorstate() const {return state;}
-  void print();
+    FC(IMU& imuRef, PID& pidRef, Motors& motorsRef) 
+            : imu(imuRef), pid(pidRef), motors(motorsRef) {}
+    // Member functions
+    void initialize();
+    void computeControlSetpoints(int &Roll, int &Pitch, int &Throttle, int &Yaw);
+    void updateState(int throttle, int yaw);
+    void run(); 
+    MotorState Motorstate() const {return state;}
+    void print();
 
-  // Member variables
-  unsigned long lastDebounceTime;
-  const unsigned long debounceDelay = 20;
-
-  // int start;
-
-  // float acc_x, acc_y, acc_z, acc_total_vector;
-  
-  double gyro_pitch, gyro_roll, gyro_yaw;
-
-  bool isDebounceConditionMet;
-  bool gyro_angles_set;
-  bool auto_level = true; // Auto level on (true) or off (false)
-
-  private: 
+private: 
     MotorState state = OFF;
     IMU& imu; 
     Motors& motors; 
     PID& pid;
+    
+    unsigned long lastDebounceTime;
+    const unsigned long debounceDelay = 20;
+    bool isDebounceConditionMet;
+    // bool gyro_angles_set;
+    bool auto_level = true; // Auto level on (true) or off (false)
+
 };
 
