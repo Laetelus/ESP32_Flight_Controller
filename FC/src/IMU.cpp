@@ -47,7 +47,7 @@ void IMU::initializeI2CBus()
 
 }
 
-void IMU::processIMUData() {
+void IMU::readRawIMUData() {
 
   // Read raw IMU data from MPU6050
   Wire.beginTransmission(0x68);

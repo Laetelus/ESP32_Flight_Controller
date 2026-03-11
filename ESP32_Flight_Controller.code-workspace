@@ -9,9 +9,18 @@
   ],
   "settings": {
     "workbench.colorCustomizations": {
+      "terminal.background": "#00000000",
       "activityBar.background": "#600618",
       "titleBar.activeBackground": "#860821",
-      "titleBar.activeForeground": "#FFFBFC"
+      "titleBar.activeForeground": "#FFFBFC",
+      "titleBar.inactiveBackground": "#600618",
+      "titleBar.inactiveForeground": "#FFFBFC",
+      "statusBar.background": "#600618",
+      "statusBar.foreground": "#FFFBFC",
+      "statusBar.debuggingBackground": "#600618",
+      "statusBar.debuggingForeground": "#FFFBFC",
+      "statusBar.noFolderBackground": "#600618",
+      "statusBar.noFolderForeground": "#FFFBFC"
     },
     "powershell.cwd": "FC"
   }

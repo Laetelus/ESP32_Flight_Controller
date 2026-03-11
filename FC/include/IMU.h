@@ -5,7 +5,6 @@
 #include "I2Cdev.h"
 #include <Wire.h>
 
-
 struct RawImuData {
     int16_t ax = 0;
     int16_t ay = 0;
@@ -54,7 +53,7 @@ private:
 public:
     IMU() {}
     void initializeI2CBus();
-    void processIMUData();
+    void readRawIMUData();
     void scaleIMU();
     void calcAccelAngle();
 

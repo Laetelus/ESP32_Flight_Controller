@@ -6,12 +6,15 @@
 #include <ArduinoJson.h>
 #include "Flight_Controller.h"
 #include "PID_Webserver.h"
-
+#include "PID.h"
 class FC;
 class PID_Webserver
 {
 public:    
-    PID_Webserver(FC& fcRef) : fc(fcRef) {}
+/* 
+    Update to take pass in PID only since that's important and most used data. 
+*/
+    PID_Webserver(FC& fcRef, PID& pidRef) : fc(fcRef), pid(pidRef) {}
     void initSPIFFS();
     void Wifi_task();
     void initWiFi();
@@ -28,7 +31,7 @@ public:
 
 private: 
     FC& fc;
-    
+    PID& pid;
     AsyncWebServer server{80};
     AsyncEventSource events{"/events"};
 

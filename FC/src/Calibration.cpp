@@ -34,7 +34,7 @@ void Calibration::performCalibration()
     unsigned long startTime = millis();
     while (millis() - startTime < cal_time)
     {
-      imu.processIMUData(); // Collect raw data for calibration period
+      imu.readRawIMUData(); // Collect raw data for calibration period
       buff_ax += raw.ax;
       buff_ax += raw.ay;
       buff_ax += raw.az;
@@ -76,7 +76,7 @@ void Calibration::performCalibration()
   unsigned long startTime = millis();
   while (millis() - startTime < cal_time)
   {
-    imu.processIMUData(); // Collect raw data for calibration period
+    imu.readRawIMUData(); // Collect raw data for calibration period
     buff_ax += raw.ax;
     buff_ax += raw.ay;
     buff_ax += raw.az;

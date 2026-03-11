@@ -7,10 +7,11 @@
 #include "FS.h"
 #include "Flight_Controller.h"
 #include "PID_Webserver.h"
+#include "PID.h"
 
 bool PID_Webserver::motorsOff()
 {
-    return fc.MotorsOff();
+    return fc.Motorstate() == OFF;
 }
 
 void WiFiTask(void *parameter)
@@ -29,7 +30,7 @@ void WiFiTask(void *parameter)
         {
             ws->disconnect_wifi();
         }
-        vTaskDelay(10 / portTICK_PERIOD_MS); // Delay to prevent the task from using all CPU time
+        vTaskDelay(10 / portTICK_PERIOD_MS); 
     }
 }
 
@@ -70,7 +71,7 @@ void PID_Webserver::initWiFi()
 
 void PID_Webserver::disconnect_wifi()
 {
-    //Serial.println("Disconnecting WiFi because motors are on.");
+   
     WiFi.disconnect(true); // Disconnect WiFi and erase credentials
     WiFi.mode(WIFI_OFF);   // Turn off WiFi
 
@@ -127,6 +128,8 @@ void PID_Webserver::Handle_Server()
 
 bool PID_Webserver::savePIDValues()
 {
+    PIDgains PID = pid.getGains();
+
     File file = SPIFFS.open("/pid_values.txt", FILE_WRITE);
     if (!file)
     {
@@ -137,21 +140,32 @@ bool PID_Webserver::savePIDValues()
     if (motorsOff())
     {
         // Only write roll and yaw values, since pitch will mirror roll
-        file.printf("P_GAIN_ROLL:%f\n", fc.pid_p_gain_roll);
-        file.printf("I_GAIN_ROLL:%f\n", fc.pid_i_gain_roll);
-        file.printf("D_GAIN_ROLL:%f\n", fc.pid_d_gain_roll);
+        file.printf("P_GAIN_ROLL:%f\n", PID.p_gain_roll);
+        file.printf("I_GAIN_ROLL:%f\n", PID.i_gain_roll);
+        file.printf("D_GAIN_ROLL:%f\n", PID.d_gain_roll);
 
-        file.printf("P_GAIN_YAW:%f\n", fc.pid_p_gain_yaw);
-        file.printf("I_GAIN_YAW:%f\n", fc.pid_i_gain_yaw);
-        file.printf("D_GAIN_YAW:%f\n", fc.pid_d_gain_yaw);
+        file.printf("P_GAIN_YAW:%f\n", PID.p_gain_yaw);
+        file.printf("I_GAIN_YAW:%f\n", PID.i_gain_yaw);
+        file.printf("D_GAIN_YAW:%f\n", PID.d_gain_yaw);
+
+        // //print to test 
+        // Serial.println("PID values saved to SPIFFS:");
+        // Serial.print("P Gain Roll: "); Serial.println(PID.p_gain_roll);
+        // Serial.print("I Gain Roll: "); Serial.println(PID.i_gain_roll);
+        // Serial.print("D Gain Roll: "); Serial.println(PID.d_gain_roll);
+        // Serial.print("P Gain Yaw: "); Serial.println(PID.p_gain_yaw);
+        // Serial.print("I Gain Yaw: "); Serial.println(PID.i_gain_yaw);
+        // Serial.print("D Gain Yaw: "); Serial.println(PID.d_gain_yaw);
+
     }
-
     file.close();
     return true;
 }
 
 bool PID_Webserver::loadPIDValues()
 {
+    PIDgains PID = pid.getGains();    
+
     File file = SPIFFS.open("/pid_values.txt", FILE_READ);
     if (!file)
     {
@@ -165,37 +179,38 @@ bool PID_Webserver::loadPIDValues()
         line = file.readStringUntil('\n');
         if (line.startsWith("P_GAIN_ROLL:"))
         {
-            fc.pid_p_gain_roll = line.substring(line.indexOf(':') + 1).toFloat();
+            PID.p_gain_roll = line.substring(line.indexOf(':') + 1).toFloat();
             // Mirror the roll values to pitch
-            fc.pid_p_gain_pitch = fc.pid_p_gain_roll;
+            PID.p_gain_pitch = PID.p_gain_roll;
         }
         else if (line.startsWith("I_GAIN_ROLL:"))
         {
-            fc.pid_i_gain_roll = line.substring(line.indexOf(':') + 1).toFloat();
+            PID.i_gain_roll = line.substring(line.indexOf(':') + 1).toFloat();
             // Mirror the roll values to pitch
-            fc.pid_i_gain_pitch = fc.pid_i_gain_roll;
+            PID.i_gain_pitch = PID.i_gain_roll;
         }
         else if (line.startsWith("D_GAIN_ROLL:"))
         {
-            fc.pid_d_gain_roll = line.substring(line.indexOf(':') + 1).toFloat();
+            PID.d_gain_roll = line.substring(line.indexOf(':') + 1).toFloat();
             // Mirror the roll values to pitch
-            fc.pid_d_gain_pitch = fc.pid_d_gain_roll;
+            PID.d_gain_pitch = PID.d_gain_roll;
         }
         else if (line.startsWith("P_GAIN_YAW:"))
         {
-            fc.pid_p_gain_yaw = line.substring(line.indexOf(':') + 1).toFloat();
+            PID.p_gain_yaw = line.substring(line.indexOf(':') + 1).toFloat();
         }
         else if (line.startsWith("I_GAIN_YAW:"))
         {
-            fc.pid_i_gain_yaw = line.substring(line.indexOf(':') + 1).toFloat();
+            PID.i_gain_yaw = line.substring(line.indexOf(':') + 1).toFloat();
         }
         else if (line.startsWith("D_GAIN_YAW:"))
         {
-            fc.pid_d_gain_yaw = line.substring(line.indexOf(':') + 1).toFloat();
+            PID.d_gain_yaw = line.substring(line.indexOf(':') + 1).toFloat();
         }
     }
 
     file.close();
+    pid.setGains(PID);
     return true;
 }
 
@@ -218,27 +233,36 @@ String formatFloat(float value, unsigned int maxDecimals)
 
 void PID_Webserver::fillPIDJson(DynamicJsonDocument &doc)
 {
+
+    const PIDgains PID = pid.getGains();
+    const PIDOut PID_out = pid.getOutput();
+
     // Roll PID parameters
-    doc["pid_p_gain_roll"] = formatFloat(fc.pid_p_gain_roll, 5);
-    doc["pid_i_gain_roll"] = formatFloat(fc.pid_i_gain_roll, 5);
-    doc["pid_d_gain_roll"] = formatFloat(fc.pid_d_gain_roll, 5);
-    doc["pid_max_roll"] = formatFloat(fc.pid_max_roll, 5);
+    doc["pid_p_gain_roll"] = formatFloat(PID.p_gain_roll, 3);
+    doc["pid_i_gain_roll"] = formatFloat(PID.i_gain_roll, 3);
+    doc["pid_d_gain_roll"] = formatFloat(PID.d_gain_roll, 3);
+    doc["pid_max_roll"] = formatFloat(PID_out.max_roll, 3);
 
     // Pitch PID parameters
-    doc["pid_p_gain_pitch"] = formatFloat(fc.pid_p_gain_pitch, 5);
-    doc["pid_i_gain_pitch"] = formatFloat(fc.pid_i_gain_pitch, 5);
-    doc["pid_d_gain_pitch"] = formatFloat(fc.pid_d_gain_pitch, 5);
-    doc["pid_max_pitch"] = formatFloat(fc.pid_max_pitch, 5);
+    doc["pid_p_gain_pitch"] = formatFloat(PID.p_gain_pitch, 3);
+    doc["pid_i_gain_pitch"] = formatFloat(PID.i_gain_pitch, 3);
+    doc["pid_d_gain_pitch"] = formatFloat(PID.d_gain_pitch, 3);
+    doc["pid_max_pitch"] = formatFloat(PID_out.max_pitch, 3);
 
     // Yaw PID parameters
-    doc["pid_p_gain_yaw"] = formatFloat(fc.pid_p_gain_yaw, 5);
-    doc["pid_i_gain_yaw"] = formatFloat(fc.pid_i_gain_yaw, 5);
-    doc["pid_d_gain_yaw"] = formatFloat(fc.pid_d_gain_yaw, 5);
-    doc["pid_max_yaw"] = formatFloat(fc.pid_max_yaw, 5);
+    doc["pid_p_gain_yaw"] = formatFloat(PID.p_gain_yaw, 3);
+    doc["pid_i_gain_yaw"] = formatFloat(PID.i_gain_yaw, 3);
+    doc["pid_d_gain_yaw"] = formatFloat(PID.d_gain_yaw, 3);
+    doc["pid_max_yaw"] = formatFloat(PID_out.max_yaw, 3);
+
 }
 
 String PID_Webserver::updatePIDFromRequest(AsyncWebServerRequest *request)
 {
+    // PIDgains PID = pid.getGains(); // Get current PID gains to update only the ones provided in the request
+    //We should be setting the gains here not getting them 
+    PIDgains PID; 
+
     String response = "";
 
     // Helper lambda for updating float parameters
@@ -252,30 +276,31 @@ String PID_Webserver::updatePIDFromRequest(AsyncWebServerRequest *request)
     };
 
     // Update Roll PID parameters
-    updateParamFloat("pid_p_gain_roll", fc.pid_p_gain_roll);
-    updateParamFloat("pid_i_gain_roll", fc.pid_i_gain_roll);
-    updateParamFloat("pid_d_gain_roll", fc.pid_d_gain_roll);
+    updateParamFloat("pid_p_gain_roll", PID.p_gain_roll);
+    updateParamFloat("pid_i_gain_roll", PID.i_gain_roll);
+    updateParamFloat("pid_d_gain_roll", PID.d_gain_roll);
 
     // Assign roll PID values to pitch and yaw as well
-    fc.pid_p_gain_pitch = fc.pid_p_gain_roll;
-    fc.pid_i_gain_pitch = fc.pid_i_gain_roll;
-    fc.pid_d_gain_pitch = fc.pid_d_gain_roll;
+    PID.p_gain_pitch = PID.p_gain_roll;
+    PID.i_gain_pitch = PID.i_gain_roll;
+    PID.d_gain_pitch = PID.d_gain_roll;
 
     // The following yaw was assigned to roll instead of yaw, 
-    fc.pid_p_gain_yaw = fc.pid_p_gain_yaw; 
-    fc.pid_i_gain_yaw = fc.pid_i_gain_yaw;
-    fc.pid_d_gain_yaw = fc.pid_d_gain_yaw;
+    PID.p_gain_yaw = PID.p_gain_yaw; 
+    PID.i_gain_yaw = PID.i_gain_yaw;
+    PID.d_gain_yaw = PID.d_gain_yaw;
 
     // Update Yaw PID parameters
-    updateParamFloat("pid_p_gain_yaw", fc.pid_p_gain_yaw);
-    updateParamFloat("pid_i_gain_yaw", fc.pid_i_gain_yaw);
-    updateParamFloat("pid_d_gain_yaw", fc.pid_d_gain_yaw);
+    updateParamFloat("pid_p_gain_yaw", PID.p_gain_yaw);
+    updateParamFloat("pid_i_gain_yaw", PID.i_gain_yaw);
+    updateParamFloat("pid_d_gain_yaw", PID.d_gain_yaw);
 
     if (response.isEmpty())
     {
         response = "No parameters updated.";
     }
 
+    pid.setGains(PID); // Update the PID gains with the new values
     return response;
 }
 

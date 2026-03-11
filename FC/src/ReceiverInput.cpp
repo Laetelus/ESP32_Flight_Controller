@@ -3,20 +3,22 @@
 #include "soc/gpio_struct.h"
 #include "driver/gpio.h"
 
-// ─── Global variables for pulse widths ───────────────────────────
-volatile unsigned long lastRisingEdgeThrottle, throttlePulseWidth;
-volatile unsigned long lastRisingEdgeYaw, yawPulseWidth;
-volatile unsigned long lastRisingEdgeRoll, rollPulseWidth;
-volatile unsigned long lastRisingEdgePitch, pitchPulseWidth;
+namespace {
+// Receiver timings are internal implementation details.
+volatile unsigned long lastRisingEdgeThrottle = 0;
+volatile unsigned long throttlePulseWidth = 1000;
+volatile unsigned long lastRisingEdgeYaw = 0;
+volatile unsigned long yawPulseWidth = 1500;
+volatile unsigned long lastRisingEdgeRoll = 0;
+volatile unsigned long rollPulseWidth = 1500;
+volatile unsigned long lastRisingEdgePitch = 0;
+volatile unsigned long pitchPulseWidth = 1500;
 
-
-// ─── Mutex locks for thread-safe access ──────────────────────────
 portMUX_TYPE muxThrottle = portMUX_INITIALIZER_UNLOCKED;
 portMUX_TYPE muxYaw = portMUX_INITIALIZER_UNLOCKED;
 portMUX_TYPE muxPitch = portMUX_INITIALIZER_UNLOCKED;
 portMUX_TYPE muxRoll = portMUX_INITIALIZER_UNLOCKED;
 
-// ─── Interrupt Service Routines for each channel ──────────────────
 void IRAM_ATTR handleThrottleInterrupt()
 {
   portENTER_CRITICAL_ISR(&muxThrottle);
@@ -72,6 +74,27 @@ void IRAM_ATTR handlePitchInterrupt()
     pitchPulseWidth = esp_timer_get_time() - lastRisingEdgePitch;
   }
   portEXIT_CRITICAL_ISR(&muxPitch);
+}
+} // namespace
+
+unsigned long getThrottlePulseWidth()
+{
+  noInterrupts();
+  const unsigned long throttle = throttlePulseWidth;
+  interrupts();
+  return throttle;
+}
+
+ReceiverPulseSnapshot getReceiverPulseSnapshot()
+{
+  noInterrupts();
+  ReceiverPulseSnapshot snapshot{
+      throttlePulseWidth,
+      yawPulseWidth,
+      rollPulseWidth,
+      pitchPulseWidth};
+  interrupts();
+  return snapshot;
 }
 
 void setupInputPins()

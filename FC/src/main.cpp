@@ -8,11 +8,16 @@
 #include "PID_Webserver.h"
 #include <WiFi.h>
 #include "IMU.h"
+#include "Motors.h"
+#include "PID.h"
+#include "PID_Webserver.h"  
 
 IMU imu;
-FC fc(imu);
+Motors mot; 
+PID pid;
+FC fc(imu, pid, mot);
 Calibration cal(imu);
-PID_Webserver ws(fc);
+PID_Webserver ws(fc, pid);
 
 static unsigned long loop_timer;
 

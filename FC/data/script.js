@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
             updatePID()
         })
 
-    // Attach event listeners to input fields to capture "Enter" (Return) key and "blur" events
+    // Attach event listeners to input fields to capture "Enter" (Return) key and focus
     document.querySelectorAll('input').forEach((input) => {
         // Detect "Enter" (Return) key press on both desktop and mobile (iOS/Android) virtual keyboards
         input.addEventListener('keypress', function(event) {
@@ -33,9 +33,20 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
 
-        // Trigger PID update when the input loses focus (i.e., user leaves the input field)
+        // Pause automatic updates when the user focuses on an input field
+        input.addEventListener('focus', function() {
+            userIsUpdating()
+        })
+
+        // On blur, wait briefly then check if another input got focus
         input.addEventListener('blur', function() {
-            updatePID() // Trigger PID update when user finishes input and clicks elsewhere
+            clearTimeout(updateTimeout)
+            updateTimeout = setTimeout(function() {
+                // If no input is focused after the delay, resume auto-refresh
+                if (!document.activeElement || document.activeElement.tagName !== 'INPUT') {
+                    isUpdating = false
+                }
+            }, 200)
         })
     })
 
@@ -49,21 +60,23 @@ function userIsUpdating() {
     clearTimeout(updateTimeout) // Stop the automatic update when the user is making changes.
 }
 
+function clampValue(val) {
+    if (val < 0) return 0
+    if (val > 99.999) return 99.999
+    return val
+}
+
+function formatPID(val) {
+    return clampValue(val).toFixed(3)
+}
+
 function incrementValue(inputId) {
     userIsUpdating()
     const input = document.getElementById(inputId)
     if (input) {
-        let currentStep = getStep(
-            input.getAttribute('data-full-precision') || input.value
-        )
-        let currentValue = parseFloat(
-            input.getAttribute('data-full-precision') || input.value
-        )
-        let newValue = currentValue + currentStep
-        input.value = newValue.toFixed(
-            countDecimals(input.getAttribute('data-full-precision'))
-        )
-        input.setAttribute('data-full-precision', newValue.toString())
+        let currentValue = parseFloat(input.value) || 0
+        let newValue = currentValue + 0.001
+        input.value = formatPID(newValue)
     }
 }
 
@@ -71,54 +84,9 @@ function decrementValue(inputId) {
     userIsUpdating()
     const input = document.getElementById(inputId)
     if (input) {
-        let currentStep = getStep(
-            input.getAttribute('data-full-precision') || input.value
-        )
-        let currentValue = parseFloat(
-            input.getAttribute('data-full-precision') || input.value
-        )
-        let newValue = currentValue - currentStep
-        newValue = newValue < 0 ? 0 : newValue
-        input.value = newValue.toFixed(
-            countDecimals(input.getAttribute('data-full-precision'))
-        )
-        input.setAttribute('data-full-precision', newValue.toString())
-    }
-}
-
-function getStep(value) {
-    // Get the step based on the number of decimal places in the input value
-    let decimalCount = countDecimals(value)
-    return decimalCount > 0 ? 1 / Math.pow(10, decimalCount) : 0.01
-}
-
-function countDecimals(value) {
-    if (Math.floor(value) === value) return 0
-    let decimalPart = value.toString().split('.')[1]
-    return decimalPart ? decimalPart.length : 0
-}
-
-function trimTrailingZeros(value) {
-    // Trim unnecessary trailing zeros after decimal point
-    return value.replace(/(\.\d*?[1-9])0+$|\.0*$/, '$1')
-}
-
-document
-    .querySelectorAll('.increment-btn, .decrement-btn')
-    .forEach((button) => {
-        button.addEventListener('click', function() {
-            const inputId = this.getAttribute('data-input-id')
-            const delta = this.classList.contains('increment-btn') ? 0.01 : -0.01
-            changeValue(inputId, delta)
-        })
-    })
-
-function changeValue(inputId, delta) {
-    const input = document.getElementById(inputId)
-    if (input) {
-        let value = parseFloat(input.value) || 0
-        value = Math.max(value + delta, 0)
-        input.value = value.toFixed(2)
+        let currentValue = parseFloat(input.value) || 0
+        let newValue = currentValue - 0.001
+        input.value = formatPID(newValue)
     }
 }
 
@@ -144,39 +112,22 @@ function getPID() {
     }
 }
 
+function setField(id, value) {
+    let v = parseFloat(value) || 0
+    let formatted = formatPID(v)
+    document.getElementById(id).value = formatted
+    document.getElementById('current-' + id).textContent = `(Current: ${formatted})`
+}
+
 function updatePIDDisplay(data) {
-    userIsUpdating()
-        //Roll
-    document.getElementById('p-gain-roll').value = data.pid_p_gain_roll
-    document.getElementById(
-        'current-p-gain-roll'
-    ).textContent = `(Current: ${data.pid_p_gain_roll})`
-
-    document.getElementById('i-gain-roll').value = data.pid_i_gain_roll
-    document.getElementById(
-        'current-i-gain-roll'
-    ).textContent = `(Current: ${data.pid_i_gain_roll})`
-
-    document.getElementById('d-gain-roll').value = data.pid_d_gain_roll
-    document.getElementById(
-        'current-d-gain-roll'
-    ).textContent = `(Current: ${data.pid_d_gain_roll})`
-
-    //Yaw
-    document.getElementById('p-gain-yaw').value = data.pid_p_gain_yaw
-    document.getElementById(
-        'current-p-gain-yaw'
-    ).textContent = `(Current: ${data.pid_p_gain_yaw})`
-
-    document.getElementById('i-gain-yaw').value = data.pid_i_gain_yaw
-    document.getElementById(
-        'current-i-gain-yaw'
-    ).textContent = `(Current: ${data.pid_i_gain_yaw})`
-
-    document.getElementById('d-gain-yaw').value = data.pid_d_gain_yaw
-    document.getElementById(
-        'current-d-gain-yaw'
-    ).textContent = `(Current: ${data.pid_d_gain_yaw}`
+    // Roll
+    setField('p-gain-roll', data.pid_p_gain_roll)
+    setField('i-gain-roll', data.pid_i_gain_roll)
+    setField('d-gain-roll', data.pid_d_gain_roll)
+    // Yaw
+    setField('p-gain-yaw', data.pid_p_gain_yaw)
+    setField('i-gain-yaw', data.pid_i_gain_yaw)
+    setField('d-gain-yaw', data.pid_d_gain_yaw)
 }
 
 function updatePID() {
