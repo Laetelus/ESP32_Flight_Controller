@@ -36,8 +36,8 @@ void Calibration::CalibrateIMU()
     {
       imu.readRawIMUData(); // Collect raw data for calibration period
       buff_ax += raw.ax;
-      buff_ax += raw.ay;
-      buff_ax += raw.az;
+      buff_ay += raw.ay;
+      buff_az += raw.az;
 
       buff_gx += raw.gx;
       buff_gy += raw.gy;
@@ -49,8 +49,8 @@ void Calibration::CalibrateIMU()
 
     // Use the actual counted samples for offset calculation
     ofst.accX = buff_ax / sampleCount;
-    ofst.accY = buff_ax / sampleCount;
-    ofst.accZ = buff_ax / sampleCount - 16384;
+    ofst.accY = buff_ay / sampleCount;
+    ofst.accZ = buff_az / sampleCount - 16384;
 
     ofst.gyroX = buff_gx / sampleCount;
     ofst.gyroY = buff_gy / sampleCount;
@@ -78,8 +78,8 @@ void Calibration::CalibrateIMU()
   {
     imu.readRawIMUData(); // Collect raw data for calibration period
     buff_ax += raw.ax;
-    buff_ax += raw.ay;
-    buff_ax += raw.az;
+    buff_ay += raw.ay;
+    buff_az += raw.az;
 
     buff_gx += raw.gx;
     buff_gy += raw.gy;
@@ -91,8 +91,8 @@ void Calibration::CalibrateIMU()
 
   // Use the actual counted samples for offset calculation
   ofst.accX = buff_ax / sampleCount;
-  ofst.accY = buff_ax / sampleCount;
-  ofst.accZ = buff_ax / sampleCount - 16384;
+  ofst.accY = buff_ay / sampleCount;
+  ofst.accZ = buff_az / sampleCount - 16384;
 
   ofst.gyroX = buff_gx / sampleCount;
   ofst.gyroY = buff_gy / sampleCount;

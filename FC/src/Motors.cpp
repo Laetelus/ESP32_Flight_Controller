@@ -18,25 +18,22 @@ void Motors::Initialize_ESCs()
   esc4.attach(esc_pin4, MIN_PULSE_LENGTH, MAX_PULSE_LENGTH); // BL (Back Left)
 
   // Normal arm procedure, setting to minimum throttle
-  esc_1 = 1000;
-  esc_2 = 1000;
-  esc_3 = 1000;
-  esc_4 = 1000;
-  
+  idle(); 
   //Write the initial values to motors
   write_motors();
 }
 
 void Motors::mix_motors(int throttleInput, const PIDOut& pidOutput)
 {
-    int throttle = throttleInput;
-                                                    
-    throttle = constrain(throttle, 1000, 1800); // Constrain and allow room for control at full throttle
+    int throttle = constrain(throttleInput, 1000, 1800); // allow room for PID authority at full throttle
 
-    esc_1 = computeESCValue(throttle, -pidOutput.pitch, -pidOutput.roll, pidOutput.yaw); // FR/CCW
-    esc_2 = computeESCValue(throttle, -pidOutput.pitch, pidOutput.roll, -pidOutput.yaw); // FL/CW
-    esc_3 = computeESCValue(throttle, pidOutput.pitch, -pidOutput.roll, -pidOutput.yaw); // BR/CW
-    esc_4 = computeESCValue(throttle, pidOutput.pitch, pidOutput.roll, pidOutput.yaw);   // BL/CCW
+    esc_1 = computeESCValue(throttle, -pidOutput.pitch, -pidOutput.roll,  pidOutput.yaw); // FR/CCW
+    esc_2 = computeESCValue(throttle, -pidOutput.pitch,  pidOutput.roll, -pidOutput.yaw); // FL/CW
+    esc_3 = computeESCValue(throttle,  pidOutput.pitch, -pidOutput.roll, -pidOutput.yaw); // BR/CW
+    esc_4 = computeESCValue(throttle,  pidOutput.pitch,  pidOutput.roll,  pidOutput.yaw);   // BL/CCW
+
+    // Serial.printf("PID  R:%6.1f  P:%6.1f  Y:%6.1f\n", pidOutput.roll, pidOutput.pitch, pidOutput.yaw);
+    // Serial.printf("ESC  FR:%4d  FL:%4d  BR:%4d  BL:%4d\n", esc_1, esc_2, esc_3, esc_4);
 
     // // Current mixing algorithm matches my oriantation but
     // // Adjusted mixing algorithm for correct motor responses
@@ -61,11 +58,6 @@ void Motors::write_motors()
   esc3.writeMicroseconds(esc_3); // BR/CW
   esc4.writeMicroseconds(esc_4); // BL/CCW
 
-  // // For debugging: print the ESC values
-  // Serial.print("ESC Values - FR: "); Serial.print(esc_1);
-  // Serial.print(" | FL: "); Serial.print(esc_2);
-  // Serial.print(" | BR: "); Serial.print(esc_3);
-  // Serial.print(" | BL: "); Serial.println(esc_4);
 }
 
 

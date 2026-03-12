@@ -3,7 +3,7 @@
 #include "IMU.h"
 
 //Comment to clear EEPROM , uncomment to save calibration values.. 
-#define USE_EEPROM
+// #define USE_EEPROM
 
 class Calibration
 {

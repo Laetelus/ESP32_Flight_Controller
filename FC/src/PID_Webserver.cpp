@@ -235,25 +235,21 @@ void PID_Webserver::fillPIDJson(DynamicJsonDocument &doc)
 {
 
     const PIDgains PID = pid.getGains();
-    const PIDOut PID_out = pid.getOutput();
 
     // Roll PID parameters
     doc["pid_p_gain_roll"] = formatFloat(PID.p_gain_roll, 3);
     doc["pid_i_gain_roll"] = formatFloat(PID.i_gain_roll, 3);
     doc["pid_d_gain_roll"] = formatFloat(PID.d_gain_roll, 3);
-    doc["pid_max_roll"] = formatFloat(PID_out.max_roll, 3);
 
     // Pitch PID parameters
     doc["pid_p_gain_pitch"] = formatFloat(PID.p_gain_pitch, 3);
     doc["pid_i_gain_pitch"] = formatFloat(PID.i_gain_pitch, 3);
     doc["pid_d_gain_pitch"] = formatFloat(PID.d_gain_pitch, 3);
-    doc["pid_max_pitch"] = formatFloat(PID_out.max_pitch, 3);
 
     // Yaw PID parameters
     doc["pid_p_gain_yaw"] = formatFloat(PID.p_gain_yaw, 3);
     doc["pid_i_gain_yaw"] = formatFloat(PID.i_gain_yaw, 3);
     doc["pid_d_gain_yaw"] = formatFloat(PID.d_gain_yaw, 3);
-    doc["pid_max_yaw"] = formatFloat(PID_out.max_yaw, 3);
 
 }
 

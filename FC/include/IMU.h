@@ -5,6 +5,9 @@
 #include "I2Cdev.h"
 #include <Wire.h>
 
+constexpr float LOOP_HZ = 250.0f;
+constexpr float dt       = 1.0f / LOOP_HZ; // 0.004s — must match the main loop rate
+
 struct RawImuData {
     int16_t ax = 0;
     int16_t ay = 0;
@@ -48,7 +51,8 @@ public:
     void initializeI2CBus();
     void readRawIMUData();
     void scaleIMU();
-    void calcAccelAngle();
+    FilteredAttitude compFilter(const ScaledImuData &data_scaled);
+    AccelAngleData calcAccelAngle();
 
     const RawImuData& getRawData() const {return raw_;}
     const ScaledImuData& getScaledData() const {return scaled_;}

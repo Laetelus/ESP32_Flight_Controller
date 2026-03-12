@@ -42,6 +42,9 @@ void setup()
 
 void loop()
 {
+  // TODO: Replace loop() + busy-wait with an RTOS task (xTaskCreatePinnedToCore)
+  // pinned to Core 1, using vTaskDelayUntil() for precise 250Hz timing.
+  // WiFi/webserver can stay on Core 0, avoiding interference with flight control.
   // static unsigned long loop_timer = micros(); // Initialize loop timer
   unsigned long current_time;
 
@@ -59,9 +62,11 @@ void loop()
     delay(100);
   }
 
+
+
   // Ensure the loop runs at 250Hz
   while (micros() - loop_timer < 4000)
-    ; // Wait until 10000us have passed (250Hz loop rate)
+    ; // Wait until 4000us have passed (250Hz loop rate)
 
   loop_timer = micros(); // Reset loop timer for the next iteration
 }

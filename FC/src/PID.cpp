@@ -1,81 +1,59 @@
 
 #include "Flight_Controller.h"
 
-// void PID::calculate_pid()
-// {
-//   // Roll calculations
-//   pid_error_temp = pid_roll_setpoint - gyro_roll_input; // Correct error calculation direction
-//   pid_i_mem_roll += pid_i_gain_roll * pid_error_temp;
+void PID::calculate_pid(const ScaledImuData& gyro)
+{
+  PIDgains PID = getGains();
+  const PIDLimits PID_max = pid_max;
+  PIDOut PID_out = getOutput();
+  PIDMem PID_mem = pid_mem;
+  float pid_error_temp;
 
+  // Roll — error = desired rate - gyro rate
+  pid_error_temp = pid_setpoint.roll - gyro.gx_dps;
+  PID_mem.i_mem_roll += PID.i_gain_roll * pid_error_temp;
+  if (PID_mem.i_mem_roll >  PID_max.roll) PID_mem.i_mem_roll =  PID_max.roll;
+  else if (PID_mem.i_mem_roll < -PID_max.roll) PID_mem.i_mem_roll = -PID_max.roll;
 
-//   // Constrain integral memory (anti-windup)
-//   if (pid_i_mem_roll > pid_max_roll)
-//     pid_i_mem_roll = pid_max_roll;
-//   else if (pid_i_mem_roll < -pid_max_roll)
-//     pid_i_mem_roll = -pid_max_roll;
+  PID_out.roll = PID.p_gain_roll * pid_error_temp + PID_mem.i_mem_roll + PID.d_gain_roll * (pid_error_temp - PID_mem.last_roll_d_error);
+  if (PID_out.roll >  PID_max.roll) PID_out.roll =  PID_max.roll;
+  else if (PID_out.roll < -PID_max.roll) PID_out.roll = -PID_max.roll;
+  PID_mem.last_roll_d_error = pid_error_temp;
 
-//   // PID output calculation including proportional, integral, and derivative terms
-//   pid_output_roll = pid_p_gain_roll * pid_error_temp + pid_i_mem_roll + pid_d_gain_roll * (pid_error_temp - pid_last_roll_d_error);
+  // Pitch — error = desired rate - gyro rate
+  pid_error_temp = pid_setpoint.pitch - gyro.gy_dps;
+  PID_mem.i_mem_pitch += PID.i_gain_pitch * pid_error_temp;
+  if (PID_mem.i_mem_pitch >  PID_max.pitch) PID_mem.i_mem_pitch =  PID_max.pitch;
+  else if (PID_mem.i_mem_pitch < -PID_max.pitch) PID_mem.i_mem_pitch = -PID_max.pitch;
 
-//   // Constrain PID output
-//   if (pid_output_roll > pid_max_roll)
-//     pid_output_roll = pid_max_roll;
-//   else if (pid_output_roll < -pid_max_roll)
-//     pid_output_roll = -pid_max_roll;
+  PID_out.pitch = PID.p_gain_pitch * pid_error_temp + PID_mem.i_mem_pitch + PID.d_gain_pitch * (pid_error_temp - PID_mem.last_pitch_d_error);
+  if (PID_out.pitch >  PID_max.pitch) PID_out.pitch =  PID_max.pitch;
+  else if (PID_out.pitch < -PID_max.pitch) PID_out.pitch = -PID_max.pitch;
+  PID_mem.last_pitch_d_error = pid_error_temp;
 
-//   pid_last_roll_d_error = pid_error_temp;
+  // Yaw — error = desired rate - gyro rate, wrap to ±180
+  pid_error_temp = pid_setpoint.yaw - gyro.gz_dps;
 
-//   // Pitch calculations
-//   pid_error_temp = pid_pitch_setpoint - gyro_pitch_input; // Correct error calculation direction
-//   pid_i_mem_pitch += pid_i_gain_pitch * pid_error_temp;
+  if      (pid_error_temp >  180) pid_error_temp -= 360;
+  else if (pid_error_temp < -179) pid_error_temp += 360;
 
-//   // Constrain integral memory (anti-windup)
-//   if (pid_i_mem_pitch > pid_max_pitch)
-//     pid_i_mem_pitch = pid_max_pitch;
-//   else if (pid_i_mem_pitch < -pid_max_pitch)
-//     pid_i_mem_pitch = -pid_max_pitch;
+  PID_mem.i_mem_yaw += PID.i_gain_yaw * pid_error_temp;
+  if (PID_mem.i_mem_yaw >  PID_max.yaw) PID_mem.i_mem_yaw =  PID_max.yaw;
+  else if (PID_mem.i_mem_yaw < -PID_max.yaw) PID_mem.i_mem_yaw = -PID_max.yaw;
 
-//   // PID output calculation including proportional, integral, and derivative terms
-//   pid_output_pitch = pid_p_gain_pitch * pid_error_temp + pid_i_mem_pitch + pid_d_gain_pitch * (pid_error_temp - pid_last_pitch_d_error);
+  PID_out.yaw = PID.p_gain_yaw * pid_error_temp + PID_mem.i_mem_yaw + PID.d_gain_yaw * (pid_error_temp - PID_mem.last_yaw_d_error);
+  if (PID_out.yaw >  PID_max.yaw) PID_out.yaw =  PID_max.yaw;
+  else if (PID_out.yaw < -PID_max.yaw) PID_out.yaw = -PID_max.yaw;
+  PID_mem.last_yaw_d_error = pid_error_temp;
 
-//   // Constrain PID output
-//   if (pid_output_pitch > pid_max_pitch)
-//     pid_output_pitch = pid_max_pitch;
-//   else if (pid_output_pitch < -pid_max_pitch)
-//     pid_output_pitch = -pid_max_pitch;
+  // Deadband — suppress noise below 1 deg/s
+  if (fabs(PID_out.roll)  < 1.0f) PID_out.roll  = 0.0f;
+  if (fabs(PID_out.pitch) < 1.0f) PID_out.pitch = 0.0f;
+  if (fabs(PID_out.yaw)   < 1.0f) PID_out.yaw   = 0.0f;
 
-//   pid_last_pitch_d_error = pid_error_temp;
-
-//   // Yaw calculations
-//   pid_error_temp = pid_yaw_setpoint - gyro_yaw_input; // Correct error calculation direction
-//   pid_i_mem_yaw += pid_i_gain_yaw * pid_error_temp;
-
-//   // Constrain integral memory (anti-windup)
-//   if (pid_i_mem_yaw > pid_max_yaw)
-//     pid_i_mem_yaw = pid_max_yaw;
-//   else if (pid_i_mem_yaw < -pid_max_yaw)
-//     pid_i_mem_yaw = -pid_max_yaw;
-
-//   // PID output calculation including proportional, integral, and derivative terms
-//   pid_output_yaw = pid_p_gain_yaw * pid_error_temp + pid_i_mem_yaw + pid_d_gain_yaw * (pid_error_temp - pid_last_yaw_d_error);
-
-//   // Constrain PID output
-//   if (pid_output_yaw > pid_max_yaw)
-
-//     pid_output_yaw = pid_max_yaw;
-//   else if (pid_output_yaw < -pid_max_yaw)
-//     pid_output_yaw = -pid_max_yaw;
-
-//   pid_last_yaw_d_error = pid_error_temp;
-
-//   // ─── Deadband to kill tiny noise ─────────────────────────────
-//   if (fabs(pid_output_roll)  < 1.0) pid_output_roll  = 0.0;
-//   if (fabs(pid_output_pitch) < 1.0) pid_output_pitch = 0.0;
-//   if (fabs(pid_output_yaw)   < 1.0) pid_output_yaw   = 0.0;
-// // ─────────────────────────────────────────────────────────────
-
-
-// }
+  pid_mem = PID_mem;
+  pid_output = PID_out;
+}
 
 /* 
 Purpose: Reset PID integral and derivative memory to 
@@ -85,7 +63,6 @@ Purpose: Reset PID integral and derivative memory to
 */
 void PID::reset()
 {
-  pid_i_mem_roll   = pid_last_roll_d_error  = 0;
-  pid_i_mem_pitch  = pid_last_pitch_d_error = 0;
-  pid_i_mem_yaw    = pid_last_yaw_d_error   = 0;
+  pid_mem = {};
+  pid_output = {};
 }

@@ -23,8 +23,8 @@ public:
             : imu(imuRef), pid(pidRef), motors(motorsRef) {}
     // Member functions
     void initialize();
-    void computeControlSetpoints(int &Roll, int &Pitch, int &Throttle, int &Yaw);
-    void updateState(int throttle, int yaw);
+    void computeControlSetpoints(const int Roll, const int Pitch, const int Throttle, const int Yaw);
+    void updateState(const int throttle, const int yaw);
     void run(); 
     MotorState Motorstate() const {return state;}
     void print();
@@ -38,8 +38,7 @@ private:
     unsigned long lastDebounceTime;
     const unsigned long debounceDelay = 20;
     bool isDebounceConditionMet;
-    // bool gyro_angles_set;
-    bool auto_level = true; // Auto level on (true) or off (false)
+    // bool auto_level — reserved for future cascade outer loop
 
 };
 

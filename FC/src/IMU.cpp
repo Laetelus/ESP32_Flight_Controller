@@ -92,17 +92,9 @@ void IMU::scaleIMU()
   scaled_.ay_g = ay * (8.0f / 32768.0f);
   scaled_.az_g = az * (8.0f / 32768.0f);
 
-//   Serial.println(ofst_.gyroX); 
-//   Serial.println(ofst_.gyroY);
-//   Serial.println(ofst_.gyroZ);
-
-//   Serial.println(ofst_.accX);
-//   Serial.println(ofst_.accY);
-//   Serial.println(ofst_.accZ);
-
 }
 
-void IMU::calcAccelAngle()
+AccelAngleData IMU::calcAccelAngle()
 {
 
   // Use atan2(ay, az) for roll in a flight controller.
@@ -112,7 +104,28 @@ void IMU::calcAccelAngle()
   accA_.Pitch = atan2(-scaled_.ax_g, sqrt(scaled_.ay_g * scaled_.ay_g 
                             + scaled_.az_g * scaled_.az_g)) * RAD_TO_DEG;
 
-  Serial.println(accA_.Roll); 
-  Serial.println(accA_.Pitch);
-
+  // Serial.println(accA_.Roll); 
+  // Serial.println(accA_.Pitch);
+  return accA_; 
 }
+
+FilteredAttitude IMU::compFilter(const ScaledImuData &scaled)
+{
+
+  // call calAccelAngle to get the angles from the accelerometer
+  const float alpha = 0.98f;
+
+  attitude_.roll_deg  += scaled.gx_dps * dt; 
+  attitude_.pitch_deg += scaled.gy_dps * dt;
+
+  AccelAngleData accA_ = calcAccelAngle();
+
+  attitude_.roll_deg  = alpha * attitude_.roll_deg
+                   + (1.0f - alpha) * accA_.Roll;
+
+  attitude_.pitch_deg = alpha * attitude_.pitch_deg
+                   + (1.0f - alpha) * accA_.Pitch;
+
+  return attitude_;
+}
+

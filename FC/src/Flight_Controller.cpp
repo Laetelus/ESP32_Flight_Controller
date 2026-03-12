@@ -11,7 +11,6 @@
 
 void FC::initialize()
 {
-
   // Bring up I²C before touching the MPU 
   imu.initializeI2CBus();
   setupInputPins();
@@ -30,16 +29,17 @@ void FC::run(){
   imu.readRawIMUData(); 
   imu.scaleIMU(); 
 
-  //TOOD: we'll need to add the comp filter in the future. 
+  FilteredAttitude filt_gyro = imu.compFilter(imu.getScaledData());
+
   const ReceiverPulseSnapshot input = ReadInput();
   updateState(input.throttle, input.yaw);
 
   if (state == RUNNING)
   {
-      // computeControlSetpoints(input.roll, input.pitch, input.throttle, input.yaw);
-      // pid.calculate_pid();
+      computeControlSetpoints(input.roll, input.pitch, input.throttle, input.yaw);
+      pid.calculate_pid(imu.getScaledData());
+
       motors.mix_motors(input.throttle, pid.getOutput());
-      //write motors the values from the mixer.
       motors.write_motors();
   }
   else {
@@ -50,90 +50,32 @@ void FC::run(){
 
 }
 
-// //wtf are you doing here??? reread brooks FC and redo this again please 
-// //TODO: seed pid setpoints to current accel angles on first call for bumpless start (see PID::reset for context)
-// void FC::computeControlSetpoints(int &Roll, int &Pitch, int &Throttle, int &Yaw)
-// {
-//   // TODO: bumpless start - on first entry after arming, seed setpoints to current angles
-//   // so initial PID error is ~zero instead of jumping from 0 to actual angle.
-//   // if (firstRun) {
-//   //     pid_roll_setpoint  = ang.Roll;
-//   //     pid_pitch_setpoint = ang.Pitch;
-//   //     pid_yaw_setpoint   = gyro_yaw_input;
-//   //     firstRun = false;   // set back to true in reset() so next arm cycle seeds again
-//   // }
+// Maps stick µs inputs to rate setpoints in deg/s.
+// Dead zone: 1492–1508µs. Max deflection ~492µs → ~164 deg/s at factor=3.
+// TODO: auto-level (angle outer loop) will add a rate correction on top of these
+//       setpoints once the rate PID is tuned — keep it separate, not in here.
+// TODO: bumpless start — on first arm, seed setpoints to current gyro rates so
+//       initial PID error is ~zero (see PID::reset).
+void FC::computeControlSetpoints(const int Roll, const int Pitch, const int Throttle, const int Yaw)
+{
+  PIDSetpoints sp = {};
+  const float factor = 3.0f; // µs-delta → deg/s  (492µs / 3 = 164 deg/s max)
 
-//   const AccelAngleData& ang = imu.getAccelAngles();
+  if      (Roll  > 1508) sp.roll  = (Roll  - 1508) / factor;
+  else if (Roll  < 1492) sp.roll  = (Roll  - 1492) / factor;
 
-//   const float angle_deadband      = 2.0f;   // ignore <2°
-//   const float level_adjust_factor = 0.10f;  // gentler pull
+  if      (Pitch > 1508) sp.pitch = (Pitch - 1508) / factor;
+  else if (Pitch < 1492) sp.pitch = (Pitch - 1492) / factor;
 
-//   float errorRoll  = fabs(ang.Roll)  > angle_deadband ? ang.Roll  : 0;
-//   float errorPitch = fabs(ang.Pitch) > angle_deadband ? ang.Pitch : 0;
+  if (Throttle > 998)
+  {
+    if      (Yaw > 1606) sp.yaw = (Yaw - 1606) / factor;
+    else if (Yaw < 1492) sp.yaw = (Yaw - 1492) / factor;
+  }
 
-//   roll_level_adjust  = errorRoll  * level_adjust_factor;
-//   pitch_level_adjust = errorPitch * level_adjust_factor;
-
-
-//   // If auto-level is disabled, set adjustments to zero
-//   if (!auto_level)
-//   {
-//     pitch_level_adjust = 0;
-//     roll_level_adjust = 0;
-//   }
-
-//   // Initialize desired rates
-//   float desired_rate_roll = 0;
-//   float desired_rate_pitch = 0;
-
-//   // Calculate desired rates based on user inputs for roll
-//   if (Roll > 1508)
-//   {
-//     desired_rate_roll = Roll - 1508;
-//   }
-//   else if (Roll < 1492)
-//   {
-//     desired_rate_roll = Roll - 1492;
-//   }
-  
-//   // Calculate desired rates based on user inputs for pitch
-//   if (Pitch > 1508)
-//   {
-//     desired_rate_pitch = Pitch - 1508;
-//   }
-//   else if (Pitch < 1492)
-//   {
-//     desired_rate_pitch = Pitch - 1492;
-//   }
-
-//   // Adjust rates for level flight if auto-level is enabled
-//   if (auto_level)
-//   {
-//     desired_rate_roll -= roll_level_adjust;
-//     desired_rate_pitch -= pitch_level_adjust;
-//   }
-
-//   // The factor translates the receiver input into a rate in degrees per second
-//   float factor = 3.0; 
-
-//   // Set the PID setpoints based on desired rates and factor
-//   pid_roll_setpoint = desired_rate_roll / factor;
-//   pid_pitch_setpoint = desired_rate_pitch / factor;
-
-//   // Set the PID set point for yaw based on user inputs
-//   pid_yaw_setpoint = 0;
-//   if (Throttle > 998)
-//   {
-//     if (Yaw > 1606)
-//     {
-//       pid_yaw_setpoint = (Yaw - 1606) / factor;
-//     }
-//     else if (Yaw < 1492)
-//     {
-//       pid_yaw_setpoint = (Yaw - 1492) / factor;
-//     }
-//   }
-// }
+  //update setpoints for PID controller
+  pid.setSetpoints(sp);
+}
 
 void FC::updateState(int throttle, int yaw)
 {
@@ -155,7 +97,7 @@ void FC::updateState(int throttle, int yaw)
     }
   }
 
-  // Transition to start = 2 (running), handled inside 
+  // Transition to start = 2 (running)
   if (state == START && throttle < 1550 && yaw > 1450)
   {
     if (!isDebounceConditionMet)
