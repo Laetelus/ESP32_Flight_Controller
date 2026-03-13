@@ -6,7 +6,7 @@
 #include <Wire.h>
 
 constexpr float LOOP_HZ = 250.0f;
-constexpr float dt       = 1.0f / LOOP_HZ; // 0.004s — must match the main loop rate
+constexpr float dt      = 1.0f / LOOP_HZ; // 0.004s — must match the main loop rate
 
 struct RawImuData {
     int16_t ax = 0;
@@ -53,6 +53,9 @@ public:
     void scaleIMU();
     FilteredAttitude compFilter(const ScaledImuData &data_scaled);
     AccelAngleData calcAccelAngle();
+    // Resets the gyro-integrated attitude to the accelerometer-measured angles.
+    // Call once on arm so the angle estimate starts from a known-good baseline.
+    void syncAttitudeToAccel();
 
     const RawImuData& getRawData() const {return raw_;}
     const ScaledImuData& getScaledData() const {return scaled_;}
@@ -67,6 +70,11 @@ private:
     AccelAngleData accA_;
     FilteredAttitude attitude_;
     ImuOffsets ofst_;
-    float temperatureF_ = 0.0f;    
+    float temperatureF_ = 0.0f;
+
+    // IIR low-pass filter state for gyro axes (persistent across calls)
+    float lpf_gx_ = 0.0f;
+    float lpf_gy_ = 0.0f;
+    float lpf_gz_ = 0.0f;
 };
 

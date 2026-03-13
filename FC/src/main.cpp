@@ -20,13 +20,14 @@ Calibration cal(imu);
 PID_Webserver ws(fc, pid);
 
 static unsigned long loop_timer;
+static unsigned long print_timer;
 
 void setup()
 {
-  Serial.begin(115200);
+  Serial.begin(921600);
   pinMode(2, OUTPUT);
 
-  fc.initialize();
+  fc.initialize_FC();
   ws.initSPIFFS();
 
   if (!ws.loadPIDValues())
@@ -48,12 +49,12 @@ void loop()
   // static unsigned long loop_timer = micros(); // Initialize loop timer
   unsigned long current_time;
 
-  fc.run(); 
-  // fc.print();
+  fc.run();
 
-  current_time = micros(); // Capture the current time after executing tasks
+  // Measure control loop time immediately — before print so serial I/O
+  // doesn't count against the 4ms budget.
+  current_time = micros();
 
-  // Check if the current loop time exceeds 4000 microseconds
   if (current_time - loop_timer > 4000)
   {
     digitalWrite(2, HIGH);
@@ -62,11 +63,17 @@ void loop()
     delay(100);
   }
 
-
-
-  // Ensure the loop runs at 250Hz
+  // Busy-wait for remainder of 4ms slot.
   while (micros() - loop_timer < 4000)
-    ; // Wait until 4000us have passed (250Hz loop rate)
+    ;
 
-  loop_timer = micros(); // Reset loop timer for the next iteration
+  loop_timer = micros();
+
+  // Print diagnostics after the timing window — never affects loop measurement.
+  // 100ms interval = 10Hz.
+  if (millis() - print_timer >= 100)
+  {
+    print_timer = millis();
+    fc.print();
+  }
 }

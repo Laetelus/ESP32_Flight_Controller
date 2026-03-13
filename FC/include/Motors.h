@@ -4,6 +4,8 @@
 #include "IMU.h"
 #include "PID.h"
 
+struct ESCValues { int fr, fl, br, bl; };
+
 class Motors {
 public:
     Motors() {}
@@ -13,6 +15,7 @@ public:
     void write_motors();
     void idle() { esc_1 = esc_2 = esc_3 = esc_4 = 1000; write_motors(); }
     int  computeESCValue(int, int, int, int);
+    ESCValues getLastESC() const { return {esc_1, esc_2, esc_3, esc_4}; }
 private: 
     static constexpr int MIN_PULSE_LENGTH = 1000;
     static constexpr int MAX_PULSE_LENGTH = 2000;

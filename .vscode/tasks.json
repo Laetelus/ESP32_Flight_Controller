@@ -1,0 +1,52 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Plot: Comp Filter (latest log)",
+            "type": "shell",
+            "command": "C:\\Users\\angel\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+            "args": [
+                "${workspaceFolder}\\Testing\\PID_Testing\\plot_compfilter.py",
+                "${input:latestLog}"
+            ],
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Plot: Comp Filter (pick log)",
+            "type": "shell",
+            "command": "C:\\Users\\angel\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+            "args": [
+                "${workspaceFolder}\\Testing\\PID_Testing\\plot_compfilter.py",
+                "${input:pickLog}"
+            ],
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "latestLog",
+            "type": "command",
+            "command": "shellCommand.execute",
+            "args": {
+                "command": "Get-ChildItem -Path '${workspaceFolder}\\FC\\logs\\*.log' | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName",
+                "useFirstResult": true
+            }
+        },
+        {
+            "id": "pickLog",
+            "type": "command",
+            "command": "shellCommand.execute",
+            "args": {
+                "command": "Get-ChildItem -Path '${workspaceFolder}\\FC\\logs\\*.log' | Sort-Object LastWriteTime -Descending | Select-Object -ExpandProperty FullName"
+            }
+        }
+    ]
+}

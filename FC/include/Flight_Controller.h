@@ -10,6 +10,7 @@
 #include "IMU.h"
 #include "Motors.h"
 #include "PID.h"
+#include "ReceiverInput.h"
 
 enum MotorState {
     OFF, 
@@ -17,12 +18,21 @@ enum MotorState {
     RUNNING
 };
 
+// PrintMode controls what FC::print() outputs each cycle.
+// Switch by changing the printMode_ member below.
+enum PrintMode {
+    PRINT_IMU,     // Accel angles vs comp-filter angles — verify IMU fusion
+    PRINT_CONTROL, // Sticks → setpoints → gyro rates → PID output — verify control pipeline
+    PRINT_MOTORS,  // ESC µs values + state — verify motor mixing
+    PRINT_CSV      // Full CSV — all data for Python/Excel capture
+};
+
 class FC {
 public:
     FC(IMU& imuRef, PID& pidRef, Motors& motorsRef) 
             : imu(imuRef), pid(pidRef), motors(motorsRef) {}
     // Member functions
-    void initialize();
+    void initialize_FC();
     void computeControlSetpoints(const int Roll, const int Pitch, const int Throttle, const int Yaw);
     void updateState(const int throttle, const int yaw);
     void run(); 
@@ -38,7 +48,12 @@ private:
     unsigned long lastDebounceTime;
     const unsigned long debounceDelay = 20;
     bool isDebounceConditionMet;
-    // bool auto_level — reserved for future cascade outer loop
+    // When true: angle outer loop subtracts a tilt-proportional rate correction
+    // from the stick setpoints, causing the drone to self-level on stick release.
+    bool auto_level = true;
+    uint32_t printCounter_ = 0; // rate-limits serial output in print()
+    PrintMode printMode_   = PRINT_CSV; // <-- change this to switch debug view
+    ReceiverPulseSnapshot lastInput_ = {}; // last receiver snapshot, used by print()
 
 };
 

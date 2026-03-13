@@ -1,141 +1,133 @@
 #include "Flight_Controller.h"
 
-// // For python
-// void Flight_Controller::print()
-// {
+// Diagnostic output for the FC pipeline.
+// Change printMode_ in Flight_Controller.h to switch views:
+//
+//  PRINT_IMU     — Is the IMU reading and fusing correctly?
+//  PRINT_CONTROL — Is the control pipeline responding?
+//  PRINT_MOTORS  — Is motor mixing correct for your frame?
+//  PRINT_CSV     — Full CSV snapshot for Python/Excel graphing.
 
-//   // Serial.print("--------------------");
-//   // Serial.println();
-//   // Serial.print("Raw Gyro Pitch: ");
-//   // Serial.println(raw_gy);
-//   // Serial.print("Raw Gyro Roll: ");
-//   // Serial.println(raw_gx);
-//   // Serial.print("Raw Gyro Yaw: ");
-//   // Serial.println(raw_gz);
-
-//   // Serial.print("--------------------");
-//   // Serial.println();
-//   // Serial.print("Raw Acc X: ");
-//   // Serial.println(raw_ax);
-//   // Serial.print("Raw Acc Y: ");
-//   // Serial.println(raw_ay);
-//   // Serial.print("Raw Acc Z:");
-//   // Serial.println(raw_az);
-
-// //   // Serial.print("--------------------");
-// //   // Serial.println();
-// //   // Serial.printf("Acc X (g): %.2f \n", ax_g);
-// //   // Serial.printf("Acc Y (g): %.2f \n", ay_g);
-// //   // Serial.printf("Acc Z (g): %.2f \n", az_g);
-
-// //   // Serial.print("--------------------");
-// //   // Serial.println();
-// //   // Serial.print("Acc roll in °: ");
-// //   // Serial.println(accRoll);
-// //   // Serial.print("Acc pitch in °: ");
-// //   // Serial.println(accPitch);
-
-// //   // Serial.print("--------------------");
-// //   // Serial.println();
-// //   // Serial.printf("Angle Pitch: %.2f \n", angle_pitch);
-// //   // Serial.printf("Angle Roll: %.2f \n", angle_roll);
-
-// //   // Serial.print("--------------------");
-// //   // Serial.println();
-// //   // Serial.printf("pid_roll_setpoint: %.2f \n", pid_roll_setpoint);
-// //   // Serial.printf("pid_pitch_setpoint: %.2f \n", pid_pitch_setpoint);
-// //   // Serial.printf("pid_yaw_setpoint: %.2f \n", pid_yaw_setpoint);
-
-// //   // Serial.printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",
-// //   //               pid_roll_setpoint, pid_pitch_setpoint, pid_yaw_setpoint,
-// //   //               angle_roll, angle_pitch, gyro_yaw_input,
-// //   //               pid_output_roll, pid_output_pitch, pid_output_yaw);
-
-// //   Serial.printf("%lu,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",
-// //                 millis(),                              // Correctly using %lu for unsigned long
-// //                 pid_roll_setpoint, pid_pitch_setpoint, // Using %.2f for floats
-// //                 angle_roll, angle_pitch,               // Using %.2f for floats
-// //                 pid_output_roll, pid_output_pitch);    // Using %.2f for floats
-
-// //   // Serial.print("--------------------");
-// //   // Serial.println();
-// //   // Serial.printf("Pitch Adjust: %.2f \n", pitch_level_adjust);
-// //   // Serial.printf("Roll Adjust: %.2f \n", roll_level_adjust);
-
-// //   // Serial.print("--------------------");
-// //   // Serial.println();
-// //   // Serial.printf("gyro_roll_input°: %.2f \n", gyro_roll_input);
-// //   // Serial.printf("gyro_pitch_input°: %.2f \n", gyro_pitch_input);
-// //   // Serial.printf("gyro_yaw_input°: %.2f \n", gyro_yaw_input);
-
-// //   // Serial.print("--------------------");
-// //   // Serial.println();
-// //   // Serial.printf("pid_output_roll: %.2f \n", pid_output_roll);
-// //   // Serial.printf("pid_output_pitch: %.2f \n", pid_output_pitch);
-// //   // Serial.printf("pid_output_yaw: %.2f \n", pid_output_yaw);
-
-// //   // Serial.print("--------------------");
-// //   // Serial.println();
-// //   // Serial.printf("pid_last_roll_d_error: %.2f \n", pid_last_roll_d_error);
-// //   // Serial.printf("pid_last_pitch_d_error: %.2f \n", pid_last_pitch_d_error);
-// //   // Serial.printf("pid_last_yaw_d_error: %.2f \n", pid_last_yaw_d_error);
-
-// //   // // KP input Values from webserver
-// //   // Serial.print("--------------------");
-// //   // Serial.println();
-// //   // Serial.printf("pid_p_gain_roll: %.2f \n", pid_p_gain_roll);
-// //   // Serial.printf("pid_i_gain_roll: %.2f \n", pid_i_gain_roll);
-// //   // Serial.printf("pid_d_gain_roll: %.2f \n", pid_d_gain_roll);
-// //   // Serial.println();
-// //   // Serial.printf("pid_p_gain_pitch: %.2f \n", pid_p_gain_pitch);
-// //   // Serial.printf("pid_i_gain_pitch: %.2f \n", pid_i_gain_pitch);
-// //   // Serial.printf("pid_d_gain_pitch: %.2f \n", pid_d_gain_pitch);
-// //   // Serial.println();
-// //   // Serial.printf("pid_p_gain_yaw: %.2f \n", pid_p_gain_yaw);
-// //   // Serial.printf("pid_i_gain_yaw: %.2f \n", pid_i_gain_yaw);
-// //   // Serial.printf("pid_d_gain_yaw: %.2f \n", pid_d_gain_yaw);
-// //   // Serial.println();
-
-//   // // // used for checking if mixing algorithm matches and outputs correspond correctly
-//   // Serial.print("--------------------");
-//   // Serial.println();
-//   // Serial.printf("ESC_1: %d \n", esc_1);
-//   // Serial.printf("ESC_2: %d \n ", esc_2);
-//   // Serial.printf("ESC_3: %d \n ", esc_3);
-//   // Serial.printf("ESC_4: %d \n ", esc_4);
-// }
-
-// For ESP debugging
-  void FC::print()
+void FC::print()
+{
+  // Print axis convention legend once per power-on so every log is self-documenting.
+  static bool legendPrinted = false;
+  if (!legendPrinted)
   {
-      // Print data in a comma-separated format for the Serial Plotter
-      // Serial.print(millis());               // Timestamp in milliseconds
+    Serial.println(F("\n=== AXIS CONVENTION ==="));
+    Serial.println(F("  roll  + = right side DOWN   (tilting right)"));
+    Serial.println(F("  roll  - = left  side DOWN   (tilting left)"));
+    Serial.println(F("  pitch + = nose  DOWN         (pitching forward)"));
+    Serial.println(F("  pitch - = nose  UP           (pitching back)"));
+    Serial.println(F("  gx  + = rotating right      (right-hand roll rate)"));
+    Serial.println(F("  gy  + = pitching nose-down  (right-hand pitch rate)"));
+    Serial.println(F("  gz  + = yawing clockwise     (viewed from above)"));
+    Serial.println(F("  AUTO-LEVEL: sp.roll should OPPOSE angle"));
+    Serial.println(F("    e.g. roll=+14deg → sp.roll should be NEGATIVE"));
+    Serial.println(F("=======================\n"));
+    legendPrinted = true;
+  }
 
-  // Serial.print("angle_roll:");
-  // Serial.print(angle_roll);
-  // Serial.print(",");
-  // Serial.print("angle_pitch:");
-  // Serial.println(angle_pitch);
+  const FilteredAttitude&  att    = imu.getAttitude();
+  const AccelAngleData&    accel  = imu.getAccelAngles();
+  const ScaledImuData&     gyro   = imu.getScaledData();
+  const PIDSetpoints       sp     = pid.getSetpoints();
+  const PIDOut             out    = pid.getOutput();
+  const ESCValues          esc    = motors.getLastESC();
 
-  // Serial.print("pid_output_roll:");
-  // Serial.print(pid_output_roll);
-  // Serial.print(",");
-  // Serial.print("pid_output_pitch:");
-  // Serial.println(pid_output_pitch);
-  // Serial.print(",");
-  // Serial.print("pid_output_yaw:");
-  // Serial.println(pid_output_yaw);
+  const char* stateStr = (state == RUNNING) ? "RUN"   :
+                         (state == START)   ? "START" : "OFF";
 
-    // Serial.print(",");                    // Separator (comma)
-    // Serial.print(pid_roll_setpoint);   // PID Roll Setpoint with 2 decimal places
-    // Serial.print(",");
-    // Serial.print(pid_pitch_setpoint);  // PID Pitch Setpoint
-    // Serial.print(",");
-    // Serial.print(angle_roll);          // Roll Angle
-    // Serial.print(",");
-    // Serial.print(angle_pitch);         // Pitch Angle
-    // Serial.print(",");
-    // Serial.print(pid_output_roll);     // PID Output Roll
-    // Serial.print(",");
-    // Serial.println(pid_output_pitch);  // PID Output Pitch (ends the line)
+  switch (printMode_)
+  {
+    // ----------------------------------------------------------------
+    // IMU layer — verify the sensor fusion / complementary filter
+    // ----------------------------------------------------------------
+    case PRINT_IMU:
+      Serial.println(F("\n--- IMU ---"));
+      // Accel-only angles: long-term correct but noisy from vibration
+      Serial.printf("  Accel    roll:%7.2f  pitch:%7.2f  deg\n",
+                    accel.Roll, accel.Pitch);
+      // Comp-filter angles: gyro integrated + accel correction (what auto-level uses)
+      Serial.printf("  CompFilt roll:%7.2f  pitch:%7.2f  deg\n",
+                    att.roll_deg, att.pitch_deg);
+      // Filtered gyro rates: IIR smoothed, fed directly to PID
+      Serial.printf("  Gyro     gx:%7.2f   gy:%7.2f    gz:%7.2f  deg/s\n",
+                    gyro.gx_dps, gyro.gy_dps, gyro.gz_dps);
+      break;
+
+    // ----------------------------------------------------------------
+    // Control layer — verify sticks → setpoints → PID output
+    // ----------------------------------------------------------------
+    case PRINT_CONTROL:
+      Serial.println(F("\n--- CONTROL ---"));
+      // Raw receiver µs values — verify sticks are being read
+      Serial.printf("  Sticks   thr:%4d  yaw:%4d  roll:%4d  pitch:%4d\n",
+                    lastInput_.throttle, lastInput_.yaw,
+                    lastInput_.roll,     lastInput_.pitch);
+      // PID setpoints in deg/s — stick delta minus auto-level correction, / 3
+      // At centre sticks level: setpoints should oppose the tilt angle
+      Serial.printf("  Setpts   roll:%7.2f  pitch:%7.2f  yaw:%7.2f  deg/s\n",
+                    sp.roll, sp.pitch, sp.yaw);
+      // Gyro rates — what the rate PID error is measured against
+      Serial.printf("  Gyro     roll:%7.2f  pitch:%7.2f  yaw:%7.2f  deg/s\n",
+                    gyro.gx_dps, gyro.gy_dps, gyro.gz_dps);
+      // PID output — correction added/subtracted from throttle in mixing
+      Serial.printf("  PID out  roll:%7.1f  pitch:%7.1f  yaw:%7.1f\n",
+                    out.roll, out.pitch, out.yaw);
+      Serial.printf("  State: %s\n", stateStr);
+      break;
+
+    // ----------------------------------------------------------------
+    // Motor layer — verify mixing for your frame orientation
+    // ----------------------------------------------------------------
+    case PRINT_MOTORS:
+      Serial.println(F("\n--- MOTORS ---"));
+      //  FR(CW)  FL(CCW)
+      //  BR(CCW) BL(CW)
+      Serial.printf("  FR:%4d  FL:%4d\n", esc.fr, esc.fl);
+      Serial.printf("  BR:%4d  BL:%4d\n", esc.br, esc.bl);
+      Serial.printf("  Angles  roll:%6.1f  pitch:%6.1f  State:%s\n",
+                    att.roll_deg, att.pitch_deg, stateStr);
+      Serial.printf("  Sticks  thr:%4d  roll:%4d  pitch:%4d  yaw:%4d\n",
+                    lastInput_.throttle, lastInput_.roll,
+                    lastInput_.pitch,    lastInput_.yaw);
+      Serial.printf("  Setpts  roll:%7.2f  pitch:%7.2f  yaw:%7.2f  deg/s\n",
+                    sp.roll, sp.pitch, sp.yaw);
+      break;
+
+    // ----------------------------------------------------------------
+    // CSV — full snapshot for Python/Excel graphing
+    // ----------------------------------------------------------------
+    case PRINT_CSV:
+    {
+      static bool hdr = false;
+      if (!hdr) {
+        Serial.println(F("ms,thr,yaw_stick,roll_stick,pitch_stick,"
+                         "acc_roll,acc_pitch,"
+                         "filt_roll,filt_pitch,"
+                         "gx,gy,gz,"
+                         "sp_roll,sp_pitch,sp_yaw,"
+                         "pid_roll,pid_pitch,pid_yaw,"
+                         "FR,FL,BR,BL,state"));
+        hdr = true;
+      }
+      Serial.printf("%lu,%d,%d,%d,%d,"
+                    "%.2f,%.2f,"
+                    "%.2f,%.2f,"
+                    "%.2f,%.2f,%.2f,"
+                    "%.2f,%.2f,%.2f,"
+                    "%.1f,%.1f,%.1f,"
+                    "%d,%d,%d,%d,%s\n",
+        millis(),
+        lastInput_.throttle, lastInput_.yaw, lastInput_.roll, lastInput_.pitch,
+        accel.Roll,    accel.Pitch,
+        att.roll_deg,  att.pitch_deg,
+        gyro.gx_dps,   gyro.gy_dps,  gyro.gz_dps,
+        sp.roll,       sp.pitch,     sp.yaw,
+        out.roll,      out.pitch,    out.yaw,
+        esc.fr, esc.fl, esc.br, esc.bl, stateStr);
+      break;
+    }
+  }
 }

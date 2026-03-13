@@ -33,7 +33,7 @@ void Motors::mix_motors(int throttleInput, const PIDOut& pidOutput)
     esc_4 = computeESCValue(throttle,  pidOutput.pitch,  pidOutput.roll,  pidOutput.yaw);   // BL/CCW
 
     // Serial.printf("PID  R:%6.1f  P:%6.1f  Y:%6.1f\n", pidOutput.roll, pidOutput.pitch, pidOutput.yaw);
-    // Serial.printf("ESC  FR:%4d  FL:%4d  BR:%4d  BL:%4d\n", esc_1, esc_2, esc_3, esc_4);
+    // Serial.printf("ESC  FR:%4d  FL:%4d  BR:%4d  BL:%4d\n", esc_1, esc_2, esc_3, esc_4);  // use FC::print() instead
 
     // // Current mixing algorithm matches my oriantation but
     // // Adjusted mixing algorithm for correct motor responses

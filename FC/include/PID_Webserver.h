@@ -4,10 +4,8 @@
 #include <ESPAsyncWebServer.h>
 #include <AsyncTCP.h>
 #include <ArduinoJson.h>
-#include "Flight_Controller.h"
-#include "PID_Webserver.h"
 #include "PID.h"
-class FC;
+class FC; // forward declaration — full definition in Flight_Controller.h
 class PID_Webserver
 {
 public:    

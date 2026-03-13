@@ -9,7 +9,7 @@
 #include "Calibration.h"
 #include "IMU.h"
 
-void FC::initialize()
+void FC::initialize_FC()
 {
   // Bring up I²C before touching the MPU 
   imu.initializeI2CBus();
@@ -29,51 +29,77 @@ void FC::run(){
   imu.readRawIMUData(); 
   imu.scaleIMU(); 
 
-  FilteredAttitude filt_gyro = imu.compFilter(imu.getScaledData());
+  // Update complementary filter — stores result in imu.attitude_ for auto-level.
+  imu.compFilter(imu.getScaledData());
 
   const ReceiverPulseSnapshot input = ReadInput();
+  lastInput_ = input; // Store the last input for printing
   updateState(input.throttle, input.yaw);
 
   if (state == RUNNING)
   {
       computeControlSetpoints(input.roll, input.pitch, input.throttle, input.yaw);
-      pid.calculate_pid(imu.getScaledData());
+
+      // Only integrate I-term when motors are actually spinning (~>1100µs).
+      // Below spin threshold there is no physical correction happening, so
+      // accumulating I-term against an error that can't be corrected causes
+      // windup that will kick the drone on takeoff.
+      const bool spooled = input.throttle > 1100;
+      pid.calculate_pid(imu.getScaledData(), spooled);
 
       motors.mix_motors(input.throttle, pid.getOutput());
       motors.write_motors();
   }
   else {
-      // keep motors off and reset PID
       motors.idle();
-      if (state == OFF) pid.reset();
+      // Reset PID whenever not running — prevents I-term windup accumulated
+      // during bench testing from carrying over into the next arm.
+      pid.reset();
   }
 
 }
-
 // Maps stick µs inputs to rate setpoints in deg/s.
 // Dead zone: 1492–1508µs. Max deflection ~492µs → ~164 deg/s at factor=3.
-// TODO: auto-level (angle outer loop) will add a rate correction on top of these
-//       setpoints once the rate PID is tuned — keep it separate, not in here.
-// TODO: bumpless start — on first arm, seed setpoints to current gyro rates so
-//       initial PID error is ~zero (see PID::reset).
+//
+// Auto-level outer loop: when auto_level is true, the current tilt angle
+// (from the complementary filter) is multiplied by 15 and subtracted from
+// the stick deflection before dividing by 3. This injects a corrective rate
+// proportional to tilt — e.g. 10° tilt → 50 deg/s correction — so the drone
+// returns to level whenever the sticks are centred.
 void FC::computeControlSetpoints(const int Roll, const int Pitch, const int Throttle, const int Yaw)
 {
   PIDSetpoints sp = {};
   const float factor = 3.0f; // µs-delta → deg/s  (492µs / 3 = 164 deg/s max)
 
-  if      (Roll  > 1508) sp.roll  = (Roll  - 1508) / factor;
-  else if (Roll  < 1492) sp.roll  = (Roll  - 1492) / factor;
-
-  if      (Pitch > 1508) sp.pitch = (Pitch - 1508) / factor;
-  else if (Pitch < 1492) sp.pitch = (Pitch - 1492) / factor;
-
-  if (Throttle > 998)
+  float roll_level_adjust  = 0.0f;
+  float pitch_level_adjust = 0.0f;
+  if (auto_level)
   {
-    if      (Yaw > 1606) sp.yaw = (Yaw - 1606) / factor;
+    const FilteredAttitude& att = imu.getAttitude();
+    roll_level_adjust  = att.roll_deg  * 15.0f;
+    pitch_level_adjust = att.pitch_deg * 15.0f;
+  }
+
+  // Compute stick delta (zero inside dead zone), then subtract angle correction.
+  float stick_roll  = 0.0f;
+  float stick_pitch = 0.0f;
+  if      (Roll  > 1508) stick_roll  = Roll  - 1508;
+  else if (Roll  < 1492) stick_roll  = Roll  - 1492;
+  if      (Pitch > 1508) stick_pitch = Pitch - 1508;
+  else if (Pitch < 1492) stick_pitch = Pitch - 1492;
+
+  sp.roll  = (stick_roll  - roll_level_adjust)  / factor;
+  sp.pitch = (stick_pitch - pitch_level_adjust) / factor;
+
+  // Yaw: gate on throttle > 1050 so a yaw stick input can't interfere with
+  // the disarm sequence (throttle ≤ 1064 && yaw right). Symmetric dead zone
+  // 1492–1508 matches roll/pitch — max yaw rate ≈ 164 deg/s.
+  if (Throttle > 1050)
+  {
+    if      (Yaw > 1508) sp.yaw = (Yaw - 1508) / factor;
     else if (Yaw < 1492) sp.yaw = (Yaw - 1492) / factor;
   }
 
-  //update setpoints for PID controller
   pid.setSetpoints(sp);
 }
 
@@ -107,6 +133,9 @@ void FC::updateState(int throttle, int yaw)
     }
     else if ((currentTime - lastDebounceTime) > debounceDelay)
     {
+      // Sync gyro-integrated angles to the accel reference so auto-level
+      // starts from a known-good baseline (drone may have been moved before arming).
+      imu.syncAttitudeToAccel();
       state = RUNNING;
       isDebounceConditionMet = false; // Reset for next condition
     }

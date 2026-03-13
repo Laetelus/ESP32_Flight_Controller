@@ -83,9 +83,21 @@ void IMU::scaleIMU()
   int16_t az = raw_.az - ofst_.accZ;
 
   // --- Gyros scaled to deg/s ---
-  scaled_.gx_dps = gx * (500.0f / 32768.0f);
-  scaled_.gy_dps = gy * (500.0f / 32768.0f);
-  scaled_.gz_dps = gz * (500.0f / 32768.0f);
+  const float raw_gx_dps = gx * (500.0f / 32768.0f);
+  const float raw_gy_dps = gy * (500.0f / 32768.0f);
+  const float raw_gz_dps = gz * (500.0f / 32768.0f);
+
+  // IIR low-pass filter: 70% previous + 30% new sample.
+  // Attenuates high-frequency vibration noise before gyro rates reach
+  // the PID D-term — without this, frame vibrations alias into D and
+  // cause motor buzz / oscillation.
+  lpf_gx_ = 0.7f * lpf_gx_ + 0.3f * raw_gx_dps;
+  lpf_gy_ = 0.7f * lpf_gy_ + 0.3f * raw_gy_dps;
+  lpf_gz_ = 0.7f * lpf_gz_ + 0.3f * raw_gz_dps;
+
+  scaled_.gx_dps = lpf_gx_;
+  scaled_.gy_dps = lpf_gy_;
+  scaled_.gz_dps = lpf_gz_;
 
   // --- Accel scaled to g ---
   scaled_.ax_g = ax * (8.0f / 32768.0f);
@@ -109,14 +121,31 @@ AccelAngleData IMU::calcAccelAngle()
   return accA_; 
 }
 
+void IMU::syncAttitudeToAccel()
+{
+  const AccelAngleData accel = calcAccelAngle();
+  attitude_.roll_deg  = accel.Roll;
+  attitude_.pitch_deg = accel.Pitch;
+}
+
 FilteredAttitude IMU::compFilter(const ScaledImuData &scaled)
 {
 
-  // call calAccelAngle to get the angles from the accelerometer
+  // alpha=0.98 → τ = dt/(1-alpha) = 0.004/0.02 = 0.2s convergence to accel.
+  // The IIR gyro low-pass filter handles vibration rejection, so alpha doesn't
+  // need to be as conservative as 0.9996 (which gives a 10s time constant).
   const float alpha = 0.98f;
 
   attitude_.roll_deg  += scaled.gx_dps * dt; 
   attitude_.pitch_deg += scaled.gy_dps * dt;
+
+  // Yaw coupling correction: when the IMU yaws, the physical pitch/roll axes
+  // rotate in space. Without this, a 90° yaw would gradually swap pitch and roll
+  // in the integrated angles. sin(yaw_rad_this_dt) is the tiny cross-axis
+  // transfer each frame — gz_dps * dt converts the yaw rate to radians for this step.
+  const float yaw_rad = scaled.gz_dps * dt * DEG_TO_RAD;
+  attitude_.pitch_deg -= attitude_.roll_deg  * sinf(yaw_rad);
+  attitude_.roll_deg  += attitude_.pitch_deg * sinf(yaw_rad);
 
   AccelAngleData accA_ = calcAccelAngle();
 

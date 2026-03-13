@@ -1,7 +1,7 @@
 
 #include "Flight_Controller.h"
 
-void PID::calculate_pid(const ScaledImuData& gyro)
+void PID::calculate_pid(const ScaledImuData& gyro, bool integrate)
 {
   PIDgains PID = getGains();
   const PIDLimits PID_max = pid_max;
@@ -11,7 +11,7 @@ void PID::calculate_pid(const ScaledImuData& gyro)
 
   // Roll — error = desired rate - gyro rate
   pid_error_temp = pid_setpoint.roll - gyro.gx_dps;
-  PID_mem.i_mem_roll += PID.i_gain_roll * pid_error_temp;
+  if (integrate) PID_mem.i_mem_roll += PID.i_gain_roll * pid_error_temp;
   if (PID_mem.i_mem_roll >  PID_max.roll) PID_mem.i_mem_roll =  PID_max.roll;
   else if (PID_mem.i_mem_roll < -PID_max.roll) PID_mem.i_mem_roll = -PID_max.roll;
 
@@ -22,7 +22,7 @@ void PID::calculate_pid(const ScaledImuData& gyro)
 
   // Pitch — error = desired rate - gyro rate
   pid_error_temp = pid_setpoint.pitch - gyro.gy_dps;
-  PID_mem.i_mem_pitch += PID.i_gain_pitch * pid_error_temp;
+  if (integrate) PID_mem.i_mem_pitch += PID.i_gain_pitch * pid_error_temp;
   if (PID_mem.i_mem_pitch >  PID_max.pitch) PID_mem.i_mem_pitch =  PID_max.pitch;
   else if (PID_mem.i_mem_pitch < -PID_max.pitch) PID_mem.i_mem_pitch = -PID_max.pitch;
 
@@ -37,7 +37,7 @@ void PID::calculate_pid(const ScaledImuData& gyro)
   if      (pid_error_temp >  180) pid_error_temp -= 360;
   else if (pid_error_temp < -179) pid_error_temp += 360;
 
-  PID_mem.i_mem_yaw += PID.i_gain_yaw * pid_error_temp;
+  if (integrate) PID_mem.i_mem_yaw += PID.i_gain_yaw * pid_error_temp;
   if (PID_mem.i_mem_yaw >  PID_max.yaw) PID_mem.i_mem_yaw =  PID_max.yaw;
   else if (PID_mem.i_mem_yaw < -PID_max.yaw) PID_mem.i_mem_yaw = -PID_max.yaw;
 

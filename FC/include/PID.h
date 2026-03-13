@@ -4,17 +4,17 @@
 
 
 struct PIDgains {
-    float p_gain_roll  = 1.3f;
-    float i_gain_roll  = 0.04f;
-    float d_gain_roll  = 18.0f;
+    float p_gain_roll;
+    float i_gain_roll;
+    float d_gain_roll;
 
-    float p_gain_pitch = 1.3f;
-    float i_gain_pitch = 0.04f;
-    float d_gain_pitch = 18.0f;
+    float p_gain_pitch;
+    float i_gain_pitch;
+    float d_gain_pitch;
 
-    float p_gain_yaw   = 4.0f;
-    float i_gain_yaw   = 0.02f;
-    float d_gain_yaw   = 0.0f;
+    float p_gain_yaw;
+    float i_gain_yaw;
+    float d_gain_yaw;
 };
 
 struct PIDOut {
@@ -27,9 +27,9 @@ struct PIDOut {
         : pitch(pitchIn), roll(rollIn), yaw(yawIn) {}
 }; 
 struct PIDLimits {
-    int roll = 90;     // Practical maximum rate for roll in degrees per second
+    int roll = 400;     // Practical maximum rate for roll in degrees per second
     int pitch = roll;  // Practical maximum rate for pitch in degrees per second
-    int yaw = 90;      // Practical maximum rate for yaw in degrees per second
+    int yaw = 400;      // Practical maximum rate for yaw in degrees per second
 }; 
 
 struct PIDSetpoints {
@@ -38,7 +38,6 @@ struct PIDSetpoints {
     float yaw;
 };
 
-// struct for PID mem roll 
 struct PIDMem {
     float i_mem_roll;
     float last_roll_d_error;
@@ -54,11 +53,12 @@ class PID {
 public:
     PID() {}
 
-    void calculate_pid(const ScaledImuData& gyro);
+    void calculate_pid(const ScaledImuData& gyro, bool integrate = true);
     void reset();
 
     PIDgains getGains() const {return pid;}
-    PIDOut getOutput() const {return pid_output;}   
+    PIDOut getOutput() const {return pid_output;}
+    PIDSetpoints getSetpoints() const {return pid_setpoint;}   
     void setGains(const PIDgains& newGains) {pid = newGains;}
     void setSetpoints(const PIDSetpoints& sp) {pid_setpoint = sp;}
     void setMem(const PIDMem& mem) {pid_mem = mem;}
@@ -70,8 +70,4 @@ private:
     PIDLimits pid_max;
     PIDSetpoints pid_setpoint;
     PIDMem pid_mem;
-
-    double gyro_roll_input;
-    float gyro_pitch_input;
-    float gyro_yaw_input;
 };   
