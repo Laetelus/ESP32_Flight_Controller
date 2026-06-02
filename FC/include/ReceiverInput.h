@@ -17,6 +17,6 @@ struct ReceiverPulseSnapshot {
 };
 
 void setupInputPins();
-ReceiverPulseSnapshot ReadInput();
+ReceiverPulseSnapshot read_input();
 
 #endif // RECEIVER_INPUT_H

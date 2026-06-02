@@ -8,8 +8,6 @@ void Calibration::CalibrateIMU()
 {
 
   const RawImuData& raw = imu.getRawData();
-  const AccelAngleData& ang = imu.getAccelAngles();
-  const ScaledImuData& scale = imu.getScaledData();
   ImuOffsets ofst;
 
   // Run for 2 seconds, store as the sample count 
@@ -20,7 +18,7 @@ void Calibration::CalibrateIMU()
 
   int sampleCount = 0;
 
-#ifdef USE_EEPROM
+#ifndef CLEAR_EEPROM
 
   EEPROM.begin(EEPROM_SIZE);
 

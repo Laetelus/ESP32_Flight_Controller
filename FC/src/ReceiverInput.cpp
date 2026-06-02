@@ -75,9 +75,9 @@ void IRAM_ATTR handlePitchInterrupt()
   }
   portEXIT_CRITICAL_ISR(&muxPitch);
 }
-} // namespace
+} // end namespace
 
-ReceiverPulseSnapshot ReadInput()
+ReceiverPulseSnapshot read_input()
 {
   noInterrupts();
   ReceiverPulseSnapshot snapshot{

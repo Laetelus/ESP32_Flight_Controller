@@ -130,6 +130,20 @@ function updatePIDDisplay(data) {
     setField('d-gain-yaw', data.pid_d_gain_yaw)
 }
 
+function showToast(message, isError) {
+    let toast = document.getElementById('toast-notification')
+    if (!toast) {
+        toast = document.createElement('div')
+        toast.id = 'toast-notification'
+        document.body.appendChild(toast)
+    }
+    toast.textContent = message
+    toast.className = 'toast ' + (isError ? 'toast-error' : 'toast-success')
+    toast.style.opacity = '1'
+    clearTimeout(toast._hideTimeout)
+    toast._hideTimeout = setTimeout(() => { toast.style.opacity = '0' }, 3000)
+}
+
 function updatePID() {
     // Indicate that updates are being processed
     isUpdating = true
@@ -152,21 +166,23 @@ function updatePID() {
     // Send your data to the server
     fetch('/setPID', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: formData,
         })
-        .then(handleResponseError)
-        .then(() => {
-            console.log('PID values updated successfully')
-                // After updating, resume automatic updates
-            setTimeout(() => {
-                    isUpdating = false
-                    getPID() // Fetch and display updated PID values
-                }, 1000) // 1-second delay before resuming automatic updates
+        .then((response) => response.text().then((text) => ({ ok: response.ok, text })))
+        .then(({ ok, text }) => {
+            if (ok) {
+                showToast('\u2713 ' + text, false)
+                setTimeout(() => { isUpdating = false; getPID() }, 1000)
+            } else {
+                showToast('\u2717 ' + text, true)
+                isUpdating = false
+            }
         })
-        .catch((error) => console.error('Error updating PID:', error))
+        .catch((error) => {
+            showToast('\u2717 Network error: ' + error.message, true)
+            isUpdating = false
+        })
 }
 
 function startRealTimeUpdate() {

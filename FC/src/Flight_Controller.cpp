@@ -15,11 +15,12 @@ void FC::initialize_FC()
   imu.initializeI2CBus();
   setupInputPins();
   //Perform MPU calibration. 
-  Calibration cal(imu); cal.CalibrateIMU();
+  Calibration cal(imu); 
+  cal.CalibrateIMU();
   //Initialize and arm ESCs 
   motors.Initialize_ESCs();
   
-  #ifndef USE_EEPROM
+  #ifdef CLEAR_EEPROM
    cal.clearCalibrationData();
   #endif
 
@@ -30,30 +31,30 @@ void FC::run(){
   imu.scaleIMU(); 
 
   // Update complementary filter — stores result in imu.attitude_ for auto-level.
-  imu.compFilter(imu.getScaledData());
+  ScaledImuData scaled_gx_ax = imu.getScaledData();
+  imu.compFilter(scaled_gx_ax);
 
-  const ReceiverPulseSnapshot input = ReadInput();
-  lastInput_ = input; // Store the last input for printing
-  updateState(input.throttle, input.yaw);
+  const ReceiverPulseSnapshot input = read_input();
+  lastInput_ = input; // Store for print() debug output
+  update_state(input.throttle, input.yaw);
 
   if (state == RUNNING)
   {
-      computeControlSetpoints(input.roll, input.pitch, input.throttle, input.yaw);
+      compute_control_setpoints(input.roll, input.pitch, 
+                                input.throttle, input.yaw);
 
       // Only integrate I-term when motors are actually spinning (~>1100µs).
       // Below spin threshold there is no physical correction happening, so
       // accumulating I-term against an error that can't be corrected causes
       // windup that will kick the drone on takeoff.
       const bool spooled = input.throttle > 1100;
-      pid.calculate_pid(imu.getScaledData(), spooled);
-
+      pid.calculate_pid(scaled_gx_ax, spooled);
       motors.mix_motors(input.throttle, pid.getOutput());
       motors.write_motors();
   }
   else {
       motors.idle();
       // Reset PID whenever not running — prevents I-term windup accumulated
-      // during bench testing from carrying over into the next arm.
       pid.reset();
   }
 
@@ -66,13 +67,15 @@ void FC::run(){
 // the stick deflection before dividing by 3. This injects a corrective rate
 // proportional to tilt — e.g. 10° tilt → 50 deg/s correction — so the drone
 // returns to level whenever the sticks are centred.
-void FC::computeControlSetpoints(const int Roll, const int Pitch, const int Throttle, const int Yaw)
+void FC::compute_control_setpoints(const int Roll, const int Pitch, const int Throttle, const int Yaw)
 {
+
   PIDSetpoints sp = {};
   const float factor = 3.0f; // µs-delta → deg/s  (492µs / 3 = 164 deg/s max)
 
   float roll_level_adjust  = 0.0f;
   float pitch_level_adjust = 0.0f;
+
   if (auto_level)
   {
     const FilteredAttitude& att = imu.getAttitude();
@@ -83,10 +86,12 @@ void FC::computeControlSetpoints(const int Roll, const int Pitch, const int Thro
   // Compute stick delta (zero inside dead zone), then subtract angle correction.
   float stick_roll  = 0.0f;
   float stick_pitch = 0.0f;
+
   if      (Roll  > 1508) stick_roll  = Roll  - 1508;
   else if (Roll  < 1492) stick_roll  = Roll  - 1492;
   if      (Pitch > 1508) stick_pitch = Pitch - 1508;
   else if (Pitch < 1492) stick_pitch = Pitch - 1492;
+
 
   sp.roll  = (stick_roll  - roll_level_adjust)  / factor;
   sp.pitch = (stick_pitch - pitch_level_adjust) / factor;
@@ -94,16 +99,19 @@ void FC::computeControlSetpoints(const int Roll, const int Pitch, const int Thro
   // Yaw: gate on throttle > 1050 so a yaw stick input can't interfere with
   // the disarm sequence (throttle ≤ 1064 && yaw right). Symmetric dead zone
   // 1492–1508 matches roll/pitch — max yaw rate ≈ 164 deg/s.
+  // YAW_CENTER_TRIM compensates for a TX stick that physically rests below centre.
+  const int yaw_trimmed = Yaw + YAW_CENTER_TRIM;
   if (Throttle > 1050)
   {
-    if      (Yaw > 1508) sp.yaw = (Yaw - 1508) / factor;
-    else if (Yaw < 1492) sp.yaw = (Yaw - 1492) / factor;
+    if      (yaw_trimmed > 1508) sp.yaw = (yaw_trimmed - 1508) / factor;
+    else if (yaw_trimmed < 1492) sp.yaw = (yaw_trimmed - 1492) / factor;
   }
-
+  
+  //update pid setpoints to be used in the next pid calculation step.
   pid.setSetpoints(sp);
 }
 
-void FC::updateState(int throttle, int yaw)
+void FC::update_state(int throttle, int yaw)
 {
   
   unsigned long currentTime = millis();

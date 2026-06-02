@@ -26,11 +26,6 @@ struct PIDOut {
     PIDOut(float pitchIn, float rollIn, float yawIn)
         : pitch(pitchIn), roll(rollIn), yaw(yawIn) {}
 }; 
-struct PIDLimits {
-    int roll = 400;     // Practical maximum rate for roll in degrees per second
-    int pitch = roll;  // Practical maximum rate for pitch in degrees per second
-    int yaw = 400;      // Practical maximum rate for yaw in degrees per second
-}; 
 
 struct PIDSetpoints {
     float roll; 
@@ -67,7 +62,11 @@ public:
 private:
     PIDgains pid; 
     PIDOut pid_output;
-    PIDLimits pid_max;
     PIDSetpoints pid_setpoint;
     PIDMem pid_mem;
+
+    const int max_roll = 400;     // Practical maximum rate for roll in degrees per second
+    const int max_pitch = max_roll;  // Practical maximum rate for pitch in degrees per second
+    const int max_yaw = 400;      // Practical maximum rate for yaw in degrees per second
+
 };   

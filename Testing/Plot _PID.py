@@ -1,60 +1,41 @@
-"""
-Complementary filter visualizer  —  interactive matplotlib GUI
-Usage:
-    python plot_compfilter.py [log_name_or_path]
-
-The log must have been captured with PRINT_CSV mode.
-Omit the argument to auto-load the newest log in FC/logs/.
-
-    Row 1  — Roll angle:  Accel (raw) vs CompFilter
-    Row 2  — Pitch angle: Accel (raw) vs CompFilter
-    Row 3  — Gyro rates:  gx / gy / gz  (what the rate-PID is fighting)
-
-All rows share the same time axis (linked zoom/pan).
-Green shading marks RUN-state intervals.
-Use the matplotlib toolbar to zoom, pan, and save — each subplot zooms
-independently when you drag over it.
-"""
-
 import sys
 import csv
 import io
 from pathlib import Path
-import matplotlib
-matplotlib.use("TkAgg")          # native GUI window (zoom/pan toolbar)
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import webview
+import tempfile
+import os
 
 # ── 1. Resolve log file ───────────────────────────────────────────────────────
 # Logs always live two levels up from this script: ../../FC/logs/
 SCRIPT_DIR = Path(__file__).resolve().parent
-LOG_DIR    = SCRIPT_DIR.parents[1] / "FC" / "logs"
+LOG_DIR    = SCRIPT_DIR.parents[0] / "FC" / "logs"
 
 def find_log(arg: str) -> Path:
-    p = Path(arg)
-    # Full or relative path that exists as-is
-    if p.exists():
-        return p.resolve()
-    # Bare name / stem — look in the known log directory
-    for suffix in ("", ".log"):
-        candidate = LOG_DIR / (arg + suffix)
-        if candidate.exists():
-            return candidate
-    raise FileNotFoundError(
-        f"Cannot find '{arg}'. Looked in:\n  {p}\n  {LOG_DIR / arg}"
-    )
-
+    log_files = sorted(LOG_DIR.glob("*.log"), key=lambda f: f.name)
+    print("Available log files:")
+    for i, log_file in enumerate(log_files):
+        print(f"{i}: {log_file.name}")
+    choice = int(input("Enter the number of the log file to visualize: "))
+    return log_files[choice]
+      
 def latest_log() -> Path:
     logs = sorted(LOG_DIR.glob("*.log"), key=lambda f: f.name)
     if not logs:
         raise FileNotFoundError(f"No .log files found in {LOG_DIR}")
     return logs[-1]
 
+# Use the latest log if no argument, otherwise try to find the specified log file.
 if len(sys.argv) < 2:
     log_path = latest_log()
     print(f"No file specified — using latest log: {log_path.name}")
 else:
-    log_path = find_log(sys.argv[1])
+    if sys.argv[1] == "l":
+        log_path = find_log("l")
+    else:
+        log_path = find_log(sys.argv[1])
     print(f"Loading: {log_path}")
 
 raw_text = log_path.read_text(encoding="utf-8", errors="replace")
@@ -104,7 +85,7 @@ else:
 csv_text = unwrap_lines(csv_text)
 reader = csv.DictReader(io.StringIO(csv_text))
 
-REQUIRED_COLS = ("ms", "acc_roll", "acc_pitch", "filt_roll", "filt_pitch",
+REQUIRED_COLS = ("ms", "thr", "sp_pitch", "sp_roll", "sp_yaw",
                  "gx", "gy", "gz", "state")
 
 all_rows = []
@@ -114,6 +95,10 @@ for r in reader:
         if any(r.get(k) is None for k in REQUIRED_COLS):
             continue
         float(r["ms"])
+        # Reject corrupt rows: throttle must be a plausible PWM value (800–2200 µs)
+        thr_val = float(r["thr"])
+        if not (800 <= thr_val <= 2200):
+            continue
         all_rows.append(r)
     except (ValueError, KeyError):
         continue
@@ -129,13 +114,14 @@ def col(rows, key):
 t0 = float(all_rows[0]["ms"]) / 1000.0
 t  = [float(r["ms"]) / 1000.0 - t0 for r in all_rows]
 
-acc_roll   = col(all_rows, "acc_roll")
-acc_pitch  = col(all_rows, "acc_pitch")
-filt_roll  = col(all_rows, "filt_roll")
-filt_pitch = col(all_rows, "filt_pitch")
+sp_roll    = col(all_rows, "sp_roll")
+sp_pitch   = col(all_rows, "sp_pitch")
+sp_yaw     = col(all_rows, "sp_yaw")
+throttle   = col(all_rows, "thr")
 gx         = col(all_rows, "gx")
 gy         = col(all_rows, "gy")
 gz         = col(all_rows, "gz")
+
 state      = [r.get("state", "").strip() for r in all_rows]
 
 # ── 3. Find RUN intervals for green shading ───────────────────────────────────
@@ -152,47 +138,64 @@ if in_run:
     run_intervals.append((run_start, t[-1]))
 
 # ── 4. Build figure ───────────────────────────────────────────────────────────
-plt.style.use("seaborn-v0_8-whitegrid")
-fig, (ax1, ax2, ax3) = plt.subplots(
-    3, 1, figsize=(13, 9),
-    sharex=True,
-    gridspec_kw=dict(hspace=0.35),
+fig = make_subplots(
+    rows=4, cols=1,
+    shared_xaxes=True,
+    vertical_spacing=0.08,
+    subplot_titles=("setpoint roll | Gyro gx", "setpoint pitch | Gyro gy", "setpoint yaw | Gyro gz", "throttle"),
 )
-fig.suptitle(f"Complementary Filter Verification\n{log_path.name}", fontsize=13, fontweight="bold")
-fig.canvas.manager.set_window_title(str(log_path.name))
 
-# ── Green RUN shading on all axes ─────────────────────────────────────────────
+# ── Green RUN shading on all rows ─────────────────────────────────────────────
 for x0, x1 in run_intervals:
-    for ax in (ax1, ax2, ax3):
-        ax.axvspan(x0, x1, color="limegreen", alpha=0.08, linewidth=0,
-                   label="_nolegend_")
+    for row in range(1, 5):
+        fig.add_vrect(x0=x0, x1=x1, fillcolor="limegreen", opacity=0.08,
+                      layer="below", line_width=0, row=row, col=1)
 
-# ── Row 1: Roll ───────────────────────────────────────────────────────────────
-ax1.plot(t, acc_roll,  color="tomato",    alpha=0.6, linewidth=1,   label="acc_roll  (raw)")
-ax1.plot(t, filt_roll, color="steelblue", linewidth=1.8,             label="filt_roll (comp filter)")
-ax1.set_ylabel("deg")
-ax1.set_title("Roll angle")
-ax1.legend(fontsize=8, loc="upper right")
+# subplot for throttle
+fig.add_trace(go.Scatter(x=t, y=throttle, name="throttle",
+                         line=dict(color="orange", width=1.8)), row=4, col=1)
+
+# ── Row 1: pid and setpoint roll ───────────────────────────────────────────────────────────────
+fig.add_trace(go.Scatter(x=t, y=sp_roll, name="sp_roll",
+                         line=dict(color="steelblue", width=1.8)), row=1, col=1)
+fig.add_trace(go.Scatter(x=t, y=gx, name="Gyro gx (actual roll rate)",
+                         line=dict(color="tomato", width=1), opacity=0.6), row=1, col=1)
 
 # ── Row 2: Pitch ──────────────────────────────────────────────────────────────
-ax2.plot(t, acc_pitch,  color="tomato",    alpha=0.6, linewidth=1,   label="acc_pitch  (raw)")
-ax2.plot(t, filt_pitch, color="steelblue", linewidth=1.8,             label="filt_pitch (comp filter)")
-ax2.set_ylabel("deg")
-ax2.set_title("Pitch angle")
-ax2.legend(fontsize=8, loc="upper right")
+fig.add_trace(go.Scatter(x=t, y=sp_pitch, name="sp_pitch",
+                         line=dict(color="steelblue", width=1.8)), row=2, col=1)
+fig.add_trace(go.Scatter(x=t, y=gy, name="Gyro gy (actual pitch rate)",
+                         line=dict(color="tomato", width=1), opacity=0.6), row=2, col=1)
+
 
 # ── Row 3: Gyro rates ─────────────────────────────────────────────────────────
-ax3.plot(t, gx, color="darkorange",    linewidth=1.2, label="gx")
-ax3.plot(t, gy, color="mediumseagreen",linewidth=1.2, label="gy")
-ax3.plot(t, gz, color="mediumpurple",  linewidth=1.2, label="gz")
-ax3.axhline(0, color="black", linewidth=0.6, linestyle="--")
-ax3.set_ylabel("deg/s")
-ax3.set_xlabel("Time (s)")
-ax3.set_title("Gyro rates")
-ax3.legend(fontsize=8, loc="upper right")
+fig.add_trace(go.Scatter(x=t, y=sp_yaw, name="sp_yaw",
+                         line=dict(color="steelblue", width=1.8)), row=3, col=1)
+fig.add_trace(go.Scatter(x=t, y=gz, name="Gyro gz (actual yaw rate)",
+                         line=dict(color="tomato", width=1), opacity=0.6), row=3, col=1)
 
-# ── Shared x-axis tick formatting ─────────────────────────────────────────────
-ax3.xaxis.set_major_locator(ticker.MultipleLocator(5))
-ax3.xaxis.set_minor_locator(ticker.MultipleLocator(1))
+# confirm what unit this should be for pid 
+fig.update_yaxes(title_text="deg",   row=1, col=1)
+fig.update_yaxes(title_text="deg",   row=2, col=1)
+fig.update_yaxes(title_text="deg/s", row=3, col=1)
+fig.update_xaxes(title_text="Time (s)", row=4, col=1)
+fig.update_layout(
+    title=dict(text=f"PID — {log_path.name}", font=dict(size=13)),
+    height=1000,
+    template="plotly_dark",
+)
 
-plt.show()
+# ── Show in native GUI window via pywebview (no browser) ──────────────────────
+# Write to a temp file — WebView2's NavigateToString has a ~1.5 MB limit
+# that the bundled Plotly JS easily exceeds.
+with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False,
+                                 encoding="utf-8") as f:
+    f.write(fig.to_html(full_html=True, include_plotlyjs=True))
+    tmp_path = f.name
+
+try:
+    url = "file:///" + tmp_path.replace("\\", "/")
+    window = webview.create_window(log_path.name, url=url, width=1300, height=1020)
+    webview.start()
+finally:
+    os.unlink(tmp_path)

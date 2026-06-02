@@ -1,6 +1,5 @@
 #include "IMU.h"
 
-
 void IMU::initializeI2CBus()
 {
 
@@ -32,8 +31,8 @@ void IMU::initializeI2CBus()
   Wire.endTransmission();   
   
   //----pointing temp sensor-----------------
-  Wire.beginTransmission(0x68);                        //Start communication with the MPU-6050.
-  Wire.write(0x41);      //pointing Temp_Out_High Reg                                           //Set the register bits as 00000000 to activate the gyro.
+  Wire.beginTransmission(0x68); //Start communication with the MPU-6050.
+  Wire.write(0x41); //pointing Temp_Out_High Reg                                        
   Wire.endTransmission();
 
   Wire.requestFrom(0x68, 2, true); // Request 2 bytes from TEMP_OUT_H and TEMP_OUT_L
@@ -87,6 +86,8 @@ void IMU::scaleIMU()
   const float raw_gy_dps = gy * (500.0f / 32768.0f);
   const float raw_gz_dps = gz * (500.0f / 32768.0f);
 
+  //TODO: How do we test this visually? 
+
   // IIR low-pass filter: 70% previous + 30% new sample.
   // Attenuates high-frequency vibration noise before gyro rates reach
   // the PID D-term — without this, frame vibrations alias into D and
@@ -116,8 +117,6 @@ AccelAngleData IMU::calcAccelAngle()
   accA_.Pitch = atan2(-scaled_.ax_g, sqrt(scaled_.ay_g * scaled_.ay_g 
                             + scaled_.az_g * scaled_.az_g)) * RAD_TO_DEG;
 
-  // Serial.println(accA_.Roll); 
-  // Serial.println(accA_.Pitch);
   return accA_; 
 }
 
@@ -144,6 +143,7 @@ FilteredAttitude IMU::compFilter(const ScaledImuData &scaled)
   // in the integrated angles. sin(yaw_rad_this_dt) is the tiny cross-axis
   // transfer each frame — gz_dps * dt converts the yaw rate to radians for this step.
   const float yaw_rad = scaled.gz_dps * dt * DEG_TO_RAD;
+  
   attitude_.pitch_deg -= attitude_.roll_deg  * sinf(yaw_rad);
   attitude_.roll_deg  += attitude_.pitch_deg * sinf(yaw_rad);
 

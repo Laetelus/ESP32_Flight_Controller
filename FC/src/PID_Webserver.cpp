@@ -11,7 +11,7 @@
 
 bool PID_Webserver::motorsOff()
 {
-    return fc.Motorstate() == OFF;
+    return fc.motor_state() == OFF;
 }
 
 void WiFiTask(void *parameter)
@@ -148,16 +148,8 @@ bool PID_Webserver::savePIDValues()
         file.printf("I_GAIN_YAW:%f\n", PID.i_gain_yaw);
         file.printf("D_GAIN_YAW:%f\n", PID.d_gain_yaw);
 
-        // //print to test 
-        // Serial.println("PID values saved to SPIFFS:");
-        // Serial.print("P Gain Roll: "); Serial.println(PID.p_gain_roll);
-        // Serial.print("I Gain Roll: "); Serial.println(PID.i_gain_roll);
-        // Serial.print("D Gain Roll: "); Serial.println(PID.d_gain_roll);
-        // Serial.print("P Gain Yaw: "); Serial.println(PID.p_gain_yaw);
-        // Serial.print("I Gain Yaw: "); Serial.println(PID.i_gain_yaw);
-        // Serial.print("D Gain Yaw: "); Serial.println(PID.d_gain_yaw);
-
     }
+    
     file.close();
     return true;
 }

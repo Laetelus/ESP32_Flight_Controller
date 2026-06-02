@@ -33,10 +33,10 @@ public:
             : imu(imuRef), pid(pidRef), motors(motorsRef) {}
     // Member functions
     void initialize_FC();
-    void computeControlSetpoints(const int Roll, const int Pitch, const int Throttle, const int Yaw);
-    void updateState(const int throttle, const int yaw);
-    void run(); 
-    MotorState Motorstate() const {return state;}
+    void compute_control_setpoints(const int Roll, const int Pitch, const int Throttle, const int Yaw);
+    void update_state(const int throttle, const int yaw);
+    void run();
+    MotorState motor_state() const {return state;}
     void print();
 
 private: 
@@ -51,8 +51,15 @@ private:
     // When true: angle outer loop subtracts a tilt-proportional rate correction
     // from the stick setpoints, causing the drone to self-level on stick release.
     bool auto_level = true;
+
+    // Software yaw trim (µs). Add this to the raw yaw stick reading before
+    // applying the dead zone. Positive values shift the effective centre higher.
+    // Set to compensate for a TX yaw stick that rests below the 1492 dead-zone
+    // boundary when held normally. Tune by logging yaw_stick at idle and
+    // adjusting until sp_yaw stays 0 throughout the RUNNING state.
+    static constexpr int YAW_CENTER_TRIM = 15;
     uint32_t printCounter_ = 0; // rate-limits serial output in print()
-    PrintMode printMode_   = PRINT_CSV; // <-- change this to switch debug view
+    PrintMode printMode_   = PRINT_CSV; // change this to switch debug view
     ReceiverPulseSnapshot lastInput_ = {}; // last receiver snapshot, used by print()
 
 };

@@ -1,13 +1,5 @@
 #include "Flight_Controller.h"
 
-// Diagnostic output for the FC pipeline.
-// Change printMode_ in Flight_Controller.h to switch views:
-//
-//  PRINT_IMU     — Is the IMU reading and fusing correctly?
-//  PRINT_CONTROL — Is the control pipeline responding?
-//  PRINT_MOTORS  — Is motor mixing correct for your frame?
-//  PRINT_CSV     — Full CSV snapshot for Python/Excel graphing.
-
 void FC::print()
 {
   // Print axis convention legend once per power-on so every log is self-documenting.
@@ -83,8 +75,8 @@ void FC::print()
     // ----------------------------------------------------------------
     case PRINT_MOTORS:
       Serial.println(F("\n--- MOTORS ---"));
-      //  FR(CW)  FL(CCW)
-      //  BR(CCW) BL(CW)
+      //  FR(CCW) FL(CW)
+      //  BR(CW)  BL(CCW)
       Serial.printf("  FR:%4d  FL:%4d\n", esc.fr, esc.fl);
       Serial.printf("  BR:%4d  BL:%4d\n", esc.br, esc.bl);
       Serial.printf("  Angles  roll:%6.1f  pitch:%6.1f  State:%s\n",
