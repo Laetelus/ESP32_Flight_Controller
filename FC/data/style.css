@@ -110,7 +110,7 @@ button:hover {
 }
 
 .input-bubble label {
-    margin-right: 10px;
+    margin-right: 60px;
     font-weight: bold;
     color: #555;
     /* Prevent label from wrapping */
@@ -128,58 +128,11 @@ button:hover {
     margin: 0 5px;
 }
 
-
-/* PID Graph Section */
-
-.pid-graph-container {
-    /* Adds space to the right of the graph container */
-    margin-right: 20px;
-    /* Adjust the flex-grow value as needed */
-    flex: 1;
-}
-
-
 /* PID Controls Section */
 
 .pid-controls-container {
     flex: 1;
 }
-
-
-/* #pid-values-display {
-    background-color: #fff;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    margin-top: 20px;
-} */
-
-
-/* .pid-table {
-    width: 100%;
-    border-collapse: collapse;
-    text-align: left;
-    margin-top: 10px;
-} */
-
-
-/* .pid-table th,
-.pid-table td {
-    padding: 10px;
-    border-bottom: 1px solid #ddd;
-}
-
-.pid-table th {
-    background-color: #f3f3f3;
-}
-
-.pid-table td span {
-    font-weight: bold;
-    display: inline-block;
-    min-width: 0px;
-    text-align: center;
-} */
-
 
 /* Responsive table design */
 
@@ -189,7 +142,6 @@ button:hover {
         overflow-x: auto;
     }
 }
-
 
 /* Responsive design for smaller screens */
 
