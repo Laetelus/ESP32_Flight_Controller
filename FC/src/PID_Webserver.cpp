@@ -229,27 +229,27 @@ void PID_Webserver::fillPIDJson(DynamicJsonDocument &doc)
     const PIDgains PID = pid.getGains();
 
     // Roll PID parameters
-    doc["pid_p_gain_roll"] = formatFloat(PID.p_gain_roll, 3);
-    doc["pid_i_gain_roll"] = formatFloat(PID.i_gain_roll, 3);
-    doc["pid_d_gain_roll"] = formatFloat(PID.d_gain_roll, 3);
+    doc["pid_p_gain_roll"] = formatFloat(PID.p_gain_roll, 8);
+    doc["pid_i_gain_roll"] = formatFloat(PID.i_gain_roll, 8);
+    doc["pid_d_gain_roll"] = formatFloat(PID.d_gain_roll, 8);
 
     // Pitch PID parameters
-    doc["pid_p_gain_pitch"] = formatFloat(PID.p_gain_pitch, 3);
-    doc["pid_i_gain_pitch"] = formatFloat(PID.i_gain_pitch, 3);
-    doc["pid_d_gain_pitch"] = formatFloat(PID.d_gain_pitch, 3);
+    doc["pid_p_gain_pitch"] = formatFloat(PID.p_gain_pitch, 8);
+    doc["pid_i_gain_pitch"] = formatFloat(PID.i_gain_pitch, 8);
+    doc["pid_d_gain_pitch"] = formatFloat(PID.d_gain_pitch, 8);
 
     // Yaw PID parameters
-    doc["pid_p_gain_yaw"] = formatFloat(PID.p_gain_yaw, 3);
-    doc["pid_i_gain_yaw"] = formatFloat(PID.i_gain_yaw, 3);
-    doc["pid_d_gain_yaw"] = formatFloat(PID.d_gain_yaw, 3);
+    doc["pid_p_gain_yaw"] = formatFloat(PID.p_gain_yaw, 8);
+    doc["pid_i_gain_yaw"] = formatFloat(PID.i_gain_yaw, 8);
+    doc["pid_d_gain_yaw"] = formatFloat(PID.d_gain_yaw, 8);
 
 }
 
 String PID_Webserver::updatePIDFromRequest(AsyncWebServerRequest *request)
 {
-    // PIDgains PID = pid.getGains(); // Get current PID gains to update only the ones provided in the request
-    //We should be setting the gains here not getting them 
-    PIDgains PID; 
+    // Start from current gains, then override only parameters that were sent.
+    // This prevents uninitialized values from corrupting untouched fields.
+    PIDgains PID = pid.getGains();
 
     String response = "";
 
@@ -272,11 +272,6 @@ String PID_Webserver::updatePIDFromRequest(AsyncWebServerRequest *request)
     PID.p_gain_pitch = PID.p_gain_roll;
     PID.i_gain_pitch = PID.i_gain_roll;
     PID.d_gain_pitch = PID.d_gain_roll;
-
-    // The following yaw was assigned to roll instead of yaw, 
-    PID.p_gain_yaw = PID.p_gain_yaw; 
-    PID.i_gain_yaw = PID.i_gain_yaw;
-    PID.d_gain_yaw = PID.d_gain_yaw;
 
     // Update Yaw PID parameters
     updateParamFloat("pid_p_gain_yaw", PID.p_gain_yaw);

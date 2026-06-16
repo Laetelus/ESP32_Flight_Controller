@@ -66,8 +66,27 @@ function clampValue(val) {
     return val
 }
 
+function stripTrailingZeros(str) {
+    return str
+        .replace(/(\.\d*?[1-9])0+$/, '$1')
+        .replace(/\.0+$/, '')
+}
+
 function formatPID(val) {
-    return clampValue(val).toFixed(3)
+    if (!Number.isFinite(val)) return ''
+    const clamped = clampValue(val)
+    return stripTrailingZeros(String(clamped))
+}
+
+function normalizeIncomingValue(value) {
+    if (value === null || value === undefined) return ''
+    const text = String(value).trim()
+    if (text === '') return ''
+
+    const num = Number(text)
+    if (!Number.isFinite(num)) return ''
+
+    return formatPID(num)
 }
 
 function incrementValue(inputId) {
@@ -113,10 +132,20 @@ function getPID() {
 }
 
 function setField(id, value) {
-    let v = parseFloat(value) || 0
-    let formatted = formatPID(v)
-    document.getElementById(id).value = formatted
-    document.getElementById('current-' + id).textContent = `(Current: ${formatted})`
+    const formatted = normalizeIncomingValue(value)
+    const input = document.getElementById(id)
+    const current = document.getElementById('current-' + id)
+
+    current.textContent = formatted === '' ? '' : `(Current: ${formatted})`
+
+    // Keep editable inputs empty until the user enters/adjusts a value.
+    // This prevents the UI from auto-filling 0 or poll values into the boxes.
+    if (input.value.trim() === '') {
+        return
+    }
+
+    // If user already has a value in the input, keep it synced with backend value.
+    input.value = formatted
 }
 
 function updatePIDDisplay(data) {
@@ -148,14 +177,28 @@ function updatePID() {
     // Indicate that updates are being processed
     isUpdating = true
 
-    // Prepare your data for sending
-    const data = {
-        pid_p_gain_roll: document.getElementById('p-gain-roll').value,
-        pid_i_gain_roll: document.getElementById('i-gain-roll').value,
-        pid_d_gain_roll: document.getElementById('d-gain-roll').value,
-        pid_p_gain_yaw: document.getElementById('p-gain-yaw').value,
-        pid_i_gain_yaw: document.getElementById('i-gain-yaw').value,
-        pid_d_gain_yaw: document.getElementById('d-gain-yaw').value,
+    // Prepare only fields the user actually filled in.
+    const fieldMap = {
+        pid_p_gain_roll: 'p-gain-roll',
+        pid_i_gain_roll: 'i-gain-roll',
+        pid_d_gain_roll: 'd-gain-roll',
+        pid_p_gain_yaw: 'p-gain-yaw',
+        pid_i_gain_yaw: 'i-gain-yaw',
+        pid_d_gain_yaw: 'd-gain-yaw',
+    }
+
+    const data = {}
+    Object.keys(fieldMap).forEach((key) => {
+        const raw = document.getElementById(fieldMap[key]).value.trim()
+        if (raw !== '') {
+            data[key] = raw
+        }
+    })
+
+    if (Object.keys(data).length === 0) {
+        showToast('\u2717 No PID fields entered.', true)
+        isUpdating = false
+        return
     }
 
     // Convert the data object into a URL-encoded string
